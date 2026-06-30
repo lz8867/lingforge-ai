@@ -1,0 +1,96 @@
+{
+  "thresholds": {
+    "minHeadingCount": 2,
+    "longParagraphChars": 240,
+    "duplicateRate": 0.12,
+    "averageSentenceLengthWarning": 70,
+    "averageSentenceLengthRisk": 90
+  },
+  "documentTypes": [
+    {
+      "typeKeywords": ["技术", "设计", "架构"],
+      "requiredEvidence": [
+        {
+          "issueId": "MISSING_DATA_MODEL",
+          "severity": "P1",
+          "category": "完整性",
+          "description": "技术设计文档缺少可落地的数据模型或字段说明。",
+          "suggestion": "补充数据模型：核心实体、字段含义、关系和持久化边界。",
+          "evidenceMessage": "RAG 未检索到可支撑数据模型的正文片段。",
+          "matcher": "keyword_or_rag",
+          "ragRequirementId": "data_model",
+          "keywordGroups": [["数据模型", "数据结构", "实体", "字段", "表结构", "er图", "documentqualitytask"]]
+        },
+        {
+          "issueId": "MISSING_API_CONTRACT",
+          "severity": "P1",
+          "category": "完整性",
+          "description": "技术设计文档缺少接口契约，无法指导前后端或外部系统对接。",
+          "suggestion": "补充 API 路径、请求参数、响应结构、错误码和鉴权边界。",
+          "evidenceMessage": "RAG 未检索到可支撑接口契约的正文片段。",
+          "matcher": "api_contract",
+          "ragRequirementId": "api_contract",
+          "keywordGroups": [
+            ["接口", "api", "endpoint", "/api"],
+            ["请求", "响应", "返回", "入参", "出参", "错误码", "post ", "get ", "post /", "get /"]
+          ]
+        },
+        {
+          "issueId": "MISSING_ACCEPTANCE_CRITERIA",
+          "severity": "P1",
+          "category": "完整性",
+          "description": "缺少验收标准或测试策略，交付质量无法闭环。",
+          "suggestion": "补充可执行验收条件、关键测试用例和失败判定标准。",
+          "evidenceMessage": "RAG 未检索到验收或测试证据。",
+          "matcher": "keyword_or_rag",
+          "ragRequirementId": "acceptance",
+          "keywordGroups": [["验收", "测试", "测试用例", "成功标准", "验收标准", "准入", "退出标准"]]
+        },
+        {
+          "issueId": "MISSING_RISK_HANDLING",
+          "severity": "P1",
+          "category": "实用性",
+          "description": "缺少异常、风险、降级或回滚处理，真实落地存在不可控风险。",
+          "suggestion": "补充异常分支、风险清单、降级策略和回滚方案。",
+          "evidenceMessage": "RAG 未检索到风险、异常或降级处理证据。",
+          "matcher": "risk_handling",
+          "ragRequirementId": "risk_handling",
+          "keywordGroups": [
+            ["风险", "异常", "回滚", "降级", "熔断", "兜底"],
+            ["处理", "方案", "策略", "解决", "排查", "脱敏"]
+          ]
+        }
+      ]
+    },
+    {
+      "typeKeywords": ["知识", "sop", "操作", "业务"],
+      "requiredEvidence": [
+        {
+          "issueId": "MISSING_OPERATION_FLOW",
+          "severity": "P1",
+          "category": "完整性",
+          "description": "操作类文档缺少清晰流程或步骤。",
+          "suggestion": "补充按顺序执行的操作步骤、输入输出和注意事项。",
+          "evidenceMessage": "未检测到流程或操作步骤。",
+          "matcher": "keyword_or_rag",
+          "ragRequirementId": "structure",
+          "keywordGroups": [["步骤", "流程", "操作", "处理"]]
+        },
+        {
+          "issueId": "MISSING_EXCEPTION_HANDLING",
+          "severity": "P2",
+          "category": "实用性",
+          "description": "缺少异常处理说明，读者遇到失败场景时无法自助处理。",
+          "suggestion": "补充常见失败原因、排查路径和兜底处理方式。",
+          "evidenceMessage": "未检测到异常处理或排查说明。",
+          "matcher": "risk_handling",
+          "ragRequirementId": "risk_handling",
+          "keywordGroups": [
+            ["异常", "风险", "失败", "回滚", "排查", "兜底"],
+            ["处理", "说明", "路径", "方式", "方案"]
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图像建模 Demo - Spring AI Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        secondary: '#34d399',
+                        warning: '#fbbf24',
+                        danger: '#fb7185',
+                        dark: '#07111f'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <style>
+        body[data-app-page="modeling-demo"] {
+            color: #dff8ff;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-demo-shell {
+            width: min(100%, var(--app-shell-wide, 1840px));
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 10px;
+            margin: 0 auto;
+            padding: 0 var(--app-edge-gutter, 18px) 14px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage {
+            min-width: 0;
+            min-height: 58px;
+            display: grid;
+            grid-template-columns: 34px minmax(0, 1fr);
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            background: rgba(6, 18, 32, 0.76);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage.is-active {
+            border-color: rgba(34, 211, 238, 0.64);
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.17), rgba(52, 211, 153, 0.08));
+            box-shadow: 0 16px 34px rgba(34, 211, 238, 0.14);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage i {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage strong,
+        body[data-app-page="modeling-demo"] .modeling-stage span {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage strong {
+            color: #f4fbff;
+            font-size: 13px;
+            line-height: 1.1;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage span {
+            margin-top: 3px;
+            color: #91aec4;
+            font-size: 11px;
+            line-height: 1.1;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-workbench {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(320px, 0.42fr) minmax(520px, 1fr) minmax(300px, 0.34fr);
+            gap: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-panel {
+            min-width: 0;
+            min-height: 0;
+            display: grid;
+            align-content: start;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid rgba(125, 211, 252, 0.2);
+            border-radius: 8px;
+            background:
+                linear-gradient(180deg, rgba(10, 26, 45, 0.84), rgba(5, 14, 28, 0.78)),
+                radial-gradient(circle at 12% 0%, rgba(34, 211, 238, 0.12), transparent 18rem);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-panel-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: #f4fbff;
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-panel-title span {
+            min-width: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-panel {
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            align-content: stretch;
+            overflow: hidden;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-scroll {
+            min-height: 0;
+            display: grid;
+            gap: 10px;
+            overflow: auto;
+            padding-right: 4px;
+            scrollbar-gutter: stable;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-submit-bar {
+            display: grid;
+            gap: 8px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(125, 211, 252, 0.18);
+            background: linear-gradient(180deg, rgba(6, 18, 32, 0), rgba(6, 18, 32, 0.86) 34%);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-submit-meta {
+            color: #91aec4;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-zone {
+            position: relative;
+            min-height: 210px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: 1px dashed rgba(125, 211, 252, 0.36);
+            border-radius: 8px;
+            background: rgba(2, 8, 18, 0.62);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-zone input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        body[data-app-page="modeling-demo"] #model-source-preview {
+            width: 100%;
+            height: 100%;
+            min-height: 210px;
+            object-fit: cover;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-empty {
+            display: grid;
+            justify-items: center;
+            gap: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #91aec4;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-empty i {
+            width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.12);
+            font-size: 20px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample {
+            min-width: 0;
+            min-height: 92px;
+            display: grid;
+            align-content: end;
+            gap: 4px;
+            padding: 9px;
+            overflow: hidden;
+            border: 1px solid rgba(125, 211, 252, 0.2);
+            border-radius: 8px;
+            color: #ecfeff;
+            background-size: cover;
+            background-position: center;
+            text-align: left;
+            box-shadow: inset 0 -56px 70px rgba(0, 0, 0, 0.52);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample:hover,
+        body[data-app-page="modeling-demo"] .modeling-sample.is-active {
+            border-color: rgba(34, 211, 238, 0.72);
+            transform: translateY(-1px);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample strong,
+        body[data-app-page="modeling-demo"] .modeling-sample span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample strong {
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample span {
+            color: #c7f9ff;
+            font-size: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] textarea,
+        body[data-app-page="modeling-demo"] select,
+        body[data-app-page="modeling-demo"] input[type="range"] {
+            width: 100%;
+        }
+
+        body[data-app-page="modeling-demo"] textarea,
+        body[data-app-page="modeling-demo"] select {
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            border-radius: 8px;
+            color: #e0f7ff;
+            background: rgba(2, 8, 18, 0.72);
+            outline: none;
+        }
+
+        body[data-app-page="modeling-demo"] textarea:focus,
+        body[data-app-page="modeling-demo"] select:focus {
+            border-color: rgba(34, 211, 238, 0.64);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 7px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button,
+        body[data-app-page="modeling-demo"] .modeling-action,
+        body[data-app-page="modeling-demo"] .modeling-icon-button {
+            min-height: 34px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 8px;
+            color: #c8e9f5;
+            background: rgba(8, 19, 36, 0.76);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button:hover,
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button.is-active,
+        body[data-app-page="modeling-demo"] .modeling-action:hover,
+        body[data-app-page="modeling-demo"] .modeling-icon-button:hover {
+            border-color: rgba(34, 211, 238, 0.62);
+            color: #ecfeff;
+            background: rgba(34, 211, 238, 0.16);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-action.is-primary {
+            min-height: 42px;
+            color: #04111f;
+            border-color: rgba(103, 232, 249, 0.8);
+            background: linear-gradient(135deg, #22d3ee, #34d399);
+            box-shadow: 0 18px 34px rgba(34, 211, 238, 0.22);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-action[disabled] {
+            cursor: not-allowed;
+            opacity: 0.58;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-range-row {
+            display: grid;
+            gap: 6px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-range-row label {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            color: #bed5e6;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-panel {
+            grid-template-rows: auto minmax(0, 1fr) auto;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame {
+            position: relative;
+            min-height: 520px;
+            overflow: hidden;
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            border-radius: 8px;
+            background:
+                radial-gradient(circle at 50% 52%, rgba(34, 211, 238, 0.16), transparent 18rem),
+                linear-gradient(180deg, rgba(2, 8, 18, 0.9), rgba(4, 12, 25, 0.94));
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            pointer-events: none;
+            opacity: 0;
+            background:
+                linear-gradient(180deg, transparent 0%, rgba(34, 211, 238, 0.28) 47%, rgba(52, 211, 153, 0.2) 52%, transparent 100%);
+            transform: translateY(-100%);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-running::before {
+            opacity: 1;
+            animation: modeling-scan-line 1.4s linear infinite;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-generated {
+            border-color: rgba(52, 211, 153, 0.58);
+            box-shadow:
+                0 0 0 1px rgba(52, 211, 153, 0.18),
+                0 22px 60px rgba(34, 211, 238, 0.18),
+                inset 0 0 56px rgba(52, 211, 153, 0.1);
+        }
+
+        @keyframes modeling-scan-line {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+
+        body[data-app-page="modeling-demo"] #modeling-canvas {
+            width: 100%;
+            height: 100%;
+            min-height: 520px;
+            display: block;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-splat-viewer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            background: #020817;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-splat-viewer[hidden] {
+            display: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer #modeling-canvas {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer .modeling-splat-viewer {
+            z-index: 3;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer .modeling-viewer-overlay,
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer .modeling-viewer-tools,
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer .modeling-generation-state,
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer .modeling-completion-badge,
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-official-viewer .modeling-compare-toggle {
+            z-index: 4;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-overlay,
+        body[data-app-page="modeling-demo"] .modeling-viewer-tools {
+            position: absolute;
+            z-index: 2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-overlay {
+            left: 12px;
+            top: 12px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-tools {
+            right: 12px;
+            bottom: 12px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state,
+        body[data-app-page="modeling-demo"] .modeling-completion-badge,
+        body[data-app-page="modeling-demo"] .modeling-compare-toggle {
+            position: absolute;
+            z-index: 2;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 8px;
+            background: rgba(3, 10, 20, 0.78);
+            backdrop-filter: blur(14px);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state {
+            left: 12px;
+            bottom: 12px;
+            max-width: min(360px, calc(100% - 118px));
+            display: grid;
+            gap: 3px;
+            padding: 9px 11px;
+            color: #dff8ff;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state strong {
+            color: #f4fbff;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state span {
+            color: #91aec4;
+            font-weight: 800;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state[data-state="running"] {
+            border-color: rgba(34, 211, 238, 0.56);
+            color: #ecfeff;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state[data-state="generated"] {
+            border-color: rgba(52, 211, 153, 0.62);
+            background: rgba(6, 78, 59, 0.78);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-summary {
+            min-height: 72px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(8, 25, 43, 0.88), rgba(2, 8, 18, 0.72));
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-copy {
+            min-width: 0;
+            display: grid;
+            gap: 4px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-copy strong,
+        body[data-app-page="modeling-demo"] .modeling-result-copy span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-copy strong {
+            color: #f4fbff;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-copy span {
+            color: #9fb8cd;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-source {
+            min-height: 28px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 5px 9px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 8px;
+            color: #dff8ff;
+            background: rgba(3, 10, 20, 0.78);
+            font-size: 11px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-summary[data-state="generated"] {
+            border-color: rgba(52, 211, 153, 0.46);
+            background:
+                linear-gradient(135deg, rgba(6, 78, 59, 0.42), rgba(2, 8, 18, 0.74));
+            box-shadow: inset 0 0 32px rgba(52, 211, 153, 0.08);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-summary[data-state="local"] {
+            border-color: rgba(34, 211, 238, 0.42);
+            background:
+                linear-gradient(135deg, rgba(14, 116, 144, 0.28), rgba(2, 8, 18, 0.74));
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-completion-badge {
+            right: 12px;
+            top: 12px;
+            display: grid;
+            gap: 2px;
+            min-width: 188px;
+            padding: 9px 11px;
+            color: #ecfeff;
+            box-shadow: 0 18px 42px rgba(52, 211, 153, 0.18);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-completion-badge[hidden] {
+            display: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-completion-badge strong {
+            color: #bbf7d0;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-completion-badge span {
+            color: #dff8ff;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-compare-toggle {
+            right: 12px;
+            top: 76px;
+            display: inline-grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px;
+            padding: 4px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-compare-toggle button {
+            min-height: 26px;
+            min-width: 62px;
+            border: 0;
+            border-radius: 6px;
+            color: #9fb8cd;
+            background: transparent;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-compare-toggle button.is-active {
+            color: #04111f;
+            background: linear-gradient(135deg, #67e8f9, #86efac);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-compare-toggle button:disabled {
+            cursor: not-allowed;
+            opacity: 0.46;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-pill {
+            min-height: 28px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 9px;
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            border-radius: 8px;
+            color: #dff8ff;
+            background: rgba(3, 10, 20, 0.76);
+            font-size: 11px;
+            font-weight: 900;
+            backdrop-filter: blur(12px);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-progress-track {
+            height: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(125, 211, 252, 0.14);
+        }
+
+        body[data-app-page="modeling-demo"] #modeling-progress {
+            width: 0%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #22d3ee, #34d399, #fbbf24);
+            transition: width 260ms ease;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-log {
+            min-height: 108px;
+            max-height: 144px;
+            overflow: auto;
+            padding: 10px;
+            border: 1px solid rgba(125, 211, 252, 0.16);
+            border-radius: 8px;
+            color: #9fb8cd;
+            background: rgba(2, 8, 18, 0.58);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric {
+            min-height: 76px;
+            display: grid;
+            align-content: center;
+            gap: 4px;
+            padding: 10px;
+            border: 1px solid rgba(125, 211, 252, 0.16);
+            border-radius: 8px;
+            background: rgba(2, 8, 18, 0.42);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric span {
+            color: #8ea7bc;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric strong {
+            color: #f8fdff;
+            font-size: 22px;
+            line-height: 1.1;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset-list {
+            display: grid;
+            gap: 8px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset {
+            display: grid;
+            grid-template-columns: 30px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 8px;
+            min-height: 48px;
+            padding: 8px;
+            border: 1px solid rgba(125, 211, 252, 0.16);
+            border-radius: 8px;
+            background: rgba(2, 8, 18, 0.42);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset i {
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset strong,
+        body[data-app-page="modeling-demo"] .modeling-asset span {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset strong {
+            color: #f4fbff;
+            font-size: 12px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset span {
+            color: #91aec4;
+            font-size: 11px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state {
+            min-height: 68px;
+            display: grid;
+            align-content: center;
+            gap: 5px;
+            padding: 10px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            color: #c8e9f5;
+            background: rgba(2, 8, 18, 0.46);
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.5;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state strong {
+            color: #f4fbff;
+            font-size: 12px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state span {
+            color: #91aec4;
+            font-size: 11px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state[data-state="ready"] {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(20, 83, 45, 0.2);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state[data-state="local"] {
+            border-color: rgba(251, 191, 36, 0.36);
+            background: rgba(120, 53, 15, 0.18);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state[data-state="local-complete"] {
+            border-color: rgba(34, 211, 238, 0.36);
+            background: rgba(8, 47, 73, 0.22);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state[data-state="error"] {
+            border-color: rgba(251, 113, 133, 0.38);
+            background: rgba(127, 29, 29, 0.18);
+        }
+
+        @media (max-width: 1280px) {
+            body[data-app-page="modeling-demo"] .modeling-workbench {
+                grid-template-columns: minmax(300px, 0.44fr) minmax(0, 1fr);
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-asset-panel {
+                grid-column: 1 / -1;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body[data-app-page="modeling-demo"] .modeling-demo-shell {
+                padding: 0 10px 12px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-workbench,
+            body[data-app-page="modeling-demo"] .modeling-asset-panel,
+            body[data-app-page="modeling-demo"] .modeling-metric-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage {
+                min-height: 52px;
+                grid-template-columns: 28px minmax(0, 1fr);
+                gap: 8px;
+                padding: 8px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage i {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage span {
+                display: none;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-control-panel > .modeling-panel-title {
+                order: 0;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-submit-bar {
+                order: 1;
+                position: sticky;
+                top: calc(var(--app-header-height) + 8px);
+                z-index: 3;
+                padding: 8px 0 10px;
+                border-top: 0;
+                border-bottom: 1px solid rgba(125, 211, 252, 0.18);
+                background: linear-gradient(180deg, rgba(6, 18, 32, 0.98), rgba(6, 18, 32, 0.88));
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-control-scroll {
+                order: 2;
+                overflow: visible;
+                padding-right: 0;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-viewer-frame,
+            body[data-app-page="modeling-demo"] #modeling-canvas {
+                min-height: 360px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-sample-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1181px) and (max-width: 1439px) {
+            body[data-app-layout="active"][data-app-page="modeling-demo"] main.modeling-demo-shell.app-workbench {
+                width: calc(100vw - var(--app-sidebar-width)) !important;
+                max-width: none !important;
+                height: calc(100vh - var(--app-header-height)) !important;
+                max-height: calc(100vh - var(--app-header-height)) !important;
+                grid-template-rows: auto 44px minmax(0, 1fr);
+                align-content: stretch;
+                gap: 7px;
+                padding: 6px 14px 10px !important;
+                overflow: hidden !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] main.modeling-demo-shell.app-workbench > .app-workbench-hero {
+                min-height: 34px;
+                padding: 0 0 4px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-heading {
+                gap: 0;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-trail {
+                font-size: 10px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-heading h1 {
+                font-size: 16px;
+                line-height: 1.05;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-chip {
+                min-height: 26px !important;
+                padding: 5px 8px !important;
+                font-size: 11px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage-grid.app-content-shell {
+                width: min(100%, var(--app-shell-wide)) !important;
+                height: 44px !important;
+                max-height: 44px !important;
+                min-height: 0 !important;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                align-items: stretch;
+                overflow: hidden !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage {
+                min-height: 0;
+                grid-template-columns: 26px minmax(0, 1fr);
+                gap: 7px;
+                padding: 5px 8px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage i {
+                width: 26px;
+                height: 26px;
+                font-size: 12px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage strong {
+                font-size: 11px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage span {
+                display: none;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-workbench.app-content-shell {
+                width: min(100%, var(--app-shell-wide)) !important;
+                max-width: var(--app-shell-wide) !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                min-height: 0 !important;
+                grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
+                grid-template-rows: minmax(0, 1fr) 148px;
+                align-items: stretch;
+                overflow: hidden !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-panel {
+                height: 100%;
+                max-height: 100%;
+                min-height: 0;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-control-panel {
+                grid-column: 1;
+                grid-row: 1;
+                overflow: hidden;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-viewer-panel {
+                grid-column: 2;
+                grid-row: 1;
+                grid-template-rows: auto minmax(0, 1fr) auto 72px;
+                overflow: hidden;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-asset-panel {
+                grid-column: 1 / -1;
+                grid-row: 2;
+                grid-template-columns: minmax(240px, 0.95fr) minmax(240px, 0.95fr) minmax(0, 1.12fr) minmax(280px, 0.9fr);
+                overflow: auto;
+                scrollbar-gutter: stable;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-result-summary {
+                min-height: 64px;
+                padding: 9px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-upload-zone {
+                min-height: 140px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] #model-source-preview {
+                min-height: 140px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-sample {
+                min-height: 62px;
+                padding: 7px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] #model-prompt {
+                min-height: 68px;
+                max-height: 82px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-action.is-primary {
+                min-height: 38px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-viewer-frame {
+                height: 100%;
+                min-height: 0 !important;
+                max-height: none;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] #modeling-canvas {
+                height: 100% !important;
+                min-height: 0 !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-log {
+                min-height: 0;
+                max-height: 72px;
+            }
+        }
+
+        @media (min-width: 1440px) {
+            body[data-app-layout="active"][data-app-page="modeling-demo"] main.modeling-demo-shell.app-workbench {
+                width: calc(100vw - var(--app-sidebar-width)) !important;
+                max-width: none !important;
+                height: calc(100vh - var(--app-header-height)) !important;
+                max-height: calc(100vh - var(--app-header-height)) !important;
+                grid-template-rows: auto 34px minmax(0, 1fr);
+                align-content: stretch;
+                gap: 7px;
+                padding: 6px 14px 10px !important;
+                overflow: hidden !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] main.modeling-demo-shell.app-workbench > .app-workbench-hero {
+                min-height: 34px;
+                padding: 0 0 4px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-heading {
+                gap: 0;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-trail {
+                font-size: 10px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-heading h1 {
+                font-size: 16px;
+                line-height: 1.05;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .app-workbench-chip {
+                min-height: 26px !important;
+                padding: 5px 8px !important;
+                font-size: 11px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage-grid.app-content-shell {
+                width: min(100%, var(--app-shell-wide)) !important;
+                height: 34px !important;
+                max-height: 34px !important;
+                min-height: 0 !important;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                align-items: stretch;
+                overflow: hidden !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage {
+                min-height: 0;
+                grid-template-columns: 24px minmax(0, 1fr);
+                gap: 7px;
+                padding: 4px 8px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage i {
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage strong {
+                font-size: 11px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage span {
+                display: none;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-workbench.app-content-shell {
+                width: min(100%, var(--app-shell-wide)) !important;
+                max-width: var(--app-shell-wide) !important;
+                height: 100% !important;
+                max-height: 100% !important;
+                min-height: 0 !important;
+                grid-template-columns: minmax(288px, 356px) minmax(540px, 1fr) minmax(286px, 342px);
+                align-items: stretch;
+                overflow: hidden !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-panel {
+                height: 100%;
+                max-height: 100%;
+                min-height: 0;
+                gap: 8px;
+                padding: 10px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-control-panel {
+                overflow: hidden;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-asset-panel {
+                overflow: auto;
+                scrollbar-gutter: stable;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-result-summary {
+                min-height: 66px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-upload-zone {
+                min-height: 156px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] #model-source-preview {
+                min-height: 156px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-sample {
+                min-height: 70px;
+                padding: 7px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] #model-prompt {
+                min-height: 78px;
+                max-height: 96px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-action.is-primary {
+                min-height: 38px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-viewer-panel {
+                grid-template-rows: auto minmax(0, 1fr) auto 88px;
+                overflow: hidden;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-viewer-frame {
+                height: 100%;
+                min-height: 0 !important;
+                max-height: none;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] #modeling-canvas {
+                height: 100% !important;
+                min-height: 0 !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-log {
+                min-height: 0;
+                max-height: 88px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter" data-app-page="modeling-demo">
+<header class="bg-white shadow-md">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <i class="fa fa-robot text-primary text-2xl"></i>
+            <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+        </div>
+        <nav class="flex space-x-4">
+            <a href="/index.html" class="text-gray-600 hover:text-primary transition-all-300"><i class="fa fa-home mr-1"></i> 首页</a>
+            <a href="/text-to-image.html" class="text-gray-600 hover:text-primary transition-all-300"><i class="fa fa-image mr-1"></i> 文生图</a>
+            <a href="/text-to-video.html" class="text-gray-600 hover:text-primary transition-all-300"><i class="fa fa-video-camera mr-1"></i> 文生视频</a>
+            <a href="/modeling-demo.html" class="text-primary font-medium border-b-2 border-primary pb-1"><i class="fa fa-cubes mr-1"></i> 图像建模</a>
+        </nav>
+    </div>
+</header>
+
+<main class="modeling-demo-shell app-workbench mx-auto py-4">
+    <section class="modeling-stage-grid" aria-label="图像建模流水线">
+        <article class="modeling-stage is-active" data-modeling-stage="input">
+            <i class="fa fa-picture-o"></i>
+            <div><strong>图像预处理</strong><span>去背景 / 视角归一</span></div>
+        </article>
+        <article class="modeling-stage" data-modeling-stage="splat">
+            <i class="fa fa-crosshairs"></i>
+            <div><strong>Splat 草模</strong><span>深度估计 / 点云补全</span></div>
+        </article>
+        <article class="modeling-stage" data-modeling-stage="mesh">
+            <i class="fa fa-cubes"></i>
+            <div><strong>网格重建</strong><span>ExtrudeGeometry 预览</span></div>
+        </article>
+        <article class="modeling-stage" data-modeling-stage="export">
+            <i class="fa fa-download"></i>
+            <div><strong>资产导出</strong><span>GLB 资产包 / Manifest</span></div>
+        </article>
+    </section>
+
+    <section class="modeling-workbench" aria-label="图像到 3D 建模工作台">
+        <aside class="modeling-panel modeling-control-panel">
+            <div class="modeling-panel-title">
+                <span><i class="fa fa-sliders"></i> 输入与参数</span>
+                <span class="modeling-pill" id="modeling-mode-badge">Speed</span>
+            </div>
+
+            <div class="modeling-control-scroll" aria-label="建模输入参数">
+            <label class="modeling-upload-zone" for="model-source-image" aria-label="上传参考图">
+                <input id="model-source-image" type="file" accept="image/*">
+                <img id="model-source-preview" alt="建模参考图预览" hidden>
+                <span id="model-source-empty" class="modeling-upload-empty">
+                    <i class="fa fa-cloud-upload"></i>
+                    <strong>上传单张参考图</strong>
+                    <small>支持产品、角色、建筑小物件；本地 Demo 会用图像颜色生成材质。</small>
+                </span>
+            </label>
+
+            <div>
+                <div class="modeling-panel-title mb-2"><span><i class="fa fa-th-large"></i> 示例素材</span></div>
+                <div class="modeling-sample-grid" id="modeling-samples" aria-label="示例参考图">
+                    <button type="button" class="modeling-sample" data-sample="sneaker" onclick="selectModelingSample('sneaker')">
+                        <strong>潮流运动鞋</strong><span>Product asset</span>
+                    </button>
+                    <button type="button" class="modeling-sample" data-sample="mascot" onclick="selectModelingSample('mascot')">
+                        <strong>IP 公仔</strong><span>Character prop</span>
+                    </button>
+                    <button type="button" class="modeling-sample" data-sample="chair" onclick="selectModelingSample('chair')">
+                        <strong>模块椅子</strong><span>Furniture mesh</span>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label for="model-prompt" class="block text-xs font-black text-slate-300 mb-2">建模描述</label>
+                <textarea id="model-prompt" rows="4" class="p-3 text-sm" placeholder="描述物体材质、用途和想要保留的细节，例如：半透明亚克力外壳，保留鞋底纹理，适合电商 3D 展示。"></textarea>
+            </div>
+
+            <div>
+                <label for="modeling-quality" class="block text-xs font-black text-slate-300 mb-2">生成策略</label>
+                <select id="modeling-quality" class="p-2 text-sm" onchange="syncModelingMode()">
+                    <option value="speed" selected>快速草模 · 4步</option>
+                    <option value="balanced">平衡预览 · 10步</option>
+                    <option value="quality">细节优先 · 20步</option>
+                </select>
+            </div>
+
+            <div class="modeling-toggle-row" role="group" aria-label="资产类型">
+                <button type="button" class="is-active" data-model-kind="product" onclick="setModelKind('product')">产品</button>
+                <button type="button" data-model-kind="character" onclick="setModelKind('character')">角色</button>
+                <button type="button" data-model-kind="space" onclick="setModelKind('space')">空间</button>
+            </div>
+
+            <div class="modeling-range-row">
+                <label for="view-count"><span>合成视角</span><strong id="view-count-value">8</strong></label>
+                <input id="view-count" type="range" min="4" max="16" value="8">
+            </div>
+
+            <div class="modeling-range-row">
+                <label for="face-budget"><span>面数预算</span><strong id="face-budget-value">42k</strong></label>
+                <input id="face-budget" type="range" min="12" max="96" step="2" value="42">
+            </div>
+            </div>
+
+            <div class="modeling-submit-bar">
+                <button type="button" id="modeling-generate-button" class="modeling-action is-primary" onclick="startModelingDemo()" aria-label="提交建模任务">
+                    <i class="fa fa-play-circle" aria-hidden="true"></i> 提交建模任务
+                </button>
+                <span class="modeling-submit-meta" id="modeling-submit-meta">提交会先走 Spring Boot 任务；未配置 TripoSplat 时仅生成本地联调资产。</span>
+            </div>
+        </aside>
+
+        <section class="modeling-panel modeling-viewer-panel">
+            <div class="modeling-panel-title">
+                <span><i class="fa fa-cube"></i> 3D 预览</span>
+                <span class="modeling-pill" id="modeling-status">等待输入</span>
+            </div>
+
+            <div class="modeling-viewer-frame">
+                <div class="modeling-viewer-overlay">
+                    <span class="modeling-pill"><i class="fa fa-circle text-cyan-300"></i><span id="modeling-asset-id">local-asset-001</span></span>
+                    <span class="modeling-pill"><i class="fa fa-magic"></i><span id="modeling-preview-label">网格预览</span></span>
+                </div>
+                <div class="modeling-completion-badge" id="modeling-completion-badge" hidden>
+                    <strong>生成完成</strong>
+                    <span id="modeling-completion-detail">本地预览资产已就绪</span>
+                </div>
+                <div class="modeling-compare-toggle" role="group" aria-label="生成前后对比">
+                    <button type="button" data-modeling-compare="before" onclick="toggleGeneratedComparison('before')" disabled>生成前</button>
+                    <button type="button" class="is-active" data-modeling-compare="after" onclick="toggleGeneratedComparison('after')" disabled>生成后</button>
+                </div>
+                <canvas id="modeling-canvas" aria-label="图像建模 3D 预览画布"></canvas>
+                <iframe id="modeling-splat-viewer" class="modeling-splat-viewer" title="TripoSplat 真实 3DGS 预览" hidden></iframe>
+                <div class="modeling-generation-state" id="modeling-generation-state" data-state="idle" aria-live="polite">
+                    <strong>待生成</strong>
+                    <span>当前是参考图草图态，点击提交后会显示生成态资产。</span>
+                </div>
+                <div class="modeling-viewer-tools" aria-label="3D 视图工具">
+                    <button type="button" class="modeling-icon-button px-3" onclick="resetModelingCamera()" title="重置视角">
+                        <i class="fa fa-crosshairs"></i>
+                    </button>
+                    <button type="button" class="modeling-icon-button px-3" onclick="toggleModelingWireframe()" title="切换线框">
+                        <i class="fa fa-connectdevelop"></i>
+                    </button>
+                    <button type="button" class="modeling-icon-button px-3" onclick="toggleModelingAutoRotate()" title="切换自动旋转">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modeling-progress-track" aria-label="生成进度">
+                <div id="modeling-progress"></div>
+            </div>
+
+            <pre id="modeling-log" class="modeling-log">等待参考图。页面会先检测 TripoSplat 服务；未配置时当前仅展示本地预览和联调资产。</pre>
+        </section>
+
+        <aside class="modeling-panel modeling-asset-panel">
+            <div class="modeling-result-summary" id="modeling-result-summary" data-state="idle">
+                <div class="modeling-result-copy">
+                    <strong id="modeling-result-title">等待建模任务</strong>
+                    <span id="modeling-result-detail">提交后这里汇总结果来源、可下载资产和下一步动作。</span>
+                </div>
+                <span class="modeling-result-source" id="modeling-result-source"><i class="fa fa-clock-o" aria-hidden="true"></i> 待生成</span>
+            </div>
+
+            <div>
+                <div class="modeling-panel-title mb-2">
+                    <span><i class="fa fa-bar-chart"></i> 资产指标</span>
+                    <span class="modeling-pill" id="modeling-source-badge">检测中</span>
+                </div>
+                <div class="modeling-metric-grid">
+                    <div class="modeling-metric"><span>几何复杂度</span><strong id="metric-geometry">--</strong></div>
+                    <div class="modeling-metric"><span>贴图分辨率</span><strong id="metric-texture">--</strong></div>
+                    <div class="modeling-metric"><span>视角一致性</span><strong id="metric-consistency">--</strong></div>
+                    <div class="modeling-metric"><span>预计体积</span><strong id="metric-size">--</strong></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="modeling-panel-title mb-2"><span><i class="fa fa-folder-open"></i> 输出资产</span></div>
+                <div class="modeling-asset-list">
+                    <div class="modeling-asset">
+                        <i class="fa fa-cube"></i>
+                        <div><strong id="asset-primary-name">preview.glb</strong><span id="asset-primary-desc">GLB 资产包 · 本地联调资产</span></div>
+                        <button type="button" id="asset-glb-download" class="modeling-action px-3" onclick="downloadModelingGlb()" disabled>下载</button>
+                    </div>
+                    <div class="modeling-asset">
+                        <i class="fa fa-dot-circle-o"></i>
+                        <div><strong id="asset-splat-name">point-cloud.splat</strong><span id="asset-splat-desc">Gaussian Splat 轨迹 · 本地生成</span></div>
+                        <button type="button" id="asset-splat-download" class="modeling-action px-3" onclick="downloadModelingSplat()" disabled>下载</button>
+                    </div>
+                    <div class="modeling-asset">
+                        <i class="fa fa-file-code-o"></i>
+                        <div><strong>manifest.json</strong><span>参数、指标和来源记录</span></div>
+                        <button type="button" id="asset-manifest-download" class="modeling-action px-3" onclick="downloadModelingManifest()" disabled>下载</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modeling-service-state" id="modeling-service-state" data-state="checking">
+                <strong>正在检测 TripoSplat 服务</strong>
+                <span>当前仅展示本地预览；真实建模服务未确认前，不把前端近似结果当作推理产物。</span>
+            </div>
+        </aside>
+    </section>
+</main>
+
+<footer class="bg-dark text-white py-6 mt-8">
+    <div class="container mx-auto px-4">
+        <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+    </div>
+</footer>
+
+<script type="module">
+    import * as THREE from '/vendor/three/three.module.min.js';
+    import { OrbitControls } from '/vendor/three/examples/jsm/controls/OrbitControls.js';
+
+    const modelingPipelineStages = [
+        { id: 'input', label: '图像预处理', progress: 18, log: '完成参考图裁剪、主体抠取和色板采样。' },
+        { id: 'splat', label: 'Splat 草模', progress: 46, log: '生成稀疏点云和多视角深度假设。' },
+        { id: 'mesh', label: '网格重建', progress: 78, log: '基于轮廓生成 ExtrudeGeometry 网格、亮面材质和预览轮廓增强。' },
+        { id: 'export', label: '资产导出', progress: 100, log: '整理 GLB 资产包、SPLAT 轨迹和 manifest。' }
+    ];
+
+    const modelingRemoteStatusProgress = {
+        QUEUED: {
+            stageId: 'input',
+            progress: 20,
+            progressStep: 1,
+            detail: '任务已入队，等待 TripoSplat 引擎领取任务。'
+        },
+        RUNNING: {
+            stageId: 'splat',
+            progress: 46,
+            progressStep: 3,
+            detail: 'TripoSplat 正在推理，请保持场景可见。'
+        }
+    };
+    const REMOTE_MODELING_MAX_POLLS = 1800;
+    const REMOTE_MODELING_INITIAL_POLL_DELAY_MS = 320;
+    const REMOTE_MODELING_POLL_DELAY_MS = 2000;
+
+    const modelingSamples = {
+        sneaker: {
+            title: '潮流运动鞋',
+            kind: 'product',
+            prompt: '一只青绿色运动鞋，厚鞋底，半透明能量纹理，适合电商 3D 展示。',
+            colors: ['#22d3ee', '#34d399', '#111827'],
+            svg: sampleSvg('SNEAKER', '#22d3ee', '#34d399', '#111827')
+        },
+        mascot: {
+            title: 'IP 公仔',
+            kind: 'character',
+            prompt: '圆润的机器人 IP 公仔，发光面罩，软胶材质，适合盲盒资产预览。',
+            colors: ['#a78bfa', '#22d3ee', '#0f172a'],
+            svg: sampleSvg('MASCOT', '#a78bfa', '#22d3ee', '#0f172a')
+        },
+        chair: {
+            title: '模块椅子',
+            kind: 'space',
+            prompt: '模块化休闲椅，深色金属框架，青色织物座面，适合室内空间建模。',
+            colors: ['#fbbf24', '#22d3ee', '#0b1220'],
+            svg: sampleSvg('CHAIR', '#fbbf24', '#22d3ee', '#0b1220')
+        }
+    };
+
+    let scene;
+    let camera;
+    let renderer;
+    let controls;
+    let modelGroup;
+    let pointCloud;
+    let currentKind = 'product';
+    let currentSample = 'sneaker';
+    let currentColors = modelingSamples.sneaker.colors;
+    let currentImageShapePoints = null;
+    let currentImageMask = null;
+    let currentImageMaskSize = 0;
+    let currentImageMaskBounds = null;
+    let currentSourceImageFile = null;
+    let modelingCapability = null;
+    let remoteModelingJob = null;
+    let modelingComparisonMode = 'after';
+    let wireframeEnabled = false;
+    let autoRotate = true;
+    let modelingFinished = false;
+    let tripoSplatViewerBootTimeout = null;
+    let modelingGeneratedAssets = {
+        glb: null,
+        splat: null,
+        manifest: null,
+        manifestData: null
+    };
+
+    function sampleSvg(label, primary, secondary, base) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="720" height="520" viewBox="0 0 720 520">
+            <defs>
+                <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+                    <stop stop-color="${primary}" offset="0"/>
+                    <stop stop-color="${secondary}" offset=".62"/>
+                    <stop stop-color="${base}" offset="1"/>
+                </linearGradient>
+                <filter id="glow"><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            <rect width="720" height="520" fill="${base}"/>
+            <path d="M86 360 C170 208 288 148 430 176 C532 196 598 278 638 366 C468 430 264 428 86 360Z" fill="url(#g)" opacity=".88" filter="url(#glow)"/>
+            <path d="M176 344 C258 296 398 276 540 330" fill="none" stroke="#ecfeff" stroke-width="10" stroke-linecap="round" opacity=".78"/>
+            <circle cx="250" cy="210" r="38" fill="#ecfeff" opacity=".22"/>
+            <circle cx="506" cy="244" r="26" fill="#ecfeff" opacity=".18"/>
+            <text x="48" y="74" fill="#f8fdff" font-family="Inter,Arial" font-size="44" font-weight="800">${label}</text>
+            <text x="52" y="112" fill="#b8f7ff" font-family="Inter,Arial" font-size="18">reference image for local 3D modeling demo</text>
+        </svg>`;
+        return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+    }
+
+    function initModelingViewer() {
+        const canvas = document.getElementById('modeling-canvas');
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x06111f, 0.045);
+
+        camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+        camera.position.set(4.2, 3.2, 5.8);
+
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        controls = new OrbitControls(camera, canvas);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.minDistance = 2.8;
+        controls.maxDistance = 9.5;
+
+        const ambient = new THREE.AmbientLight(0xdff8ff, 0.62);
+        scene.add(ambient);
+
+        const keyLight = new THREE.DirectionalLight(0x67e8f9, 1.6);
+        keyLight.position.set(3, 5, 4);
+        scene.add(keyLight);
+
+        const rimLight = new THREE.PointLight(0x34d399, 2.2, 12);
+        rimLight.position.set(-3.2, 2.4, -2.6);
+        scene.add(rimLight);
+
+        const grid = new THREE.GridHelper(8, 24, 0x22d3ee, 0x164e63);
+        grid.position.y = -1.18;
+        grid.material.opacity = 0.28;
+        grid.material.transparent = true;
+        scene.add(grid);
+
+        modelGroup = new THREE.Group();
+        scene.add(modelGroup);
+
+        buildModelPreview({ completed: false });
+        resizeModelingViewer();
+        window.addEventListener('resize', resizeModelingViewer);
+        renderer.setAnimationLoop(animateModelingViewer);
+    }
+
+    function resizeModelingViewer() {
+        const canvas = document.getElementById('modeling-canvas');
+        const frame = canvas.parentElement;
+        const rect = frame.getBoundingClientRect();
+        const width = Math.max(320, Math.floor(rect.width));
+        const height = Math.max(320, Math.floor(rect.height));
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height, false);
+    }
+
+    function animateModelingViewer() {
+        if (autoRotate && modelGroup) {
+            modelGroup.rotation.y += modelingFinished ? 0.004 : 0.002;
+        }
+        if (pointCloud) {
+            pointCloud.rotation.y -= 0.0015;
+        }
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    function buildModelPreview(options = {}) {
+        if (!modelGroup) {
+            return;
+        }
+        hideOfficialTripoSplatViewer();
+        modelGroup.clear();
+        modelGroup.position.set(0, 0, 0);
+        modelGroup.rotation.set(0, 0, 0);
+        modelGroup.scale.set(1, 1, 1);
+        if (pointCloud) {
+            scene.remove(pointCloud);
+            pointCloud.geometry.dispose();
+            pointCloud.material.dispose();
+            pointCloud = null;
+        }
+
+        const completed = options.completed === true;
+        const quality = document.getElementById('modeling-quality')?.value || 'balanced';
+        const imageDriven = Array.isArray(currentImageShapePoints) && currentImageShapePoints.length >= 8;
+        if (imageDriven && currentKind === 'character') {
+            buildCharacterReliefPreview(completed);
+            addSplatPointCloud(completed);
+            fitModelPreviewBounds();
+            updateAssetLabel();
+            return;
+        }
+        const shape = imageDriven ? createImageDrivenShape() : currentKind === 'character' ? createMascotShape() : currentKind === 'space' ? createChairShape() : createProductShape();
+        const depth = imageDriven ? (completed ? 0.68 : 0.12) : currentKind === 'space' ? 0.64 : currentKind === 'character' ? 0.72 : 0.52;
+        const geometry = new THREE.ExtrudeGeometry(shape, {
+            depth,
+            bevelEnabled: true,
+            bevelSize: completed ? 0.09 : 0.04,
+            bevelThickness: completed ? 0.08 : 0.04,
+            bevelSegments: quality === 'quality' ? 8 : 4,
+            curveSegments: quality === 'speed' ? 16 : 32
+        });
+        geometry.center();
+
+        const material = createPreviewMaterial(completed);
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = imageDriven ? -0.06 : currentKind === 'product' ? -0.18 : 0;
+        mesh.scale.setScalar(imageDriven ? 0.98 : currentKind === 'space' ? 0.86 : 1);
+        modelGroup.add(mesh);
+        addPreviewOutline(mesh, completed);
+
+        if (imageDriven) {
+            addImageContourRim(completed);
+        } else {
+            addDetailRibs(completed);
+        }
+        addSplatPointCloud(completed);
+        fitModelPreviewBounds();
+        updateAssetLabel();
+    }
+
+    function createPreviewMaterial(completed) {
+        const texture = createReferenceTexture();
+        texture.anisotropy = renderer ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 1;
+        texture.needsUpdate = true;
+        const baseColor = new THREE.Color(currentColors[0]).lerp(new THREE.Color('#f8fdff'), completed ? 0.48 : 0.38);
+        const glowColor = new THREE.Color(currentColors[1]).lerp(new THREE.Color('#ecfeff'), 0.32);
+        return new THREE.MeshStandardMaterial({
+            color: baseColor,
+            roughness: completed ? 0.34 : 0.42,
+            metalness: currentKind === 'space' ? 0.22 : 0.08,
+            emissive: glowColor,
+            emissiveIntensity: completed ? 0.22 : 0.12,
+            wireframe: wireframeEnabled,
+            map: texture,
+            side: THREE.DoubleSide
+        });
+    }
+
+    function addPreviewOutline(mesh, completed) {
+        const outlineGeometry = new THREE.EdgesGeometry(mesh.geometry, 12);
+        const outlineMaterial = new THREE.LineBasicMaterial({
+            color: completed ? 0xecfeff : 0x67e8f9,
+            transparent: true,
+            opacity: completed ? 0.96 : 0.78,
+            depthTest: false
+        });
+        const outline = new THREE.LineSegments(outlineGeometry, outlineMaterial);
+        outline.position.copy(mesh.position);
+        outline.rotation.copy(mesh.rotation);
+        outline.scale.copy(mesh.scale).multiplyScalar(1.004);
+        outline.renderOrder = 4;
+        modelGroup.add(outline);
+    }
+
+    function fitModelPreviewBounds() {
+        const box = new THREE.Box3().setFromObject(modelGroup);
+        if (box.isEmpty()) {
+            return;
+        }
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+        const maxAxis = Math.max(size.x, size.y, size.z);
+        if (!Number.isFinite(maxAxis) || maxAxis <= 0) {
+            return;
+        }
+        const scale = Math.min(1.28, Math.max(0.56, 2.72 / maxAxis));
+        modelGroup.scale.setScalar(scale);
+        modelGroup.position.set(-center.x * scale, -center.y * scale + 0.04, -center.z * scale);
+        if (controls) {
+            controls.target.set(0, 0.04, 0);
+            controls.update();
+        }
+    }
+
+    function focusGeneratedAssetView(options = {}) {
+        autoRotate = false;
+        if (modelGroup) {
+            modelGroup.rotation.set(0, 0, 0);
+        }
+        if (camera) {
+            camera.position.set(0, 0.42, 5.6);
+            camera.lookAt(0, 0.06, 0);
+        }
+        if (controls) {
+            controls.target.set(0, 0.06, 0);
+            controls.update();
+        }
+        if (!options.silent) {
+            appendModelingLog('生成资产正面已锁定；可手动旋转查看侧面厚度。');
+        }
+    }
+
+    function clearTripoSplatViewerBootTimeout() {
+        if (tripoSplatViewerBootTimeout) {
+            window.clearTimeout(tripoSplatViewerBootTimeout);
+            tripoSplatViewerBootTimeout = null;
+        }
+    }
+
+    function showOfficialTripoSplatViewer(output) {
+        const iframe = document.getElementById('modeling-splat-viewer');
+        if (!iframe || !output?.downloadUrl) {
+            return false;
+        }
+        const frame = iframe.closest('.modeling-viewer-frame');
+        clearTripoSplatViewerBootTimeout();
+        setGenerationVisualState('running', '官方 SparkJS Viewer 已启动，等待初始化。');
+        appendModelingLog('官方 SparkJS Viewer 已启动。');
+        if (frame) {
+            frame.classList.add('is-official-viewer');
+        }
+        iframe.dataset.viewerLoading = 'true';
+        iframe.src = output.role === 'splat'
+            ? `/triposplat-viewer.html?splat=${encodeURIComponent(output.downloadUrl)}`
+            : `/triposplat-viewer.html?ply=${encodeURIComponent(output.downloadUrl)}`;
+        iframe.hidden = false;
+        document.getElementById('modeling-preview-label').textContent = output.role === 'splat'
+            ? '真实 3DGS 预览'
+            : '真实 PLY 诊断';
+        tripoSplatViewerBootTimeout = window.setTimeout(() => {
+            if (iframe.dataset.viewerLoading !== 'true') {
+                return;
+            }
+            delete iframe.dataset.viewerLoading;
+            appendModelingLog('官方 SparkJS Viewer 初始化仍在继续；保持真实 Viewer，不回退到本地预览。');
+            setGenerationVisualState('running', '官方 Viewer 初始化耗时较长，仍保持真实 SPLAT 视图。');
+        }, 16000);
+        appendModelingLog('已打开官方 SparkJS TripoSplat Viewer。');
+        return true;
+    }
+
+    function hideOfficialTripoSplatViewer() {
+        const iframe = document.getElementById('modeling-splat-viewer');
+        if (!iframe || iframe.hidden) {
+            return;
+        }
+        clearTripoSplatViewerBootTimeout();
+        delete iframe.dataset.viewerLoading;
+        iframe.closest('.modeling-viewer-frame')?.classList.remove('is-official-viewer');
+        iframe.hidden = true;
+        iframe.removeAttribute('src');
+    }
+
+    function handleTripoSplatViewerMessage(event) {
+        const iframe = document.getElementById('modeling-splat-viewer');
+        if (!iframe || event?.data?.source !== 'spring-ai-triposplat-viewer') {
+            return;
+        }
+        if (iframe.contentWindow && event.source !== iframe.contentWindow) {
+            return;
+        }
+        if (event.data.type === 'triposplat-viewer-error') {
+            const message = event.data.message ? `（${event.data.message}）` : '（未知错误）';
+            clearTripoSplatViewerBootTimeout();
+            delete iframe.dataset.viewerLoading;
+            setGenerationVisualState('running', `官方 Viewer 解析失败，请下载产物诊断。${message}`);
+            appendModelingLog(`官方 SparkJS Viewer 解析失败，未回退到本地预览。${message}`);
+            const label = document.getElementById('modeling-preview-label');
+            if (label) {
+                label.textContent = '真实 Viewer 异常';
+            }
+            return;
+        }
+        if (event.data.type === 'triposplat-viewer-ready') {
+            clearTripoSplatViewerBootTimeout();
+            if (iframe) {
+                delete iframe.dataset.viewerLoading;
+            }
+            setGenerationVisualState('generated', '官方 SparkJS Viewer 已就绪，真实点云可交互浏览。');
+            appendModelingLog('官方 SparkJS Viewer 已就绪。');
+        }
+    }
+
+    function buildCharacterReliefPreview(completed) {
+        const textureResult = createCharacterReliefTexture(completed);
+        const height = 3.06;
+        const width = Math.min(2.54, height * textureResult.aspect);
+        const frontGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
+        const frontMaterial = new THREE.MeshBasicMaterial({
+            map: textureResult.texture,
+            color: 0xffffff,
+            transparent: true,
+            alphaTest: completed ? 0.06 : 0.08,
+            opacity: completed ? 0.98 : 0.68,
+            side: THREE.DoubleSide,
+            wireframe: wireframeEnabled
+        });
+        const front = new THREE.Mesh(frontGeometry, frontMaterial);
+        front.position.z = completed ? 0.2 : 0.04;
+        front.renderOrder = 6;
+
+        const plateGeometry = new THREE.ExtrudeGeometry(createImageDrivenShape(), {
+            depth: completed ? 0.24 : 0.06,
+            bevelEnabled: true,
+            bevelSize: completed ? 0.04 : 0.018,
+            bevelThickness: completed ? 0.038 : 0.016,
+            bevelSegments: completed ? 4 : 2,
+            curveSegments: 28
+        });
+        plateGeometry.center();
+        const plateMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(currentColors[0]).lerp(new THREE.Color('#e5faff'), 0.28),
+            roughness: 0.38,
+            metalness: 0.08,
+            emissive: currentColors[1],
+            emissiveIntensity: completed ? 0.3 : 0.06,
+            transparent: true,
+            opacity: completed ? 0.38 : 0.16,
+            side: THREE.DoubleSide,
+            wireframe: wireframeEnabled
+        });
+        const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+        plate.position.z = -0.08;
+
+        const relief = new THREE.Group();
+        relief.name = completed ? '轮廓浮雕资产' : '人物纹理浮雕预览';
+        relief.add(plate);
+        relief.add(front);
+        if (completed) {
+            addGeneratedReliefLayers(relief);
+        }
+        modelGroup.add(relief);
+        addPreviewOutline(plate, completed);
+        addImageContourRim(completed);
+    }
+
+    function addGeneratedReliefLayers(targetGroup) {
+        if (!currentImageShapePoints || currentImageShapePoints.length < 8) {
+            return;
+        }
+        const layerDepths = [-0.32, -0.24, -0.16, -0.08, 0];
+        const contourColor = new THREE.Color(currentColors[1]).lerp(new THREE.Color('#ecfeff'), 0.28);
+        layerDepths.forEach((z, index) => {
+            const backIndex = layerDepths.length - index - 1;
+            const layerGeometry = new THREE.ShapeGeometry(createImageDrivenShape());
+            const layerMaterial = new THREE.MeshStandardMaterial({
+                color: contourColor,
+                roughness: 0.28,
+                metalness: 0.16,
+                emissive: currentColors[1],
+                emissiveIntensity: 0.22 + backIndex * 0.025,
+                transparent: true,
+                opacity: 0.08 + backIndex * 0.034,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                wireframe: wireframeEnabled
+            });
+            const layer = new THREE.Mesh(layerGeometry, layerMaterial);
+            layer.name = 'modeling-contour-layer';
+            layer.position.z = z;
+            layer.scale.setScalar(1 + backIndex * 0.008);
+            layer.renderOrder = 2 + index;
+            targetGroup.add(layer);
+
+            const contourPoints = currentImageShapePoints.map((point) => new THREE.Vector3(point.x, point.y, z + 0.012));
+            const contourGeometry = new THREE.BufferGeometry().setFromPoints(contourPoints);
+            const contour = new THREE.LineLoop(contourGeometry, new THREE.LineBasicMaterial({
+                color: 0xecfeff,
+                transparent: true,
+                opacity: 0.18 + backIndex * 0.06,
+                depthTest: false
+            }));
+            contour.name = 'modeling-contour-layer';
+            contour.scale.copy(layer.scale);
+            contour.renderOrder = 5 + index;
+            targetGroup.add(contour);
+        });
+    }
+
+    function createCharacterReliefTexture(completed) {
+        const preview = document.getElementById('model-source-preview');
+        const imageWidth = Math.max(1, preview?.naturalWidth || 512);
+        const imageHeight = Math.max(1, preview?.naturalHeight || 512);
+        const crop = completed && currentImageMaskBounds
+            ? maskBoundsToImageCrop(currentImageMaskBounds, currentImageMaskSize, imageWidth, imageHeight)
+            : { x: 0, y: 0, width: imageWidth, height: imageHeight, maskBounds: null };
+        const aspect = crop.width / crop.height;
+        const maxSide = 768;
+        const canvas = document.createElement('canvas');
+        if (aspect >= 1) {
+            canvas.width = maxSide;
+            canvas.height = Math.max(320, Math.round(maxSide / aspect));
+        } else {
+            canvas.height = maxSide;
+            canvas.width = Math.max(320, Math.round(maxSide * aspect));
+        }
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(preview, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+        if (currentImageMask && currentImageMaskSize > 0) {
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const inactiveAlpha = completed ? 0 : 0.14;
+            for (let y = 0; y < canvas.height; y += 1) {
+                for (let x = 0; x < canvas.width; x += 1) {
+                    const maskX = textureMaskCoordinate(x, canvas.width, currentImageMaskSize, crop.maskBounds, 'x');
+                    const maskY = textureMaskCoordinate(y, canvas.height, currentImageMaskSize, crop.maskBounds, 'y');
+                    const maskActive = currentImageMask[maskY * currentImageMaskSize + maskX] === 1;
+                    const offset = (y * canvas.width + x) * 4;
+                    data[offset + 3] = maskActive ? data[offset + 3] : Math.round(data[offset + 3] * inactiveAlpha);
+                }
+            }
+            context.putImageData(imageData, 0, 0);
+        }
+        if (!completed) {
+            context.strokeStyle = 'rgba(236, 254, 255, .42)';
+            context.lineWidth = 4;
+            context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = renderer ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 1;
+        texture.needsUpdate = true;
+        return { texture, aspect };
+    }
+
+    function maskBoundsToImageCrop(bounds, maskSize, imageWidth, imageHeight) {
+        const safeSize = Math.max(1, maskSize || 1);
+        const left = Math.max(0, bounds.left);
+        const top = Math.max(0, bounds.top);
+        const right = Math.min(safeSize - 1, bounds.right);
+        const bottom = Math.min(safeSize - 1, bounds.bottom);
+        const padX = Math.max(3, Math.round((right - left + 1) * 0.08));
+        const padY = Math.max(3, Math.round((bottom - top + 1) * 0.08));
+        const padded = {
+            left: Math.max(0, left - padX),
+            top: Math.max(0, top - padY),
+            right: Math.min(safeSize - 1, right + padX),
+            bottom: Math.min(safeSize - 1, bottom + padY)
+        };
+        return {
+            x: padded.left / safeSize * imageWidth,
+            y: padded.top / safeSize * imageHeight,
+            width: Math.max(1, (padded.right - padded.left + 1) / safeSize * imageWidth),
+            height: Math.max(1, (padded.bottom - padded.top + 1) / safeSize * imageHeight),
+            maskBounds: padded
+        };
+    }
+
+    function textureMaskCoordinate(position, canvasLength, maskSize, bounds, axis) {
+        if (!bounds) {
+            return Math.min(maskSize - 1, Math.floor(position / canvasLength * maskSize));
+        }
+        const start = axis === 'x' ? bounds.left : bounds.top;
+        const end = axis === 'x' ? bounds.right : bounds.bottom;
+        const span = Math.max(1, end - start + 1);
+        return Math.min(maskSize - 1, Math.max(0, Math.floor(start + position / canvasLength * span)));
+    }
+
+    function createProductShape() {
+        const shape = new THREE.Shape();
+        shape.moveTo(-1.85, -0.46);
+        shape.bezierCurveTo(-1.2, -0.9, 0.26, -0.88, 1.92, -0.42);
+        shape.bezierCurveTo(1.76, 0.02, 1.26, 0.44, 0.42, 0.56);
+        shape.bezierCurveTo(-0.54, 0.72, -1.38, 0.4, -1.85, -0.46);
+        return shape;
+    }
+
+    function createMascotShape() {
+        const shape = new THREE.Shape();
+        shape.absellipse(0, 0, 1.12, 1.24, 0, Math.PI * 2, false, 0);
+        return shape;
+    }
+
+    function createChairShape() {
+        const shape = new THREE.Shape();
+        shape.moveTo(-1.15, -0.78);
+        shape.lineTo(1.12, -0.78);
+        shape.lineTo(1.12, 0.1);
+        shape.lineTo(0.46, 0.1);
+        shape.lineTo(0.46, 1.05);
+        shape.lineTo(-0.96, 1.05);
+        shape.lineTo(-0.96, 0.1);
+        shape.lineTo(-1.15, 0.1);
+        shape.lineTo(-1.15, -0.78);
+        return shape;
+    }
+
+    function createImageDrivenShape() {
+        const shape = new THREE.Shape();
+        currentImageShapePoints.forEach((point, index) => {
+            if (index === 0) {
+                shape.moveTo(point.x, point.y);
+                return;
+            }
+            shape.lineTo(point.x, point.y);
+        });
+        shape.closePath();
+        return shape;
+    }
+
+    function addImageContourRim(completed) {
+        if (!currentImageShapePoints || currentImageShapePoints.length < 2) {
+            return;
+        }
+        const rimMaterial = new THREE.MeshStandardMaterial({
+            color: currentColors[1],
+            roughness: 0.32,
+            metalness: 0.18,
+            emissive: currentColors[1],
+            emissiveIntensity: completed ? 0.32 : 0.14,
+            wireframe: wireframeEnabled
+        });
+        const every = Math.max(2, Math.floor(currentImageShapePoints.length / 18));
+        currentImageShapePoints.forEach((point, index) => {
+            if (index % every !== 0) {
+                return;
+            }
+            const bead = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), rimMaterial.clone());
+            bead.position.set(point.x, point.y, 0.26);
+            modelGroup.add(bead);
+        });
+    }
+
+    function addDetailRibs(completed) {
+        const lineMaterial = new THREE.MeshStandardMaterial({
+            color: currentColors[1],
+            roughness: 0.36,
+            metalness: 0.25,
+            emissive: currentColors[1],
+            emissiveIntensity: completed ? 0.36 : 0.12,
+            wireframe: wireframeEnabled
+        });
+        const count = currentKind === 'space' ? 5 : 7;
+        for (let index = 0; index < count; index += 1) {
+            const bar = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.05, 0.92), lineMaterial.clone());
+            bar.position.set(-0.72 + index * 0.24, currentKind === 'character' ? 0.12 : -0.08 + Math.sin(index) * 0.12, 0.36);
+            bar.rotation.z = currentKind === 'product' ? -0.24 : 0;
+            modelGroup.add(bar);
+        }
+    }
+
+    function addSplatPointCloud(completed) {
+        const count = completed ? 680 : 72;
+        const positions = new Float32Array(count * 3);
+        for (let index = 0; index < count; index += 1) {
+            const radius = 1.25 + Math.random() * 0.45;
+            const angle = Math.random() * Math.PI * 2;
+            const height = (Math.random() - 0.5) * 1.7;
+            positions[index * 3] = Math.cos(angle) * radius;
+            positions[index * 3 + 1] = height;
+            positions[index * 3 + 2] = Math.sin(angle) * radius;
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            color: currentColors[1],
+            size: completed ? 0.024 : 0.018,
+            transparent: true,
+            opacity: completed ? 0.68 : 0.14
+        });
+        pointCloud = new THREE.Points(geometry, material);
+        scene.add(pointCloud);
+    }
+
+    function createReferenceTexture() {
+        const preview = document.getElementById('model-source-preview');
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const context = canvas.getContext('2d');
+        const gradient = context.createLinearGradient(0, 0, 256, 256);
+        gradient.addColorStop(0, currentColors[0]);
+        gradient.addColorStop(0.58, currentColors[1]);
+        gradient.addColorStop(1, currentColors[2]);
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, 256, 256);
+        if (preview && !preview.hidden && preview.complete) {
+            context.globalAlpha = 0.38;
+            context.drawImage(preview, 0, 0, 256, 256);
+            context.globalAlpha = 1;
+        }
+        context.strokeStyle = 'rgba(236, 254, 255, .34)';
+        context.lineWidth = 8;
+        context.strokeRect(22, 22, 212, 212);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        return texture;
+    }
+
+    function selectModelingSample(sampleId) {
+        const sample = modelingSamples[sampleId] || modelingSamples.sneaker;
+        currentSample = sampleId;
+        currentColors = sample.colors;
+        currentKind = sample.kind;
+        currentImageShapePoints = null;
+        currentImageMask = null;
+        currentImageMaskSize = 0;
+        currentImageMaskBounds = null;
+        currentSourceImageFile = null;
+        document.getElementById('model-prompt').value = sample.prompt;
+        const preview = document.getElementById('model-source-preview');
+        const empty = document.getElementById('model-source-empty');
+        preview.onload = () => {
+            if (currentSample === sampleId && !currentImageShapePoints) {
+                buildModelPreview({ completed: modelingFinished });
+            }
+        };
+        preview.src = sample.svg;
+        preview.hidden = false;
+        empty.hidden = true;
+        document.querySelectorAll('.modeling-sample').forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.sample === sampleId);
+            const sampleConfig = modelingSamples[button.dataset.sample];
+            if (sampleConfig) {
+                button.style.backgroundImage = `url("${sampleConfig.svg}")`;
+            }
+        });
+        document.querySelectorAll('[data-model-kind]').forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.modelKind === currentKind);
+        });
+        appendModelingLog(`已选择示例：${sample.title}`);
+        resetModelingResultState('当前是参考图草图态，点击提交后会显示生成态资产。');
+        buildModelPreview({ completed: false });
+    }
+
+    function handleSourceImage(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) {
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            appendModelingLog('请选择图片文件。');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+            const preview = document.getElementById('model-source-preview');
+            document.getElementById('model-source-empty').hidden = true;
+            currentSample = 'uploaded';
+            currentKind = 'character';
+            currentSourceImageFile = file;
+            preview.onload = () => {
+                const silhouette = extractUploadedImageSilhouette(preview);
+                currentImageShapePoints = silhouette.points;
+                currentImageMask = silhouette.mask;
+                currentImageMaskSize = silhouette.maskSize;
+                currentImageMaskBounds = silhouette.bounds;
+                currentColors = silhouette.colors;
+                document.querySelectorAll('[data-model-kind]').forEach((button) => {
+                    button.classList.toggle('is-active', button.dataset.modelKind === currentKind);
+                });
+                appendModelingLog(`已载入本地图片：${file.name}`);
+                if (silhouette.focusedForeground) {
+                    appendModelingLog('复杂背景前景已收敛：已降低烟雾、光斑和边缘背景对主体轮廓的影响。');
+                }
+                if (silhouette.centerForeground) {
+                    appendModelingLog('中心连通主体已提取：已剔除左右边框、装饰背景和离散噪点。');
+                }
+                appendModelingLog('人物纹理浮雕预览已启用：保留原图服饰、脸部和姿态纹理。');
+                appendModelingLog(`上传图轮廓已提取：${currentImageShapePoints.length} 个轮廓点，主体覆盖 ${Math.round(silhouette.coverage * 100)}%。`);
+                resetModelingResultState('已载入参考图，当前是生成前草图态。');
+                buildModelPreview({ completed: false });
+            };
+            preview.src = reader.result;
+            preview.hidden = false;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function extractUploadedImageSilhouette(image) {
+        const size = 96;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.drawImage(image, 0, 0, size, size);
+        const imageData = context.getImageData(0, 0, size, size);
+        const data = imageData.data;
+        const corners = [
+            pixelColor(data, 0, 0, size),
+            pixelColor(data, size - 1, 0, size),
+            pixelColor(data, 0, size - 1, size),
+            pixelColor(data, size - 1, size - 1, size)
+        ];
+        const background = averageColor(corners);
+        const mask = new Uint8Array(size * size);
+        let activeCount = 0;
+        let colorSampleCount = 0;
+        const colorSum = [0, 0, 0];
+
+        for (let y = 0; y < size; y += 1) {
+            for (let x = 0; x < size; x += 1) {
+                const offset = (y * size + x) * 4;
+                const alpha = data[offset + 3] / 255;
+                const colorDistance = Math.abs(data[offset] - background[0])
+                    + Math.abs(data[offset + 1] - background[1])
+                    + Math.abs(data[offset + 2] - background[2]);
+                const saturation = Math.max(data[offset], data[offset + 1], data[offset + 2])
+                    - Math.min(data[offset], data[offset + 1], data[offset + 2]);
+                const active = alpha > 0.18 && (colorDistance > 48 || saturation > 32);
+                if (active) {
+                    mask[y * size + x] = 1;
+                    activeCount += 1;
+                    colorSum[0] += data[offset];
+                    colorSum[1] += data[offset + 1];
+                    colorSum[2] += data[offset + 2];
+                    colorSampleCount += 1;
+                }
+            }
+        }
+        let coverage = activeCount / (size * size);
+        let focusedForeground = false;
+        if (coverage > 0.86) {
+            const refined = refineForegroundMaskForComplexBackground(data, size, background);
+            mask.set(refined.mask);
+            activeCount = refined.activeCount;
+            colorSampleCount = refined.colorSampleCount;
+            colorSum[0] = refined.colorSum[0];
+            colorSum[1] = refined.colorSum[1];
+            colorSum[2] = refined.colorSum[2];
+            coverage = activeCount / (size * size);
+            focusedForeground = true;
+        }
+
+        const centeredForeground = isolateCenteredForegroundComponent(mask, data, size);
+        if (centeredForeground) {
+            mask.set(centeredForeground.mask);
+            activeCount = centeredForeground.activeCount;
+            colorSampleCount = centeredForeground.colorSampleCount;
+            colorSum[0] = centeredForeground.colorSum[0];
+            colorSum[1] = centeredForeground.colorSum[1];
+            colorSum[2] = centeredForeground.colorSum[2];
+            coverage = activeCount / (size * size);
+            focusedForeground = focusedForeground || centeredForeground.refined;
+        }
+        const bounds = findMaskBounds(mask, size) || { left: 0, top: 0, right: size - 1, bottom: size - 1 };
+
+        const outline = [];
+        for (let y = 1; y < size - 1; y += 1) {
+            for (let x = 1; x < size - 1; x += 1) {
+                if (!mask[y * size + x]) {
+                    continue;
+                }
+                const edge = !mask[y * size + x - 1]
+                    || !mask[y * size + x + 1]
+                    || !mask[(y - 1) * size + x]
+                    || !mask[(y + 1) * size + x];
+                if (edge) {
+                    outline.push({ x, y });
+                }
+            }
+        }
+
+        const points = outline.length >= 12 ? simplifySilhouettePoints(orderSilhouettePoints(outline, size), 38) : fallbackSilhouettePoints();
+        const average = colorSampleCount > 0
+            ? colorSum.map((value) => Math.round(value / colorSampleCount))
+            : [34, 211, 238];
+        const primary = rgbToHex(average);
+        const secondary = rgbToHex([Math.min(255, average[0] + 42), Math.min(255, average[1] + 34), Math.min(255, average[2] + 24)]);
+        return {
+            points,
+            mask,
+            maskSize: size,
+            colors: [primary, secondary, '#111827'],
+            coverage,
+            focusedForeground,
+            centerForeground: Boolean(centeredForeground?.refined),
+            bounds
+        };
+    }
+
+    function refineForegroundMaskForComplexBackground(data, size, background) {
+        const scores = [];
+        for (let y = 1; y < size - 1; y += 1) {
+            for (let x = 1; x < size - 1; x += 1) {
+                const offset = (y * size + x) * 4;
+                const alpha = data[offset + 3] / 255;
+                const colorDistance = Math.abs(data[offset] - background[0])
+                    + Math.abs(data[offset + 1] - background[1])
+                    + Math.abs(data[offset + 2] - background[2]);
+                const localContrast = localContrastAt(data, size, x, y);
+                const centerX = (x - size * 0.5) / (size * 0.34);
+                const centerY = (y - size * 0.54) / (size * 0.44);
+                const centerWeight = Math.max(0, 1 - Math.hypot(centerX, centerY));
+                const verticalWeight = y > size * 0.12 && y < size * 0.96 ? 1 : 0.42;
+                const score = alpha * verticalWeight * (colorDistance * (0.42 + centerWeight * 0.82) + localContrast * 1.34 + centerWeight * 92);
+                scores.push({ x, y, score });
+            }
+        }
+        scores.sort((a, b) => b.score - a.score);
+        const keepCount = Math.max(620, Math.min(3400, Math.round(size * size * 0.34)));
+        const threshold = scores[Math.min(scores.length - 1, keepCount - 1)]?.score || 0;
+        const mask = new Uint8Array(size * size);
+        let activeCount = 0;
+        let colorSampleCount = 0;
+        const colorSum = [0, 0, 0];
+        scores.forEach((point) => {
+            const centerX = (point.x - size * 0.5) / (size * 0.46);
+            const centerY = (point.y - size * 0.54) / (size * 0.58);
+            const insideSubjectWindow = Math.hypot(centerX, centerY) < 1.12;
+            if (point.score < threshold || !insideSubjectWindow) {
+                return;
+            }
+            const index = point.y * size + point.x;
+            const offset = index * 4;
+            mask[index] = 1;
+            activeCount += 1;
+            colorSum[0] += data[offset];
+            colorSum[1] += data[offset + 1];
+            colorSum[2] += data[offset + 2];
+            colorSampleCount += 1;
+        });
+        return { mask, activeCount, colorSampleCount, colorSum };
+    }
+
+    function isolateCenteredForegroundComponent(mask, data, size) {
+        const visited = new Uint8Array(size * size);
+        let bestComponent = null;
+        let componentCount = 0;
+        const originalActiveCount = mask.reduce((sum, value) => sum + value, 0);
+        const directions = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1]
+        ];
+
+        for (let y = 0; y < size; y += 1) {
+            for (let x = 0; x < size; x += 1) {
+                const startIndex = y * size + x;
+                if (!mask[startIndex] || visited[startIndex]) {
+                    continue;
+                }
+                componentCount += 1;
+                const stack = [startIndex];
+                const indices = [];
+                let minX = x;
+                let maxX = x;
+                let minY = y;
+                let maxY = y;
+                let sumX = 0;
+                let sumY = 0;
+                visited[startIndex] = 1;
+                while (stack.length) {
+                    const index = stack.pop();
+                    const pointX = index % size;
+                    const pointY = Math.floor(index / size);
+                    indices.push(index);
+                    minX = Math.min(minX, pointX);
+                    maxX = Math.max(maxX, pointX);
+                    minY = Math.min(minY, pointY);
+                    maxY = Math.max(maxY, pointY);
+                    sumX += pointX;
+                    sumY += pointY;
+                    directions.forEach(([dx, dy]) => {
+                        const nextX = pointX + dx;
+                        const nextY = pointY + dy;
+                        if (nextX < 0 || nextX >= size || nextY < 0 || nextY >= size) {
+                            return;
+                        }
+                        const nextIndex = nextY * size + nextX;
+                        if (!mask[nextIndex] || visited[nextIndex]) {
+                            return;
+                        }
+                        visited[nextIndex] = 1;
+                        stack.push(nextIndex);
+                    });
+                }
+                const centerX = sumX / indices.length;
+                const centerY = sumY / indices.length;
+                const normalizedX = (centerX / size - 0.5) / 0.48;
+                const normalizedY = (centerY / size - 0.54) / 0.58;
+                const centrality = Math.max(0, 1 - Math.hypot(normalizedX, normalizedY));
+                const width = maxX - minX + 1;
+                const height = maxY - minY + 1;
+                const touchesSide = minX <= 1 || maxX >= size - 2;
+                const sideComponent = touchesSide && (centerX < size * 0.32 || centerX > size * 0.68);
+                const thinSideArtifact = sideComponent && width < size * 0.28 && height > size * 0.34;
+                const sidePenalty = thinSideArtifact ? 0.04 : sideComponent ? 0.16 : 1;
+                const topOnlyPenalty = maxY < size * 0.24 ? 0.28 : 1;
+                const score = indices.length * (0.68 + centrality * 1.72) * sidePenalty * topOnlyPenalty;
+                if (!bestComponent || score > bestComponent.score) {
+                    bestComponent = { indices, score };
+                }
+            }
+        }
+        if (!bestComponent || bestComponent.indices.length < size * size * 0.035) {
+            return null;
+        }
+        const nextMask = new Uint8Array(size * size);
+        let colorSampleCount = 0;
+        const colorSum = [0, 0, 0];
+        bestComponent.indices.forEach((index) => {
+            const offset = index * 4;
+            nextMask[index] = 1;
+            colorSum[0] += data[offset];
+            colorSum[1] += data[offset + 1];
+            colorSum[2] += data[offset + 2];
+            colorSampleCount += 1;
+        });
+        return {
+            mask: nextMask,
+            activeCount: bestComponent.indices.length,
+            colorSampleCount,
+            colorSum,
+            refined: componentCount > 1 || bestComponent.indices.length < originalActiveCount * 0.94
+        };
+    }
+
+    function findMaskBounds(mask, size) {
+        let left = size;
+        let top = size;
+        let right = -1;
+        let bottom = -1;
+        for (let y = 0; y < size; y += 1) {
+            for (let x = 0; x < size; x += 1) {
+                if (!mask[y * size + x]) {
+                    continue;
+                }
+                left = Math.min(left, x);
+                top = Math.min(top, y);
+                right = Math.max(right, x);
+                bottom = Math.max(bottom, y);
+            }
+        }
+        return right >= left && bottom >= top ? { left, top, right, bottom } : null;
+    }
+
+    function localContrastAt(data, size, x, y) {
+        const offset = (y * size + x) * 4;
+        const luma = data[offset] * 0.299 + data[offset + 1] * 0.587 + data[offset + 2] * 0.114;
+        const leftOffset = (y * size + x - 1) * 4;
+        const rightOffset = (y * size + x + 1) * 4;
+        const topOffset = ((y - 1) * size + x) * 4;
+        const bottomOffset = ((y + 1) * size + x) * 4;
+        const left = data[leftOffset] * 0.299 + data[leftOffset + 1] * 0.587 + data[leftOffset + 2] * 0.114;
+        const right = data[rightOffset] * 0.299 + data[rightOffset + 1] * 0.587 + data[rightOffset + 2] * 0.114;
+        const top = data[topOffset] * 0.299 + data[topOffset + 1] * 0.587 + data[topOffset + 2] * 0.114;
+        const bottom = data[bottomOffset] * 0.299 + data[bottomOffset + 1] * 0.587 + data[bottomOffset + 2] * 0.114;
+        return Math.abs(luma - left) + Math.abs(luma - right) + Math.abs(luma - top) + Math.abs(luma - bottom);
+    }
+
+    function orderSilhouettePoints(outline, size) {
+        const center = outline.reduce((acc, point) => {
+            acc.x += point.x;
+            acc.y += point.y;
+            return acc;
+        }, { x: 0, y: 0 });
+        center.x /= outline.length;
+        center.y /= outline.length;
+        const polarPoints = outline
+            .map((point) => ({
+                x: (point.x - center.x) / size * 3.4,
+                y: -(point.y - center.y) / size * 3.0,
+                angle: Math.atan2(point.y - center.y, point.x - center.x),
+                radius: Math.hypot(point.x - center.x, point.y - center.y)
+            }))
+            .sort((a, b) => a.angle - b.angle);
+        const bucketCount = 48;
+        const buckets = Array.from({ length: bucketCount }, () => null);
+        polarPoints.forEach((point) => {
+            const bucket = Math.max(0, Math.min(bucketCount - 1, Math.floor((point.angle + Math.PI) / (Math.PI * 2) * bucketCount)));
+            if (!buckets[bucket] || point.radius > buckets[bucket].radius) {
+                buckets[bucket] = point;
+            }
+        });
+        return buckets
+            .filter(Boolean)
+            .map(({ x, y }) => ({ x, y }));
+    }
+
+    function simplifySilhouettePoints(points, targetCount) {
+        if (points.length <= targetCount) {
+            return points;
+        }
+        const step = points.length / targetCount;
+        const simplified = [];
+        for (let index = 0; index < targetCount; index += 1) {
+            simplified.push(points[Math.floor(index * step)]);
+        }
+        return simplified;
+    }
+
+    function fallbackSilhouettePoints() {
+        const points = [];
+        for (let index = 0; index < 28; index += 1) {
+            const angle = index / 28 * Math.PI * 2;
+            points.push({ x: Math.cos(angle) * 1.12, y: Math.sin(angle) * 1.28 });
+        }
+        return points;
+    }
+
+    function pixelColor(data, x, y, width) {
+        const offset = (y * width + x) * 4;
+        return [data[offset], data[offset + 1], data[offset + 2]];
+    }
+
+    function averageColor(colors) {
+        return colors.reduce((acc, color) => {
+            acc[0] += color[0] / colors.length;
+            acc[1] += color[1] / colors.length;
+            acc[2] += color[2] / colors.length;
+            return acc;
+        }, [0, 0, 0]);
+    }
+
+    function rgbToHex(color) {
+        return '#' + color.map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, '0')).join('');
+    }
+
+    function setModelKind(kind) {
+        currentKind = kind;
+        document.querySelectorAll('[data-model-kind]').forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.modelKind === kind);
+        });
+        appendModelingLog(`资产类型切换为：${kind}`);
+        buildModelPreview({ completed: modelingFinished });
+    }
+
+    function syncModelingMode() {
+        const value = document.getElementById('modeling-quality').value;
+        document.getElementById('modeling-mode-badge').textContent = value === 'speed' ? 'Speed' : value === 'quality' ? 'Quality' : 'Balanced';
+        updateModelingSubmitMeta();
+        buildModelPreview({ completed: modelingFinished });
+    }
+
+    function resetModelingResultState(detail) {
+        modelingFinished = false;
+        modelingComparisonMode = 'after';
+        remoteModelingJob = null;
+        resetGeneratedAssets();
+        setAssetStates('等待生成');
+        clearMetrics();
+        setStatus('等待输入');
+        setModelingResultSummary(
+            'idle',
+            '等待建模任务',
+            detail || '提交后这里汇总结果来源、可下载资产和下一步动作。',
+            '待生成',
+            'fa-clock-o'
+        );
+        setGenerationVisualState('idle', detail || '当前是参考图草图态，点击提交后会显示生成态资产。');
+    }
+
+    async function initModelingCapability() {
+        setModelingServiceState(
+            'checking',
+            '正在检测 TripoSplat 服务',
+            '当前仅展示本地预览；真实建模服务未确认前，不把前端近似结果当作推理产物。',
+            '检测中'
+        );
+        try {
+            const response = await fetch('/api/modeling/capability', { headers: { Accept: 'application/json' } });
+            const payload = await response.json();
+            if (!payload.success) {
+                throw new Error(payload.message || '能力接口返回失败');
+            }
+            modelingCapability = payload.data || {};
+            renderModelingCapability(modelingCapability);
+        } catch (error) {
+            modelingCapability = { configured: false, message: error.message };
+            setModelingServiceState(
+                'error',
+                '建模服务状态未知',
+                `能力探测失败：${error.message}。仍可使用本地预览联调页面流程。`,
+                '状态未知'
+            );
+            appendModelingLog(`TripoSplat 能力探测失败：${error.message}`);
+        }
+    }
+
+    function renderModelingCapability(capability) {
+        if (capability.configured) {
+            const serviceUrl = capability.serviceUrl || '已配置服务';
+            setModelingServiceState(
+                'ready',
+                'TripoSplat 已配置',
+                `后端会提交真实建模任务到 ${serviceUrl}，完成后提供 PLY、SPLAT 与 manifest 下载。`,
+                '真实服务'
+            );
+            updateModelingSubmitMeta();
+            appendModelingLog('TripoSplat 能力检测通过，可以提交真实建模任务。');
+            return;
+        }
+        setModelingServiceState(
+            'local',
+            'TripoSplat 未配置',
+            '当前仅展示本地预览；点击提交会先走 Spring Boot 任务，并生成本地联调资产。',
+            '本地预览'
+        );
+        document.getElementById('modeling-submit-meta').textContent = '真实 3D 推理服务未配置；提交后会生成本地预览，不代表最终建模质量。';
+        appendModelingLog(capability.message || 'TripoSplat 未配置，当前仅展示本地预览。');
+    }
+
+    function isLocalTripoSplatService() {
+        const serviceUrl = String(modelingCapability?.serviceUrl || '').toLowerCase();
+        return serviceUrl.includes('127.0.0.1') || serviceUrl.includes('localhost') || serviceUrl.includes('[::1]') || serviceUrl.includes('::1');
+    }
+
+    function remoteModelingStepCount() {
+        const quality = document.getElementById('modeling-quality')?.value || 'speed';
+        if (modelingCapability?.configured && isLocalTripoSplatService()) {
+            return quality === 'quality' ? 20 : quality === 'balanced' ? 10 : 4;
+        }
+        return quality === 'quality' ? 30 : quality === 'balanced' ? 20 : 10;
+    }
+
+    function updateModelingSubmitMeta() {
+        const meta = document.getElementById('modeling-submit-meta');
+        if (!meta) {
+            return;
+        }
+        if (modelingCapability?.configured && isLocalTripoSplatService()) {
+            meta.textContent = `本机 CPU 会使用可用画质采样；当前策略将提交 ${remoteModelingStepCount()} 步真实 TripoSplat 任务，完成前不会切回本地预览。`;
+            return;
+        }
+        if (modelingCapability?.configured) {
+            meta.textContent = `提交后会优先调用真实 TripoSplat 服务；当前策略将提交 ${remoteModelingStepCount()} 步，服务不可用时才使用本地预览。`;
+            return;
+        }
+        meta.textContent = '真实 3D 推理服务未配置；提交后会生成本地预览，不代表最终建模质量。';
+    }
+
+    function setModelingServiceState(state, title, detail, badge) {
+        const panel = document.getElementById('modeling-service-state');
+        if (panel) {
+            panel.dataset.state = state;
+            const titleNode = panel.querySelector('strong');
+            const detailNode = panel.querySelector('span');
+            if (titleNode) {
+                titleNode.textContent = title;
+            }
+            if (detailNode) {
+                detailNode.textContent = detail;
+            }
+        }
+        const badgeNode = document.getElementById('modeling-source-badge');
+        if (badgeNode) {
+            badgeNode.textContent = badge;
+        }
+    }
+
+    function setModelingResultSummary(state, title, detail, sourceLabel, iconClass) {
+        const summary = document.getElementById('modeling-result-summary');
+        if (summary) {
+            summary.dataset.state = state;
+        }
+        const titleNode = document.getElementById('modeling-result-title');
+        const detailNode = document.getElementById('modeling-result-detail');
+        const sourceNode = document.getElementById('modeling-result-source');
+        if (titleNode) {
+            titleNode.textContent = title;
+        }
+        if (detailNode) {
+            detailNode.textContent = detail;
+        }
+        if (sourceNode) {
+            sourceNode.innerHTML = `<i class="fa ${iconClass || 'fa-info-circle'}" aria-hidden="true"></i> ${sourceLabel}`;
+        }
+    }
+
+    async function startModelingDemo() {
+        const button = document.getElementById('modeling-generate-button');
+        button.disabled = true;
+        button.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> 提交中...';
+        modelingFinished = false;
+        modelingComparisonMode = 'after';
+        remoteModelingJob = null;
+        resetGeneratedAssets();
+        hideOfficialTripoSplatViewer();
+        updateProgress(0, 'input');
+        setAssetStates('提交中');
+        setStatus('提交中');
+        clearMetrics();
+        setModelingResultSummary(
+            'running',
+            '任务已提交',
+            '正在创建后端建模任务，完成后会在这里汇总结果来源和可下载资产。',
+            '处理中',
+            'fa-spinner fa-spin'
+        );
+        setGenerationVisualState('running', '任务已提交，正在准备生成态预览。');
+        appendModelingLog(modelingCapability?.configured
+            ? '提交 Spring Boot 建模任务，优先调用 TripoSplat Python 适配服务。'
+            : '提交 Spring Boot 建模任务；当前 TripoSplat 未配置时会生成本地预览。');
+
+        try {
+            const submittedJob = await submitModelingJob();
+            remoteModelingJob = submittedJob;
+            applyRemoteModelingPollingState(submittedJob.status, 1, submittedJob.message);
+            appendModelingLog(`后端任务已创建：${submittedJob.jobId}，状态 ${submittedJob.status}。`);
+            const finishedJob = await pollModelingJob(submittedJob);
+            if (finishedJob && finishedJob.status === 'SUCCEEDED') {
+                await renderRemoteModelingJob(finishedJob);
+                button.disabled = false;
+                button.innerHTML = '<i class="fa fa-play-circle" aria-hidden="true"></i> 重新提交任务';
+                return;
+            }
+            if (finishedJob && finishedJob.localFallbackAllowed) {
+                appendModelingLog(`TripoSplat 服务未就绪：${finishedJob.message}`);
+                appendModelingLog('启动本地预览，保留可下载 GLB 用于流程联调。');
+                await runLocalModelingPipeline(button);
+                return;
+            }
+            if (finishedJob && finishedJob.status === 'RUNNING_TIMEOUT') {
+                renderRemoteModelingStillRunning(finishedJob, button);
+                return;
+            }
+            throw new Error(finishedJob?.message || '后端建模任务未返回可用结果。');
+        } catch (error) {
+            appendModelingLog(`后端建模任务不可用：${error.message}`);
+            appendModelingLog('启动本地预览，当前结果不是 TripoSplat 真实推理产物。');
+            await runLocalModelingPipeline(button);
+        }
+    }
+
+    async function runLocalModelingPipeline(button) {
+        modelingFinished = false;
+        modelingComparisonMode = 'after';
+        updateProgress(0, 'input');
+        setAssetStates('生成中');
+        setStatus('本地预览');
+        clearMetrics();
+        setModelingResultSummary(
+            'local',
+            '正在生成本地预览资产',
+            '真实服务暂不可用，页面会生成可下载的 GLB / SPLAT / Manifest 用于流程联调。',
+            '本地预览',
+            'fa-cube'
+        );
+        setGenerationVisualState('running', '本地预览流水线运行中，完成后会切换到更厚的生成态资产。');
+        document.getElementById('modeling-source-badge').textContent = '本地预览';
+        appendModelingLog('开始本地图像建模 Demo 流水线。');
+
+        for (const stage of modelingPipelineStages) {
+            updateProgress(stage.progress, stage.id);
+            setGenerationVisualState('running', `${stage.label}：${stage.log}`);
+            appendModelingLog(stage.log);
+            if (stage.id === 'mesh') {
+                buildModelPreview({ completed: true });
+            }
+            await wait(560);
+        }
+
+        modelingFinished = true;
+        buildModelPreview({ completed: true });
+        focusGeneratedAssetView();
+        fillMetrics();
+        modelingGeneratedAssets = buildGeneratedAssets();
+        setAssetStates('可下载');
+        setStatus('生成完成');
+        const assetDetail = `下载 GLB / SPLAT / Manifest；GLB ${formatBytes(modelingGeneratedAssets.glb.size)}，SPLAT ${formatBytes(modelingGeneratedAssets.splat.size)}。`;
+        setModelingResultSummary(
+            'local',
+            '本地预览资产已就绪',
+            assetDetail,
+            '本地预览',
+            'fa-check-circle'
+        );
+        setModelingServiceState(
+            'local-complete',
+            '本地预览模式',
+            '真实推理未配置；本次已生成可下载的本地联调资产，接入 TripoSplat 后会自动切换为真实产物。',
+            '本地预览'
+        );
+        setGenerationVisualState('generated', `本地预览资产已就绪：GLB ${formatBytes(modelingGeneratedAssets.glb.size)}，SPLAT ${formatBytes(modelingGeneratedAssets.splat.size)}。`);
+        button.disabled = false;
+        button.innerHTML = '<i class="fa fa-play-circle" aria-hidden="true"></i> 重新生成资产';
+        appendModelingLog(`本地轮廓浮雕资产已生成：preview.glb ${formatBytes(modelingGeneratedAssets.glb.size)}，point-cloud.splat ${formatBytes(modelingGeneratedAssets.splat.size)}。`);
+    }
+
+    function renderRemoteModelingStillRunning(job, button) {
+        remoteModelingJob = job;
+        modelingFinished = false;
+        setStatus('真实生成中');
+        setAssetStates('生成中');
+        updateProgress(96, 'splat');
+        setModelingResultSummary(
+            'running',
+            '真实 TripoSplat 任务仍在运行',
+            `${job.jobId} 仍由后端处理；CPU 推理耗时较长，页面不会再切换为本地预览。`,
+            '真实服务',
+            'fa-spinner fa-spin'
+        );
+        setGenerationVisualState('running', job.message || '真实建模任务仍在运行，等待后端产物返回。');
+        appendModelingLog(job.message || '真实建模任务仍在运行，已保持真实服务状态。');
+        button.disabled = true;
+        button.innerHTML = '<i class="fa fa-spinner fa-spin" aria-hidden="true"></i> 真实任务运行中';
+    }
+
+    function formatRemotePollingStatusDetail(profile, statusMessage) {
+        if (!profile || !statusMessage) {
+            return profile?.detail || '后端任务处理中。';
+        }
+        const safeMessage = String(statusMessage).trim();
+        if (!safeMessage) {
+            return profile.detail;
+        }
+        return `${profile.detail}（${safeMessage}）`;
+    }
+
+    function applyRemoteModelingPollingState(status, attempt, statusMessage) {
+        const normalizedStatus = String(status || '').toUpperCase();
+        const profile = modelingRemoteStatusProgress[normalizedStatus];
+        if (!profile) {
+            return;
+        }
+        const step = Math.max(1, Number(profile.progressStep) || 1);
+        const baseProgress = Number(profile.progress) || 0;
+        const progress = Math.min(96, baseProgress + Math.max(0, Number(attempt) || 0) * step);
+        const stageId = profile.stageId || 'input';
+        updateProgress(progress, stageId);
+        setGenerationVisualState('running', formatRemotePollingStatusDetail(profile, statusMessage));
+    }
+
+    async function submitModelingJob() {
+        const source = await currentSourceBlob();
+        const formData = new FormData();
+        formData.append('image', source.blob, source.name);
+        formData.append('prompt', document.getElementById('model-prompt').value.trim());
+        formData.append('kind', currentKind);
+        formData.append('quality', document.getElementById('modeling-quality').value);
+        formData.append('viewCount', document.getElementById('view-count').value);
+        formData.append('faceBudgetK', document.getElementById('face-budget').value);
+        formData.append('seed', '42');
+        formData.append('steps', String(remoteModelingStepCount()));
+        formData.append('guidanceScale', '3.0');
+        formData.append('numGaussians', String(normalizeGaussianCount(Number(document.getElementById('face-budget').value || 42) * 1024)));
+
+        const response = await fetch('/api/modeling/jobs', { method: 'POST', body: formData });
+        const payload = await response.json();
+        if (!payload.success) {
+            throw new Error(payload.message || '建模任务创建失败');
+        }
+        return payload.data;
+    }
+
+    async function pollModelingJob(initialJob) {
+        let job = initialJob;
+        let lastStatus = job.status;
+        for (let attempt = 0; attempt < REMOTE_MODELING_MAX_POLLS; attempt += 1) {
+            applyRemoteModelingPollingState(job.status, attempt + 1, job.message);
+            if (isTerminalModelingStatus(job.status)) {
+                return job;
+            }
+            await wait(attempt === 0 ? REMOTE_MODELING_INITIAL_POLL_DELAY_MS : REMOTE_MODELING_POLL_DELAY_MS);
+            const response = await fetch(`/api/modeling/jobs/${encodeURIComponent(job.jobId)}`);
+            const payload = await response.json();
+            if (!payload.success) {
+                throw new Error(payload.message || '查询建模任务失败');
+            }
+            job = payload.data;
+            remoteModelingJob = job;
+            if (job.status !== lastStatus) {
+                appendModelingLog(`后端任务状态：${job.status}，${job.message}`);
+                lastStatus = job.status;
+            }
+        }
+        return {
+            ...job,
+            status: 'RUNNING_TIMEOUT',
+            message: '真实建模任务仍在运行，页面已停止自动轮询；请稍后查询任务状态，不会切换为本地预览。'
+        };
+    }
+
+    async function renderRemoteModelingJob(job) {
+        remoteModelingJob = job;
+        modelingFinished = true;
+        modelingComparisonMode = 'after';
+        updateProgress(100, 'export');
+        setStatus('真实产物');
+        fillRemoteMetrics(job);
+        setRemoteAssetStates(job);
+        setGenerationVisualState('running', '远端任务已返回产物，开始启动官方 SPLAT Viewer。');
+        const officialViewerOpened = showOfficialTripoSplatViewer(findRemoteOutput('splat', 'splat.splat') || findRemoteOutput('ply', 'splat.ply'));
+        if (!officialViewerOpened) {
+            buildModelPreview({ completed: true });
+            focusGeneratedAssetView();
+        }
+        const outputNames = job.outputs.map((output) => output.name).join('、');
+        setModelingResultSummary(
+            'generated',
+            'TripoSplat 资产已就绪',
+            officialViewerOpened
+                ? `真实推理已完成，并已加载 ${findRemoteOutput('splat', 'splat.splat')?.name || 'splat.splat'} 官方 3DGS 预览。`
+                : `真实推理已完成，输出 ${outputNames || 'PLY / SPLAT / Manifest'}，可在下方下载。`,
+            '真实服务',
+            'fa-check-circle'
+        );
+        setModelingServiceState(
+            'ready',
+            'TripoSplat 真实产物',
+            '本次结果来自后端真实建模任务，可下载原始 PLY、SPLAT 和 manifest。',
+            '真实服务'
+        );
+        setGenerationVisualState('generated', officialViewerOpened
+            ? `真实产物已生成：${outputNames}。已启动 SparkJS 3DGS Viewer。`
+            : `真实产物已生成：${outputNames}。Three.js 点云预览已就绪。`);
+        document.getElementById('modeling-source-badge').textContent = 'TripoSplat';
+        document.getElementById('modeling-preview-label').textContent = officialViewerOpened ? '真实 3DGS 预览' : '真实资产预览';
+        appendModelingLog(`TripoSplat 真实产物已生成：${outputNames}。`);
+    }
+
+    async function renderRemoteTripoSplatPly(job) {
+        const ply = findRemoteOutput('ply', 'splat.ply');
+        if (!ply?.downloadUrl) {
+            appendModelingLog('真实 PLY 产物缺失，暂用本地预览展示。');
+            return false;
+        }
+        try {
+            const response = await fetch(ply.downloadUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const buffer = await response.arrayBuffer();
+            const cloud = parsePlyGaussianPointCloud(buffer);
+            if (!cloud.positions.length) {
+                throw new Error('PLY 中没有可显示的 vertex 数据');
+            }
+
+            modelGroup.clear();
+            modelGroup.position.set(0, 0, 0);
+            modelGroup.rotation.set(0, 0, 0);
+            modelGroup.scale.set(1, 1, 1);
+            if (pointCloud) {
+                scene.remove(pointCloud);
+                pointCloud.geometry.dispose();
+                pointCloud.material.dispose();
+                pointCloud = null;
+            }
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(cloud.positions, 3));
+            if (cloud.colors.length === cloud.positions.length) {
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(cloud.colors, 3));
+            }
+            geometry.computeBoundingBox();
+            geometry.computeBoundingSphere();
+
+            const material = new THREE.PointsMaterial({
+                size: cloud.pointSize,
+                sizeAttenuation: true,
+                vertexColors: cloud.colors.length === cloud.positions.length,
+                color: cloud.colors.length === cloud.positions.length ? 0xffffff : 0x67e8f9,
+                transparent: true,
+                opacity: 0.96,
+                depthWrite: false
+            });
+            const points = new THREE.Points(geometry, material);
+            points.name = 'tripo-splat-ply-point-cloud';
+            points.rotation.y = Math.PI / 2;
+
+            const tripoGroup = new THREE.Group();
+            tripoGroup.name = 'tripo-splat-real-gaussian-preview';
+            tripoGroup.rotation.x = Math.PI;
+            tripoGroup.add(points);
+            modelGroup.add(tripoGroup);
+
+            fitModelPreviewBounds();
+            focusGeneratedAssetView({ silent: true });
+            appendModelingLog(`真实 PLY 点云已加载：${cloud.vertexCount} 个 Gaussian 点。`);
+            return true;
+        } catch (error) {
+            appendModelingLog(`真实 PLY 点云加载失败：${error.message}。`);
+            return false;
+        }
+    }
+
+    function parsePlyGaussianPointCloud(buffer) {
+        const bytes = new Uint8Array(buffer);
+        const marker = new TextEncoder().encode('end_header');
+        const markerIndex = indexOfBytes(bytes, marker);
+        if (markerIndex < 0) {
+            throw new Error('PLY header 缺少 end_header');
+        }
+        let dataOffset = markerIndex + marker.length;
+        while (bytes[dataOffset] === 10 || bytes[dataOffset] === 13) {
+            dataOffset += 1;
+        }
+        const header = new TextDecoder('utf-8').decode(bytes.slice(0, markerIndex));
+        const lines = header.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+        const formatLine = lines.find((line) => line.startsWith('format ')) || '';
+        const isAscii = formatLine.includes('ascii');
+        const isBinaryLittleEndian = formatLine.includes('binary_little_endian');
+        if (!isAscii && !isBinaryLittleEndian) {
+            throw new Error(`暂不支持的 PLY 格式：${formatLine || 'unknown'}`);
+        }
+
+        let vertexCount = 0;
+        let readingVertex = false;
+        const properties = [];
+        lines.forEach((line) => {
+            const parts = line.split(/\s+/);
+            if (parts[0] === 'element') {
+                readingVertex = parts[1] === 'vertex';
+                if (readingVertex) {
+                    vertexCount = Number(parts[2] || 0);
+                }
+                return;
+            }
+            if (readingVertex && parts[0] === 'property' && parts[1] !== 'list') {
+                properties.push({ type: parts[1], name: parts[2] });
+            }
+        });
+        if (!vertexCount || properties.length === 0) {
+            throw new Error('PLY vertex 属性不完整');
+        }
+
+        const xIndex = properties.findIndex((property) => property.name === 'x');
+        const yIndex = properties.findIndex((property) => property.name === 'y');
+        const zIndex = properties.findIndex((property) => property.name === 'z');
+        if (xIndex < 0 || yIndex < 0 || zIndex < 0) {
+            throw new Error('PLY 缺少 x/y/z 坐标');
+        }
+
+        const colorIndexes = {
+            red: findPlyProperty(properties, ['red', 'diffuse_red', 'r']),
+            green: findPlyProperty(properties, ['green', 'diffuse_green', 'g']),
+            blue: findPlyProperty(properties, ['blue', 'diffuse_blue', 'b']),
+            fdc0: findPlyProperty(properties, ['f_dc_0']),
+            fdc1: findPlyProperty(properties, ['f_dc_1']),
+            fdc2: findPlyProperty(properties, ['f_dc_2'])
+        };
+        const positions = [];
+        const colors = [];
+        const pushVertex = (values) => {
+            const x = Number(values[xIndex]);
+            const y = Number(values[yIndex]);
+            const z = Number(values[zIndex]);
+            if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+                return;
+            }
+            positions.push(x, y, z);
+            const rgb = plyVertexColor(values, colorIndexes);
+            colors.push(rgb[0], rgb[1], rgb[2]);
+        };
+
+        if (isAscii) {
+            const text = new TextDecoder('utf-8').decode(bytes.slice(dataOffset));
+            text.split(/\r?\n/).slice(0, vertexCount).forEach((line) => {
+                if (!line.trim()) {
+                    return;
+                }
+                pushVertex(line.trim().split(/\s+/).map(Number));
+            });
+        } else {
+            const dataView = new DataView(buffer, dataOffset);
+            let offset = 0;
+            for (let row = 0; row < vertexCount; row += 1) {
+                const values = [];
+                for (const property of properties) {
+                    const read = readPlyScalar(dataView, offset, property.type);
+                    values.push(read.value);
+                    offset += read.bytes;
+                }
+                pushVertex(values);
+            }
+        }
+
+        const visibleVertexCount = positions.length / 3;
+        return {
+            positions,
+            colors,
+            vertexCount: visibleVertexCount,
+            pointSize: visibleVertexCount > 120000 ? 0.018 : visibleVertexCount > 60000 ? 0.024 : 0.032
+        };
+    }
+
+    function indexOfBytes(source, pattern) {
+        for (let index = 0; index <= source.length - pattern.length; index += 1) {
+            let matched = true;
+            for (let offset = 0; offset < pattern.length; offset += 1) {
+                if (source[index + offset] !== pattern[offset]) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    function findPlyProperty(properties, names) {
+        return properties.findIndex((property) => names.includes(property.name));
+    }
+
+    function plyVertexColor(values, indexes) {
+        if (indexes.red >= 0 && indexes.green >= 0 && indexes.blue >= 0) {
+            return [
+                normalizePlyRgb(values[indexes.red]),
+                normalizePlyRgb(values[indexes.green]),
+                normalizePlyRgb(values[indexes.blue])
+            ];
+        }
+        if (indexes.fdc0 >= 0 && indexes.fdc1 >= 0 && indexes.fdc2 >= 0) {
+            const sh0 = 0.28209479177387814;
+            return [
+                clamp01(values[indexes.fdc0] * sh0 + 0.5),
+                clamp01(values[indexes.fdc1] * sh0 + 0.5),
+                clamp01(values[indexes.fdc2] * sh0 + 0.5)
+            ];
+        }
+        const fallback = new THREE.Color(currentColors[1] || '#67e8f9');
+        return [fallback.r, fallback.g, fallback.b];
+    }
+
+    function normalizePlyRgb(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) {
+            return 1;
+        }
+        return clamp01(number > 1 ? number / 255 : number);
+    }
+
+    function clamp01(value) {
+        return Math.min(1, Math.max(0, Number(value) || 0));
+    }
+
+    function readPlyScalar(dataView, offset, type) {
+        switch (type) {
+            case 'char':
+            case 'int8':
+                return { value: dataView.getInt8(offset), bytes: 1 };
+            case 'uchar':
+            case 'uint8':
+                return { value: dataView.getUint8(offset), bytes: 1 };
+            case 'short':
+            case 'int16':
+                return { value: dataView.getInt16(offset, true), bytes: 2 };
+            case 'ushort':
+            case 'uint16':
+                return { value: dataView.getUint16(offset, true), bytes: 2 };
+            case 'int':
+            case 'int32':
+                return { value: dataView.getInt32(offset, true), bytes: 4 };
+            case 'uint':
+            case 'uint32':
+                return { value: dataView.getUint32(offset, true), bytes: 4 };
+            case 'float':
+            case 'float32':
+                return { value: dataView.getFloat32(offset, true), bytes: 4 };
+            case 'double':
+            case 'float64':
+                return { value: dataView.getFloat64(offset, true), bytes: 8 };
+            default:
+                throw new Error(`不支持的 PLY 属性类型：${type}`);
+        }
+    }
+
+    async function currentSourceBlob() {
+        if (currentSourceImageFile) {
+            return { blob: currentSourceImageFile, name: currentSourceImageFile.name || 'uploaded-image.png' };
+        }
+        const preview = document.getElementById('model-source-preview');
+        if (!preview || preview.hidden || !preview.src) {
+            throw new Error('请先上传或选择参考图。');
+        }
+        const width = Math.max(320, preview.naturalWidth || 720);
+        const height = Math.max(320, preview.naturalHeight || 520);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(preview, 0, 0, width, height);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 0.92));
+        return { blob, name: `${currentSample || 'sample'}-reference.png` };
+    }
+
+    function normalizeGaussianCount(value) {
+        const clamped = Math.max(32768, Math.min(262144, Number.isFinite(value) ? value : 32768));
+        return Math.round(clamped / 32) * 32;
+    }
+
+    function isTerminalModelingStatus(status) {
+        return ['SUCCEEDED', 'FAILED', 'UNAVAILABLE'].includes(status);
+    }
+
+    function fillRemoteMetrics(job) {
+        const outputs = Array.isArray(job.outputs) ? job.outputs : [];
+        const totalBytes = outputs.reduce((sum, output) => sum + Number(output.bytes || 0), 0);
+        const gaussianCount = Number(job.metrics?.gaussians || job.request?.numGaussians || 0);
+        document.getElementById('metric-geometry').textContent = gaussianCount > 0 ? `${Math.round(gaussianCount / 1024)}k GS` : '--';
+        document.getElementById('metric-texture').textContent = 'PLY/SPLAT';
+        document.getElementById('metric-consistency').textContent = '真实服务';
+        document.getElementById('metric-size').textContent = totalBytes > 0 ? formatBytes(totalBytes) : '--';
+    }
+
+    function setRemoteAssetStates(job) {
+        const ply = findRemoteOutput('ply', 'splat.ply');
+        const splat = findRemoteOutput('splat', 'splat.splat');
+        const manifest = findRemoteOutput('manifest', 'manifest.json');
+        document.getElementById('asset-primary-name').textContent = ply?.name || 'splat.ply';
+        document.getElementById('asset-primary-desc').textContent = 'TripoSplat PLY · 真实推理产物';
+        document.getElementById('asset-splat-name').textContent = splat?.name || 'splat.splat';
+        document.getElementById('asset-splat-desc').textContent = 'Gaussian Splat · 真实推理产物';
+
+        const primaryButton = document.getElementById('asset-glb-download');
+        const splatButton = document.getElementById('asset-splat-download');
+        const manifestButton = document.getElementById('asset-manifest-download');
+        primaryButton.disabled = !ply;
+        splatButton.disabled = !splat;
+        manifestButton.disabled = !manifest;
+        primaryButton.textContent = ply ? formatBytes(Number(ply.bytes || 0)) : '不可用';
+        splatButton.textContent = splat ? formatBytes(Number(splat.bytes || 0)) : '不可用';
+        manifestButton.textContent = manifest ? '下载' : '不可用';
+    }
+
+    function findRemoteOutput(role, fallbackName) {
+        if (!remoteModelingJob || !Array.isArray(remoteModelingJob.outputs)) {
+            return null;
+        }
+        return remoteModelingJob.outputs.find((output) => output.role === role)
+            || remoteModelingJob.outputs.find((output) => output.name === fallbackName)
+            || null;
+    }
+
+    function downloadRemoteModelingArtifact(output) {
+        if (!output || !output.downloadUrl) {
+            appendModelingLog('远端产物暂不可下载。');
+            return;
+        }
+        const link = document.createElement('a');
+        link.href = output.downloadUrl;
+        link.download = output.name;
+        link.click();
+        appendModelingLog(`${output.name} 已下载。`);
+    }
+
+    function updateProgress(percent, stageId) {
+        document.getElementById('modeling-progress').style.width = `${percent}%`;
+        document.querySelectorAll('[data-modeling-stage]').forEach((node) => {
+            node.classList.toggle('is-active', node.dataset.modelingStage === stageId);
+        });
+    }
+
+    function fillMetrics() {
+        const faceBudget = Number(document.getElementById('face-budget').value || 42);
+        const viewCount = Number(document.getElementById('view-count').value || 8);
+        const quality = document.getElementById('modeling-quality').value;
+        document.getElementById('metric-geometry').textContent = `${faceBudget}k`;
+        document.getElementById('metric-texture').textContent = quality === 'quality' ? '2K' : '1K';
+        document.getElementById('metric-consistency').textContent = `${Math.min(96, 74 + viewCount)}%`;
+        document.getElementById('metric-size').textContent = `${Math.round(faceBudget * 0.18 + viewCount * 0.7)} MB`;
+    }
+
+    function clearMetrics() {
+        document.getElementById('metric-geometry').textContent = '--';
+        document.getElementById('metric-texture').textContent = '--';
+        document.getElementById('metric-consistency').textContent = '--';
+        document.getElementById('metric-size').textContent = '--';
+    }
+
+    function setAssetStates(value) {
+        const generated = value === '可下载';
+        const glbButton = document.getElementById('asset-glb-download');
+        const splatButton = document.getElementById('asset-splat-download');
+        const manifestButton = document.getElementById('asset-manifest-download');
+        glbButton.disabled = !generated;
+        splatButton.disabled = !generated;
+        manifestButton.disabled = !generated;
+        glbButton.textContent = generated && modelingGeneratedAssets.glb ? formatBytes(modelingGeneratedAssets.glb.size) : value;
+        splatButton.textContent = generated && modelingGeneratedAssets.splat ? formatBytes(modelingGeneratedAssets.splat.size) : value;
+        manifestButton.textContent = generated ? '下载' : value;
+    }
+
+    function setStatus(value) {
+        document.getElementById('modeling-status').textContent = value;
+    }
+
+    function setGenerationVisualState(state, detail) {
+        const frame = document.querySelector('.modeling-viewer-frame');
+        const statePanel = document.getElementById('modeling-generation-state');
+        const completionBadge = document.getElementById('modeling-completion-badge');
+        const completionDetail = document.getElementById('modeling-completion-detail');
+        if (frame) {
+            frame.classList.toggle('is-running', state === 'running');
+            frame.classList.toggle('is-generated', state === 'generated');
+        }
+        if (statePanel) {
+            statePanel.dataset.state = state;
+            const titleNode = statePanel.querySelector('strong');
+            const detailNode = statePanel.querySelector('span');
+            if (titleNode) {
+                titleNode.textContent = state === 'generated' ? '生成完成' : state === 'running' ? '正在生成' : '待生成';
+            }
+            if (detailNode) {
+                detailNode.textContent = detail || '';
+            }
+        }
+        if (completionBadge) {
+            completionBadge.hidden = state !== 'generated';
+        }
+        if (completionDetail && state === 'generated') {
+            completionDetail.textContent = detail || '本地预览资产已就绪';
+        }
+        syncGeneratedComparisonControls();
+    }
+
+    function syncGeneratedComparisonControls() {
+        document.querySelectorAll('[data-modeling-compare]').forEach((button) => {
+            button.disabled = !modelingFinished;
+            button.classList.toggle('is-active', button.dataset.modelingCompare === modelingComparisonMode);
+        });
+    }
+
+    async function toggleGeneratedComparison(mode) {
+        if (!modelingFinished) {
+            appendModelingLog('请先完成一次生成，再查看生成前后对比。');
+            return;
+        }
+        modelingComparisonMode = mode === 'before' ? 'before' : 'after';
+        const showCompleted = modelingComparisonMode === 'after';
+        if (remoteModelingJob?.status === 'SUCCEEDED') {
+            if (showCompleted) {
+                showOfficialTripoSplatViewer(findRemoteOutput('splat', 'splat.splat') || findRemoteOutput('ply', 'splat.ply'));
+            } else {
+                hideOfficialTripoSplatViewer();
+                buildModelPreview({ completed: false });
+            }
+        } else {
+            buildModelPreview({ completed: showCompleted });
+            if (showCompleted) {
+                focusGeneratedAssetView({ silent: true });
+            }
+        }
+        setStatus(showCompleted ? '生成完成' : '对比生成前');
+        document.getElementById('modeling-preview-label').textContent = remoteModelingJob?.status === 'SUCCEEDED' && showCompleted ? '真实点云预览' : showCompleted ? '生成资产' : '生成前预览';
+        syncGeneratedComparisonControls();
+        appendModelingLog(showCompleted ? '已切回生成后资产视图。' : '已切到生成前参考态对比。');
+    }
+
+    function appendModelingLog(message) {
+        const log = document.getElementById('modeling-log');
+        const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        log.textContent += `\n[${timestamp}] ${message}`;
+        log.scrollTop = log.scrollHeight;
+    }
+
+    function resetModelingCamera() {
+        if (modelingFinished && modelingComparisonMode === 'after') {
+            focusGeneratedAssetView({ silent: true });
+        } else {
+            camera.position.set(4.2, 3.2, 5.8);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+        appendModelingLog('视角已重置。');
+    }
+
+    function toggleModelingWireframe() {
+        wireframeEnabled = !wireframeEnabled;
+        buildModelPreview({ completed: modelingFinished });
+        appendModelingLog(wireframeEnabled ? '已打开线框视图。' : '已关闭线框视图。');
+    }
+
+    function toggleModelingAutoRotate() {
+        autoRotate = !autoRotate;
+        appendModelingLog(autoRotate ? '已打开自动旋转。' : '已暂停自动旋转。');
+    }
+
+    function updateAssetLabel() {
+        const suffix = currentSample === 'uploaded' ? 'upload' : currentSample;
+        document.getElementById('modeling-asset-id').textContent = `local-${suffix}-${currentKind}`;
+        const generatedLabel = modelingFinished && modelingComparisonMode === 'after' ? '生成资产' : '网格预览';
+        const comparisonLabel = modelingFinished && modelingComparisonMode === 'before' ? '生成前预览' : generatedLabel;
+        document.getElementById('modeling-preview-label').textContent = wireframeEnabled ? 'Wireframe Mesh' : comparisonLabel;
+    }
+
+    function downloadModelingManifest() {
+        const remoteManifest = findRemoteOutput('manifest', 'manifest.json');
+        if (remoteManifest) {
+            downloadRemoteModelingArtifact(remoteManifest);
+            return;
+        }
+        if (!ensureGeneratedAssets()) {
+            return;
+        }
+        downloadBlob('modeling-demo-manifest.json', modelingGeneratedAssets.manifest);
+        appendModelingLog('manifest.json 已下载。');
+    }
+
+    function downloadModelingGlb() {
+        const remotePly = findRemoteOutput('ply', 'splat.ply');
+        if (remotePly) {
+            downloadRemoteModelingArtifact(remotePly);
+            return;
+        }
+        if (!ensureGeneratedAssets()) {
+            return;
+        }
+        downloadBlob('preview.glb', modelingGeneratedAssets.glb);
+        appendModelingLog('preview.glb 已下载。');
+    }
+
+    function downloadModelingSplat() {
+        const remoteSplat = findRemoteOutput('splat', 'splat.splat');
+        if (remoteSplat) {
+            downloadRemoteModelingArtifact(remoteSplat);
+            return;
+        }
+        if (!ensureGeneratedAssets()) {
+            return;
+        }
+        downloadBlob('point-cloud.splat', modelingGeneratedAssets.splat);
+        appendModelingLog('point-cloud.splat 已下载。');
+    }
+
+    function ensureGeneratedAssets() {
+        if (modelingGeneratedAssets && modelingGeneratedAssets.glb && modelingGeneratedAssets.splat && modelingGeneratedAssets.manifest) {
+            return true;
+        }
+        appendModelingLog('请先点击“提交建模任务”，等待预览资产生成后再下载。');
+        return false;
+    }
+
+    function resetGeneratedAssets() {
+        remoteModelingJob = null;
+        modelingGeneratedAssets = {
+            glb: null,
+            splat: null,
+            manifest: null,
+            manifestData: null
+        };
+        resetAssetLabelsToLocal();
+        ['asset-glb-download', 'asset-splat-download', 'asset-manifest-download'].forEach((id) => {
+            const button = document.getElementById(id);
+            if (button) {
+                button.disabled = true;
+                button.textContent = '生成中';
+            }
+        });
+    }
+
+    function resetAssetLabelsToLocal() {
+        document.getElementById('asset-primary-name').textContent = 'preview.glb';
+        document.getElementById('asset-primary-desc').textContent = 'GLB 资产包 · 本地预览';
+        document.getElementById('asset-splat-name').textContent = 'point-cloud.splat';
+        document.getElementById('asset-splat-desc').textContent = 'Gaussian Splat 轨迹 · 本地生成';
+        document.getElementById('modeling-source-badge').textContent = modelingCapability?.configured ? '真实服务' : '本地预览';
+    }
+
+    function buildGeneratedAssets() {
+        const manifestData = buildModelingManifest();
+        const glb = buildGeneratedGlb(manifestData);
+        const splat = buildGeneratedSplat(manifestData);
+        manifestData.outputs = [
+            { name: 'preview.glb', type: 'model/gltf-binary', bytes: glb.size },
+            { name: 'point-cloud.splat', type: 'application/x-gaussian-splat', bytes: splat.size },
+            { name: 'manifest.json', type: 'application/json' }
+        ];
+        const manifest = new Blob([JSON.stringify(manifestData, null, 2)], { type: 'application/json;charset=utf-8' });
+        manifestData.outputs[2].bytes = manifest.size;
+        return { glb, splat, manifest, manifestData };
+    }
+
+    function buildModelingManifest() {
+        return {
+            generator: 'spring-ai-local-image-modeling',
+            format: 'glTF 2.0 GLB',
+            source: currentSample,
+            kind: currentKind,
+            prompt: document.getElementById('model-prompt').value.trim(),
+            quality: document.getElementById('modeling-quality').value,
+            viewCount: Number(document.getElementById('view-count').value || 8),
+            faceBudgetK: Number(document.getElementById('face-budget').value || 42),
+            colors: currentColors,
+            metrics: {
+                geometry: document.getElementById('metric-geometry').textContent,
+                texture: document.getElementById('metric-texture').textContent,
+                consistency: document.getElementById('metric-consistency').textContent,
+                size: document.getElementById('metric-size').textContent
+            },
+            outputs: [],
+            note: '本地浏览器生成的可下载 GLB，用于预览、验收和流程联调；未接入真实 TripoSplat/Tripo 推理服务。'
+        };
+    }
+
+    function buildGeneratedGlb(manifestData) {
+        const meshEntries = collectExportMeshes();
+        if (meshEntries.length === 0) {
+            throw new Error('没有可导出的网格。');
+        }
+
+        const binaryParts = [];
+        let binaryLength = 0;
+        const bufferViews = [];
+        const accessors = [];
+        const meshes = [];
+        const nodes = [{ name: 'Generated image model', children: [] }];
+        const materials = [];
+
+        function alignBinary() {
+            const padding = (4 - (binaryLength % 4)) % 4;
+            if (padding > 0) {
+                binaryParts.push(new Uint8Array(padding));
+                binaryLength += padding;
+            }
+        }
+
+        function appendTypedArray(typedArray, target) {
+            alignBinary();
+            const bytes = new Uint8Array(typedArray.buffer, typedArray.byteOffset, typedArray.byteLength);
+            const byteOffset = binaryLength;
+            binaryParts.push(bytes);
+            binaryLength += bytes.byteLength;
+            const viewIndex = bufferViews.length;
+            bufferViews.push({ buffer: 0, byteOffset, byteLength: bytes.byteLength, target });
+            return viewIndex;
+        }
+
+        function addAccessor(typedArray, target, componentType, type, count, min, max) {
+            const bufferView = appendTypedArray(typedArray, target);
+            const accessor = { bufferView, byteOffset: 0, componentType, count, type };
+            if (min && max) {
+                accessor.min = min;
+                accessor.max = max;
+            }
+            accessors.push(accessor);
+            return accessors.length - 1;
+        }
+
+        meshEntries.forEach((entry, index) => {
+            const positionAttribute = entry.geometry.getAttribute('position');
+            const normalAttribute = entry.geometry.getAttribute('normal');
+            const positions = new Float32Array(positionAttribute.array);
+            const normals = new Float32Array(normalAttribute.array);
+            const bounds = positionBounds(positions);
+            const positionAccessor = addAccessor(positions, 34962, 5126, 'VEC3', positionAttribute.count, bounds.min, bounds.max);
+            const normalAccessor = addAccessor(normals, 34962, 5126, 'VEC3', normalAttribute.count);
+            const material = materialToGltf(entry.material);
+            materials.push(material);
+            meshes.push({
+                name: entry.name,
+                primitives: [{
+                    attributes: {
+                        POSITION: positionAccessor,
+                        NORMAL: normalAccessor
+                    },
+                    material: materials.length - 1,
+                    mode: 4
+                }]
+            });
+            nodes.push({ name: entry.name, mesh: index });
+            nodes[0].children.push(nodes.length - 1);
+        });
+
+        alignBinary();
+        const binary = new Uint8Array(binaryLength);
+        let offset = 0;
+        binaryParts.forEach((part) => {
+            binary.set(part, offset);
+            offset += part.byteLength;
+        });
+
+        const gltf = {
+            asset: {
+                version: '2.0',
+                generator: 'Spring AI Demo local image modeling'
+            },
+            scene: 0,
+            scenes: [{ nodes: [0] }],
+            nodes,
+            meshes,
+            materials,
+            buffers: [{ byteLength: binary.byteLength }],
+            bufferViews,
+            accessors,
+            extras: {
+                prompt: manifestData.prompt,
+                kind: manifestData.kind,
+                quality: manifestData.quality,
+                source: manifestData.source
+            }
+        };
+
+        return createGlbBlob(gltf, binary);
+    }
+
+    function collectExportMeshes() {
+        const entries = [];
+        modelGroup.updateWorldMatrix(true, true);
+        modelGroup.traverse((object) => {
+            if (!object.isMesh || !object.geometry) {
+                return;
+            }
+            const geometry = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
+            object.updateWorldMatrix(true, false);
+            geometry.applyMatrix4(object.matrixWorld);
+            geometry.computeVertexNormals();
+            entries.push({
+                name: object.name || `mesh-${entries.length + 1}`,
+                geometry,
+                material: Array.isArray(object.material) ? object.material[0] : object.material
+            });
+        });
+        return entries;
+    }
+
+    function positionBounds(values) {
+        const min = [Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY];
+        const max = [Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY];
+        for (let index = 0; index < values.length; index += 3) {
+            min[0] = Math.min(min[0], values[index]);
+            min[1] = Math.min(min[1], values[index + 1]);
+            min[2] = Math.min(min[2], values[index + 2]);
+            max[0] = Math.max(max[0], values[index]);
+            max[1] = Math.max(max[1], values[index + 1]);
+            max[2] = Math.max(max[2], values[index + 2]);
+        }
+        return { min, max };
+    }
+
+    function materialToGltf(material) {
+        const color = material && material.color ? material.color : new THREE.Color(currentColors[0]);
+        const emissive = material && material.emissive ? material.emissive : new THREE.Color(currentColors[1]);
+        return {
+            name: material && material.name ? material.name : 'local-material',
+            pbrMetallicRoughness: {
+                baseColorFactor: [color.r, color.g, color.b, 1],
+                metallicFactor: material && typeof material.metalness === 'number' ? material.metalness : 0.12,
+                roughnessFactor: material && typeof material.roughness === 'number' ? material.roughness : 0.48
+            },
+            emissiveFactor: [emissive.r * 0.18, emissive.g * 0.18, emissive.b * 0.18]
+        };
+    }
+
+    function createGlbBlob(gltf, binary) {
+        const encoder = new TextEncoder();
+        const jsonBytes = encoder.encode(JSON.stringify(gltf));
+        const jsonPadding = (4 - (jsonBytes.byteLength % 4)) % 4;
+        const binaryPadding = (4 - (binary.byteLength % 4)) % 4;
+        const jsonChunkLength = jsonBytes.byteLength + jsonPadding;
+        const binaryChunkLength = binary.byteLength + binaryPadding;
+        const totalLength = 12 + 8 + jsonChunkLength + 8 + binaryChunkLength;
+        const glb = new ArrayBuffer(totalLength);
+        const view = new DataView(glb);
+        let offset = 0;
+
+        writeUint32(0x46546c67);
+        writeUint32(2);
+        writeUint32(totalLength);
+        writeUint32(jsonChunkLength);
+        writeUint32(0x4e4f534a);
+        new Uint8Array(glb, offset, jsonBytes.byteLength).set(jsonBytes);
+        offset += jsonBytes.byteLength;
+        new Uint8Array(glb, offset, jsonPadding).fill(0x20);
+        offset += jsonPadding;
+        writeUint32(binaryChunkLength);
+        writeUint32(0x004e4942);
+        new Uint8Array(glb, offset, binary.byteLength).set(binary);
+        offset += binary.byteLength;
+        new Uint8Array(glb, offset, binaryPadding).fill(0);
+
+        function writeUint32(value) {
+            view.setUint32(offset, value, true);
+            offset += 4;
+        }
+
+        return new Blob([glb], { type: 'model/gltf-binary' });
+    }
+
+    function buildGeneratedSplat(manifestData) {
+        const rows = ['# spring-ai local gaussian-splat approximation', `# source=${manifestData.source}`, 'x,y,z,r,g,b,opacity,scale'];
+        const color = new THREE.Color(currentColors[1]);
+        if (pointCloud && pointCloud.geometry) {
+            const positions = pointCloud.geometry.getAttribute('position').array;
+            for (let index = 0; index < positions.length; index += 3) {
+                rows.push([
+                    positions[index].toFixed(4),
+                    positions[index + 1].toFixed(4),
+                    positions[index + 2].toFixed(4),
+                    Math.round(color.r * 255),
+                    Math.round(color.g * 255),
+                    Math.round(color.b * 255),
+                    '0.56',
+                    '0.022'
+                ].join(','));
+            }
+        }
+        return new Blob([rows.join('\n')], { type: 'application/x-gaussian-splat;charset=utf-8' });
+    }
+
+    function downloadBlob(filename, blob) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function formatBytes(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) {
+            return '0 B';
+        }
+        if (bytes < 1024) {
+            return `${bytes} B`;
+        }
+        if (bytes < 1024 * 1024) {
+            return `${Math.round(bytes / 102.4) / 10} KB`;
+        }
+        return `${Math.round(bytes / 1024 / 102.4) / 10} MB`;
+    }
+
+    function wait(ms) {
+        return new Promise((resolve) => window.setTimeout(resolve, ms));
+    }
+
+    function bindRangeLabels() {
+        const viewCount = document.getElementById('view-count');
+        const faceBudget = document.getElementById('face-budget');
+        const sync = () => {
+            document.getElementById('view-count-value').textContent = viewCount.value;
+            document.getElementById('face-budget-value').textContent = `${faceBudget.value}k`;
+            if (modelingFinished) {
+                fillMetrics();
+            }
+        };
+        viewCount.addEventListener('input', sync);
+        faceBudget.addEventListener('input', sync);
+        sync();
+    }
+
+    document.getElementById('model-source-image').addEventListener('change', handleSourceImage);
+    bindRangeLabels();
+    initModelingViewer();
+    selectModelingSample('sneaker');
+    initModelingCapability();
+    window.addEventListener('message', handleTripoSplatViewerMessage);
+
+    window.startModelingDemo = startModelingDemo;
+    window.initModelingCapability = initModelingCapability;
+    window.selectModelingSample = selectModelingSample;
+    window.downloadModelingGlb = downloadModelingGlb;
+    window.downloadModelingSplat = downloadModelingSplat;
+    window.downloadModelingManifest = downloadModelingManifest;
+    window.setModelKind = setModelKind;
+    window.syncModelingMode = syncModelingMode;
+    window.toggleGeneratedComparison = toggleGeneratedComparison;
+    window.resetModelingCamera = resetModelingCamera;
+    window.toggleModelingWireframe = toggleModelingWireframe;
+    window.toggleModelingAutoRotate = toggleModelingAutoRotate;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

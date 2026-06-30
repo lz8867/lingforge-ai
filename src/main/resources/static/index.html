@@ -1,0 +1,2578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .card-hover {
+                @apply hover:shadow-lg hover:scale-[1.01] transition-all duration-300;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <button onclick="switchTab('home', event)" class="tab-btn text-primary font-medium border-b-2 border-primary pb-1">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </button>
+                <button onclick="switchTab('deploy', event)" class="tab-btn text-gray-600 hover:text-primary pb-1">
+                    <i class="fa fa-cogs mr-1"></i> 部署工具
+                </button>
+                <button onclick="switchTab('logs', event)" class="tab-btn text-gray-600 hover:text-primary pb-1">
+                    <i class="fa fa-terminal mr-1"></i> Docker日志
+                </button>
+                <button onclick="switchTab('knowledge', event)" class="tab-btn text-gray-600 hover:text-primary pb-1">
+                    <i class="fa fa-book mr-1"></i> 知识库
+                </button>
+                <a href="/prompt-optimizer.html" class="text-gray-600 hover:text-primary pb-1">
+                    <i class="fa fa-sliders mr-1"></i> Prompt 优化器
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- 首页工作台 -->
+        <div id="home-tab" class="tab-content">
+            <!-- 登录状态检查 -->
+            <div id="login-container" class="hidden max-w-4xl mx-auto">
+                <!-- 登录表单 -->
+                <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+                    <div class="text-center mb-4">
+                        <div class="text-2xl mb-2"><i class="fa fa-mobile text-primary"></i></div>
+                        <h2 class="text-2xl font-bold text-dark">短信验证码登录</h2>
+                        <p class="text-gray-600 mt-2">登录后即可使用 AI 功能</p>
+                    </div>
+
+                    <div class="error-message text-danger mb-4 min-h-6" id="errorMessage"></div>
+                    <div class="success-message text-success mb-4 min-h-6" id="successMessage"></div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">手机号</label>
+                            <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">验证码</label>
+                            <div class="flex space-x-4">
+                                <input type="text" id="codeInput" placeholder="请输入验证码" maxlength="6" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                                <button onclick="sendCode()" id="sendCodeButton" class="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-lg hover:shadow-lg transition-all whitespace-nowrap">
+                                    发送验证码
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onclick="login()" class="w-full bg-gradient-to-r from-primary to-secondary text-white font-medium py-3 px-4 rounded-lg hover:shadow-lg transition-all" id="loginButton">
+                            登录
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 登录后显示的AI功能导航 -->
+            <div id="ai-features" class="max-w-6xl mx-auto">
+                <section class="app-capability-map" aria-label="AI 能力导航地图">
+                    <div class="app-capability-topline">
+                        <div>
+                            <span><i class="fa fa-map-o"></i> AI Capability Map</span>
+                            <strong>从输入、知识、生成到治理运维</strong>
+                        </div>
+                        <nav class="app-capability-shortcuts" aria-label="高频入口">
+                            <a href="/chat.html" data-app-link="chat"><i class="fa fa-commenting"></i>对话</a>
+                            <a href="/prompt-optimizer.html" data-app-link="prompt-optimizer"><i class="fa fa-magic"></i>Prompt 优化</a>
+                            <a href="/mineru-demo.html" data-app-link="mineru"><i class="fa fa-file-text-o"></i>文档解析</a>
+                            <a href="/document-quality.html" data-app-link="document-quality"><i class="fa fa-check-square-o"></i>文档质量</a>
+                            <a href="/service-dashboard.html" data-app-link="service-dashboard"><i class="fa fa-line-chart"></i>运行大屏</a>
+                        </nav>
+                    </div>
+
+                    <div class="app-capability-flow" role="list">
+                        <section class="app-capability-stage" aria-label="输入与上下文">
+                            <h3><i class="fa fa-sign-in"></i>输入与上下文</h3>
+                            <a class="app-capability-node is-strong" href="/chat.html" data-app-link="chat" role="listitem">
+                                <span>对话功能</span><small>智能对话</small>
+                            </a>
+                            <a class="app-capability-node" href="/memory-manager.html" data-app-link="memory" role="listitem">
+                                <span>记忆管理</span><small>记忆与历史</small>
+                            </a>
+                        </section>
+
+                        <section class="app-capability-stage" aria-label="Prompt 与检索">
+                            <h3><i class="fa fa-sliders"></i>Prompt 与检索</h3>
+                            <a class="app-capability-node" href="/prompt-demo.html" data-app-link="prompt-demo" role="listitem">
+                                <span>提示词工程</span><small>模板测试</small>
+                            </a>
+                            <a class="app-capability-node is-strong" href="/prompt-optimizer.html" data-app-link="prompt-optimizer" role="listitem">
+                                <span>Prompt 优化器</span><small>版本调优</small>
+                            </a>
+                            <a class="app-capability-node" href="/rag-demo.html" data-app-link="rag" role="listitem">
+                                <span>向量检索 / RAG</span><small>TopK 问答</small>
+                            </a>
+                            <a class="app-capability-node is-strong" href="/mineru-demo.html" data-app-link="mineru" role="listitem">
+                                <span>文档解析</span><small>Markdown / JSON</small>
+                            </a>
+                        </section>
+
+                        <section class="app-capability-stage" aria-label="多模态生成">
+                            <h3><i class="fa fa-magic"></i>多模态生成</h3>
+                            <a class="app-capability-node" href="/text-to-image.html" data-app-link="text-to-image" role="listitem">
+                                <span>文生图</span><small>图片生成</small>
+                            </a>
+                            <a class="app-capability-node" href="/image-to-text.html" data-app-link="image-to-text" role="listitem">
+                                <span>图生文</span><small>图片理解</small>
+                            </a>
+                            <a class="app-capability-node" href="/text-to-video.html" data-app-link="text-to-video" role="listitem">
+                                <span>文生视频</span><small>视频生成</small>
+                            </a>
+                            <a class="app-capability-node is-strong" href="/modeling-demo.html" data-app-link="modeling-demo" role="listitem">
+                                <span>图像建模</span><small>3D 资产预览</small>
+                            </a>
+                        </section>
+
+                        <section class="app-capability-stage" aria-label="治理与质量">
+                            <h3><i class="fa fa-sitemap"></i>治理与质量</h3>
+                            <a class="app-capability-node is-strong" href="/model-evaluation.html" data-app-link="model-evaluation" role="listitem">
+                                <span>模型测评</span><small>Recall / TopK</small>
+                            </a>
+                            <a class="app-capability-node is-strong" href="/document-quality.html" data-app-link="document-quality" role="listitem">
+                                <span>文档质量</span><small>评分与证据</small>
+                            </a>
+                        </section>
+
+                        <section class="app-capability-stage" aria-label="运行与交付">
+                            <h3><i class="fa fa-terminal"></i>运行与交付</h3>
+                            <a class="app-capability-node" href="/digital-twin.html" data-app-link="digital-twin" role="listitem">
+                                <span>AI 能力治理中心</span><small>影响与处置</small>
+                            </a>
+                            <a class="app-capability-node" href="/skill-monitor.html" data-app-link="skill-monitor" role="listitem">
+                                <span>Skill 使用监控</span><small>自定义清单与事件</small>
+                            </a>
+                            <a class="app-capability-node" href="/index.html#deploy" data-app-link="deploy" role="listitem">
+                                <span>部署工具</span><small>构建部署</small>
+                            </a>
+                            <a class="app-capability-node" href="/index.html#logs" data-app-link="logs" role="listitem">
+                                <span>Docker 日志</span><small>实时日志</small>
+                            </a>
+                            <a class="app-capability-node is-strong" href="/service-dashboard.html" data-app-link="service-dashboard" role="listitem">
+                                <span>运行大屏</span><small>服务监控</small>
+                            </a>
+                        </section>
+                    </div>
+
+                    <section class="app-runtime-preview app-runtime-hall" aria-label="大厅运行态势预览">
+                        <a class="app-runtime-preview-topology app-runtime-hall-topology" href="/service-dashboard.html" data-app-link="service-dashboard">
+                            <div class="app-runtime-preview-head">
+                                <span><i class="fa fa-bolt"></i> LIVE TOPOLOGY CANVAS</span>
+                                <strong>服务拓扑与运行脉冲</strong>
+                                <p>根据当前部署、Docker、JVM 和容器状态实时绘制</p>
+                            </div>
+                            <div class="app-runtime-preview-status">
+                                <span id="home-runtime-state">读取中</span>
+                                <span id="home-runtime-service">服务 --</span>
+                                <span id="home-runtime-docker">Docker --</span>
+                            </div>
+                            <div class="app-runtime-mini-map" aria-hidden="true">
+                                <span class="app-runtime-grid-dot dot-a"></span>
+                                <span class="app-runtime-grid-dot dot-b"></span>
+                                <span class="app-runtime-grid-dot dot-c"></span>
+                                <span class="app-runtime-link is-client"></span>
+                                <span class="app-runtime-link is-docker"></span>
+                                <span class="app-runtime-link is-mysql"></span>
+                                <span class="app-runtime-node is-client"><strong>Client</strong><em>8081</em></span>
+                                <span class="app-runtime-node is-core"><strong>Spring AI</strong><em id="home-runtime-core-label">--</em></span>
+                                <span class="app-runtime-node is-docker"><strong>Docker</strong><em id="home-runtime-docker-label">--</em></span>
+                                <span class="app-runtime-node is-chart"><strong>chart-demo</strong><em>容器</em></span>
+                                <span class="app-runtime-node is-mysql"><strong>mysql</strong><em>数据层</em></span>
+                                <span class="app-runtime-node is-jvm"><strong>JVM</strong><em id="home-runtime-jvm-label">--</em></span>
+                                <span class="app-runtime-pulse is-fast"></span>
+                                <span class="app-runtime-pulse is-slow"></span>
+                                <span class="app-runtime-pulse is-third"></span>
+                            </div>
+                        </a>
+
+                        <aside class="app-runtime-preview-metrics app-runtime-service-metrics" aria-label="大厅服务运行快照">
+                            <div class="app-runtime-metrics-head">
+                                <div>
+                                    <strong>服务运行状态</strong>
+                                    <span>CPU 负载、线程数、堆内存、GC 次数、磁盘可用和健康延迟</span>
+                                </div>
+                                <em id="home-runtime-overall">运行读取中</em>
+                            </div>
+                            <div class="app-runtime-metric-grid">
+                                <div class="app-runtime-service-metric is-cpu">
+                                    <i class="fa fa-tachometer"></i>
+                                    <span>CPU 负载</span>
+                                    <strong id="home-runtime-cpu">--</strong>
+                                    <small id="home-runtime-cpu-detail">系统 CPU --</small>
+                                </div>
+                                <div class="app-runtime-service-metric is-thread">
+                                    <i class="fa fa-random"></i>
+                                    <span>线程数</span>
+                                    <strong id="home-runtime-threads">--</strong>
+                                    <small id="home-runtime-threads-detail">守护线程 --</small>
+                                </div>
+                                <div class="app-runtime-service-metric is-heap">
+                                    <i class="fa fa-pie-chart"></i>
+                                    <span>堆内存</span>
+                                    <strong id="home-runtime-heap">--</strong>
+                                    <small id="home-runtime-heap-detail">非堆 --</small>
+                                </div>
+                                <div class="app-runtime-service-metric is-gc">
+                                    <i class="fa fa-refresh"></i>
+                                    <span>GC 次数</span>
+                                    <strong id="home-runtime-gc">--</strong>
+                                    <small id="home-runtime-gc-detail">耗时 --</small>
+                                </div>
+                                <div class="app-runtime-service-metric is-disk">
+                                    <i class="fa fa-hdd-o"></i>
+                                    <span>磁盘可用</span>
+                                    <strong id="home-runtime-disk">--</strong>
+                                    <small id="home-runtime-disk-detail">使用率 --</small>
+                                </div>
+                                <div class="app-runtime-service-metric is-latency">
+                                    <i class="fa fa-heartbeat"></i>
+                                    <span>健康延迟</span>
+                                    <strong id="home-runtime-latency">--</strong>
+                                    <small>加载类 <b id="home-runtime-loaded">--</b></small>
+                                </div>
+                            </div>
+                        </aside>
+                    </section>
+
+                    <section class="app-home-ops-brief" aria-label="首页运行与知识动态">
+                        <div class="app-home-ops-head">
+                            <div>
+                                <span><i class="fa fa-compass"></i> Workbench Pulse</span>
+                                <strong>运行与知识动态</strong>
+                            </div>
+                            <nav class="app-home-ops-actions" aria-label="动态快捷入口">
+                                <a href="/index.html#knowledge" data-app-link="knowledge"><i class="fa fa-book"></i>知识库</a>
+                                <a href="/model-evaluation.html" data-app-link="model-evaluation"><i class="fa fa-line-chart"></i>模型测评</a>
+                                <a href="/service-dashboard.html" data-app-link="service-dashboard"><i class="fa fa-dashboard"></i>运行大屏</a>
+                            </nav>
+                        </div>
+
+                        <div class="app-home-ops-grid">
+                            <section class="app-home-ops-panel" aria-label="知识覆盖">
+                                <div class="app-home-panel-head">
+                                    <span><i class="fa fa-database"></i>知识覆盖</span>
+                                    <em id="home-knowledge-status">读取中</em>
+                                </div>
+                                <div class="app-home-metric-row">
+                                    <span><strong id="home-knowledge-total">--</strong><em>知识</em></span>
+                                    <span><strong id="home-knowledge-published">--</strong><em>可检索</em></span>
+                                    <span><strong id="home-knowledge-tags">--</strong><em>标签</em></span>
+                                </div>
+                                <div id="home-knowledge-topics" class="app-home-knowledge-list">
+                                    <article class="app-home-empty-row">读取知识分布</article>
+                                </div>
+                            </section>
+
+                            <section class="app-home-ops-panel" aria-label="治理风险">
+                                <div class="app-home-panel-head">
+                                    <span><i class="fa fa-shield"></i>治理风险</span>
+                                    <em id="home-evaluation-status">读取中</em>
+                                </div>
+                                <div class="app-home-metric-row">
+                                    <span><strong id="home-evaluation-total">--</strong><em>测评</em></span>
+                                    <span><strong id="home-evaluation-success-rate">--</strong><em>成功率</em></span>
+                                    <span><strong id="home-evaluation-failures">--</strong><em>失败</em></span>
+                                </div>
+                                <div id="home-evaluation-run-list" class="app-home-run-list">
+                                    <article class="app-home-empty-row">读取最近测评</article>
+                                </div>
+                            </section>
+
+                            <section class="app-home-ops-panel app-home-next-panel" aria-label="推荐动作">
+                                <div class="app-home-panel-head">
+                                    <span><i class="fa fa-location-arrow"></i>下一步</span>
+                                    <em id="home-action-status">自动判断</em>
+                                </div>
+                                <div id="home-action-list" class="app-home-action-list">
+                                    <a href="/index.html#knowledge" class="app-home-action-row" data-app-link="knowledge">
+                                        <i class="fa fa-book"></i><strong>知识覆盖</strong><small>等待数据</small>
+                                    </a>
+                                    <a href="/model-evaluation.html" class="app-home-action-row" data-app-link="model-evaluation">
+                                        <i class="fa fa-line-chart"></i><strong>模型测评</strong><small>等待数据</small>
+                                    </a>
+                                    <a href="/service-dashboard.html" class="app-home-action-row" data-app-link="service-dashboard">
+                                        <i class="fa fa-heartbeat"></i><strong>运行态势</strong><small>查看服务大屏</small>
+                                    </a>
+                                </div>
+                            </section>
+                        </div>
+                    </section>
+                </section>
+            </div>
+        </div>
+
+        <!-- 部署工具页面 -->
+        <div id="deploy-tab" class="tab-content hidden">
+            <section class="deploy-workbench" aria-label="部署工作台">
+                <div class="deploy-hero">
+                    <div>
+                        <span class="deploy-kicker"><i class="fa fa-cogs"></i> Release Operations</span>
+                        <h2>部署工作台</h2>
+                        <p>构建产物、触发部署、重启服务和查看结果集中在一个操作台中。</p>
+                    </div>
+                    <div class="deploy-quick-links" aria-label="部署快捷入口">
+                        <button type="button" onclick="openDeployPanel('result')"><i class="fa fa-check-circle"></i>部署结果</button>
+                        <a href="/service-dashboard.html"><i class="fa fa-line-chart"></i>运行大屏</a>
+                    </div>
+                </div>
+
+                <div class="deploy-workbench-grid">
+                    <section class="deploy-panel deploy-action-panel">
+                        <div class="deploy-panel-head">
+                            <div>
+                                <span>Pipeline</span>
+                                <h3>交付动作</h3>
+                            </div>
+                            <span id="deploy-action-route-hint" class="deploy-panel-badge">本地环境</span>
+                        </div>
+
+                        <div id="build-status" class="deploy-current-status">
+                            <span class="deploy-status-dot"></span>
+                            <div>
+                                <strong>等待操作</strong>
+                                <p>选择构建、部署或重启动作后，这里会显示当前执行状态。</p>
+                            </div>
+                        </div>
+
+                        <div class="deploy-action-grid">
+                            <button onclick="buildProject()" class="deploy-action-button is-build">
+                                <i class="fa fa-play-circle"></i>
+                                <span>构建项目</span>
+                                <small>Maven 打包并生成应用产物</small>
+                            </button>
+                            <button onclick="deployProject()" class="deploy-action-button is-deploy">
+                                <i class="fa fa-cloud-upload"></i>
+                                <span>部署应用</span>
+                                <small>构建镜像并重建服务容器</small>
+                            </button>
+                            <button onclick="restartProject()" class="deploy-action-button is-restart">
+                                <i class="fa fa-refresh"></i>
+                                <span>重启应用</span>
+                                <small>保留镜像并重启运行容器</small>
+                            </button>
+                            <button onclick="refreshDeployOverview()" class="deploy-action-button is-refresh">
+                                <i class="fa fa-heartbeat"></i>
+                                <span>刷新状态</span>
+                                <small>读取部署结果和运行指标</small>
+                            </button>
+                        </div>
+
+                        <ol class="deploy-progress" aria-label="部署流程">
+                            <li>
+                                <span>01</span>
+                                <div>
+                                    <strong>构建产物</strong>
+                                    <p>编译代码并准备最新 jar。</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span>02</span>
+                                <div>
+                                    <strong>镜像交付</strong>
+                                    <p>生成 Docker 镜像并替换应用容器。</p>
+                                </div>
+                            </li>
+                            <li>
+                                <span>03</span>
+                                <div>
+                                    <strong>健康验证</strong>
+                                    <p>检查服务地址、容器状态和运行指标。</p>
+                                </div>
+                            </li>
+                        </ol>
+                    </section>
+
+                    <aside class="deploy-panel deploy-status-panel">
+                        <div class="deploy-panel-head">
+                            <div>
+                                <span>Live Status</span>
+                                <h3>当前运行概览</h3>
+                            </div>
+                            <button onclick="refreshDeployOverview()" class="deploy-icon-button" title="刷新运行概览" aria-label="刷新运行概览">
+                                <i class="fa fa-refresh"></i>
+                            </button>
+                        </div>
+
+                        <div class="deploy-status-metrics">
+                            <article>
+                                <span>部署结果</span>
+                                <strong id="deploy-overview-state">读取中</strong>
+                                <p id="deploy-overview-message">等待接口返回</p>
+                            </article>
+                            <article>
+                                <span>服务状态</span>
+                                <strong id="deploy-overview-service">--</strong>
+                                <p id="deploy-overview-service-url">--</p>
+                            </article>
+                            <article>
+                                <span>容器</span>
+                                <strong id="deploy-overview-docker">--</strong>
+                                <p id="deploy-overview-containers">chart-demo / mysql</p>
+                            </article>
+                            <article>
+                                <span>运行资源</span>
+                                <strong id="deploy-overview-runtime">--</strong>
+                                <p id="deploy-overview-memory">内存 --</p>
+                            </article>
+                        </div>
+                    </aside>
+                </div>
+
+                <section id="deploy-result-panel" class="deploy-panel deploy-log-panel" aria-label="部署结果与执行日志">
+                    <div class="deploy-panel-head">
+                        <div>
+                            <span>Deployment Console</span>
+                            <h3>部署结果与执行日志</h3>
+                        </div>
+                        <div class="deploy-log-actions">
+                            <button onclick="refreshDeployOverview()" title="刷新部署结果" aria-label="刷新部署结果">
+                                <i class="fa fa-refresh"></i>
+                            </button>
+                            <button onclick="clearBuildLog()" title="清空执行日志" aria-label="清空执行日志">
+                                <i class="fa fa-trash-o"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="deploy-detail-tabs" role="tablist" aria-label="部署详情切换">
+                        <button type="button" class="deploy-detail-tab is-active" data-deploy-tab="result" role="tab" aria-selected="true" onclick="openDeployPanel('result')">
+                            <i class="fa fa-check-circle"></i>
+                            <span>部署结果</span>
+                        </button>
+                        <button type="button" class="deploy-detail-tab" data-deploy-tab="containers" role="tab" aria-selected="false" onclick="openDeployPanel('containers')">
+                            <i class="fa fa-cubes"></i>
+                            <span>容器状态</span>
+                        </button>
+                        <button type="button" class="deploy-detail-tab" data-deploy-tab="log" role="tab" aria-selected="false" onclick="openDeployPanel('log')">
+                            <i class="fa fa-terminal"></i>
+                            <span>部署日志</span>
+                        </button>
+                        <button type="button" class="deploy-detail-tab" data-deploy-tab="models" role="tab" aria-selected="false" onclick="openDeployPanel('models')">
+                            <i class="fa fa-microchip"></i>
+                            <span>模型服务</span>
+                        </button>
+                    </div>
+
+                    <section class="deploy-detail-panel is-active" data-deploy-panel="result" role="tabpanel" aria-label="部署结果">
+                        <div class="deploy-result-grid">
+                            <article class="deploy-result-kpi">
+                                <span>部署状态</span>
+                                <strong id="deploy-detail-state">读取中</strong>
+                                <p id="deploy-detail-message">等待接口返回</p>
+                            </article>
+                            <article class="deploy-result-kpi">
+                                <span>服务运行情况</span>
+                                <strong id="deploy-detail-service">--</strong>
+                                <p id="deploy-detail-service-url">--</p>
+                            </article>
+                            <article class="deploy-result-kpi">
+                                <span>Docker 状态</span>
+                                <strong id="deploy-detail-docker">--</strong>
+                                <p id="deploy-detail-docker-message">--</p>
+                            </article>
+                            <article class="deploy-result-kpi">
+                                <span>JVM 运行</span>
+                                <strong id="deploy-detail-runtime">--</strong>
+                                <p id="deploy-detail-processors">--</p>
+                            </article>
+                        </div>
+
+                        <div class="deploy-result-summary">
+                            <dl>
+                                <div>
+                                    <dt>部署进程</dt>
+                                    <dd id="deploy-detail-running">--</dd>
+                                </div>
+                                <div>
+                                    <dt>服务地址</dt>
+                                    <dd id="deploy-detail-service-link">--</dd>
+                                </div>
+                                <div>
+                                    <dt>刷新时间</dt>
+                                    <dd id="deploy-detail-last-check">--</dd>
+                                </div>
+                            </dl>
+                            <div class="deploy-memory-meter" aria-label="内存使用">
+                                <div>
+                                    <span>内存使用</span>
+                                    <strong id="deploy-detail-memory">--</strong>
+                                </div>
+                                <div class="deploy-memory-track">
+                                    <span id="deploy-detail-memory-bar"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="deploy-detail-panel" data-deploy-panel="containers" role="tabpanel" aria-label="容器状态">
+                        <div id="deploy-container-list" class="deploy-container-list">
+                            <article class="deploy-empty-row">正在读取容器状态...</article>
+                        </div>
+                    </section>
+
+                    <section class="deploy-detail-panel" data-deploy-panel="log" role="tabpanel" aria-label="部署日志">
+                        <div class="deploy-log-split">
+                            <div>
+                                <div class="deploy-log-title">
+                                    <span>操作回执</span>
+                                    <small>构建 / 部署 / 重启</small>
+                                </div>
+                                <div id="build-log" class="deploy-log-console">
+                                    <p>等待部署动作，执行日志会显示在这里。</p>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="deploy-log-title">
+                                    <span>部署日志</span>
+                                    <small>最近一次 deploy.log</small>
+                                </div>
+                                <pre id="deploy-log-tail" class="deploy-log-console deploy-log-tail">正在加载部署日志...</pre>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="deploy-detail-panel" data-deploy-panel="models" role="tabpanel" aria-label="模型服务">
+                        <div id="deploy-model-services" class="deploy-model-service-list">
+                            <article class="deploy-empty-row">正在读取模型服务状态...</article>
+                        </div>
+                    </section>
+                </section>
+            </section>
+        </div>
+
+        <!-- Docker日志平台 -->
+        <div id="logs-tab" class="tab-content hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <div class="text-center mb-4">
+                        <div class="text-2xl mb-2"><i class="fa fa-terminal text-primary"></i></div>
+                        <h2 class="text-2xl font-bold text-dark">Docker日志平台</h2>
+                        <p class="text-gray-600 mt-2">查看和管理Docker容器日志</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <!-- 容器选择 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">选择容器</label>
+                            <select id="container-select" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                                <option value="chart-demo">chart-demo (应用容器)</option>
+                                <option value="mysql">mysql (数据库容器)</option>
+                            </select>
+                        </div>
+
+                        <!-- 日志查看 -->
+                        <div class="logs-panel-shell bg-gray-50 rounded-lg p-6 border border-gray-200">
+                            <div class="logs-panel-head">
+                                <h3 class="text-lg font-semibold text-dark">容器日志</h3>
+                                <div class="logs-toolbar">
+                                    <div class="logs-stream-controls">
+                                        <span id="log-status" class="text-sm text-gray-500">未连接</span>
+                                        <button onclick="toggleRealTimeLogs()" id="real-time-toggle" class="px-4 py-1 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all text-sm flex items-center">
+                                            <i class="fa fa-play mr-1"></i> 开始实时日志
+                                        </button>
+                                    </div>
+                                    <div class="logs-inline-actions" aria-label="日志操作">
+                                        <button onclick="viewLogs()" class="px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all flex items-center">
+                                            <i class="fa fa-eye mr-2"></i> 查看当前日志
+                                        </button>
+                                        <button onclick="clearLogs()" class="px-6 py-2 bg-danger text-white font-medium rounded-lg hover:bg-danger/90 transition-all flex items-center">
+                                            <i class="fa fa-trash mr-2"></i> 清除日志
+                                        </button>
+                                        <button onclick="downloadLogs()" class="px-6 py-2 bg-secondary text-white font-medium rounded-lg hover:bg-secondary/90 transition-all flex items-center">
+                                            <i class="fa fa-download mr-2"></i> 下载日志
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="docker-logs" class="bg-dark text-light p-4 rounded-lg overflow-auto max-h-[600px] font-mono text-sm whitespace-pre-wrap">
+                                <p>点击上方按钮开始实时查看日志...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 知识库页面 -->
+        <div id="knowledge-tab" class="tab-content hidden">
+            <section class="knowledge-rag-shell" aria-label="知识检索与问答">
+                <div class="knowledge-query-panel">
+                    <div class="knowledge-query-copy">
+                        <span><i class="fa fa-search"></i> Knowledge RAG</span>
+                        <strong>证据问答</strong>
+                    </div>
+                    <div class="knowledge-query-actions">
+                        <input type="text" id="knowledge-search" placeholder="输入问题、关键词或合同片段..." aria-label="知识库检索问题">
+                        <select id="knowledge-category" aria-label="知识分类">
+                            <option value="">全部知识域</option>
+                        </select>
+                        <button type="button" class="knowledge-primary-action" onclick="askKnowledgeQuestion()">
+                            <i class="fa fa-bolt"></i> 问知识库
+                        </button>
+                        <button type="button" class="knowledge-secondary-action" onclick="searchKnowledge()">
+                            <i class="fa fa-filter"></i> 只检索
+                        </button>
+                    </div>
+                    <div class="knowledge-signal-strip">
+                        <span><b id="total-knowledge">0</b> 知识片段</span>
+                        <span><b id="published-knowledge">0</b> 可检索</span>
+                        <span><b id="total-categories">0</b> 知识域</span>
+                    </div>
+                </div>
+                <div class="knowledge-main-grid">
+                    <section class="knowledge-answer-panel">
+                        <div class="knowledge-panel-head">
+                            <span><i class="fa fa-commenting-o"></i> 生成答案</span>
+                            <em id="knowledge-current-question">等待问题</em>
+                        </div>
+                        <div id="knowledge-answer" class="knowledge-answer">
+                            <strong>答案区</strong>
+                            <p>输入问题后会基于命中知识生成回答；没有命中时先展示可用知识覆盖。</p>
+                        </div>
+                        <div class="knowledge-answer-actions">
+                            <button type="button" onclick="showAIGenerateModal()">
+                                <i class="fa fa-magic"></i> 生成知识
+                            </button>
+                            <button type="button" onclick="showCreateKnowledgeModal()">
+                                <i class="fa fa-plus"></i> 手工补充
+                            </button>
+                        </div>
+                    </section>
+                    <section class="knowledge-evidence-panel">
+                        <div class="knowledge-panel-head">
+                            <span><i class="fa fa-crosshairs"></i> 命中证据</span>
+                            <em id="knowledge-hit-count">0 条</em>
+                        </div>
+                        <div id="knowledge-evidence-list" class="knowledge-evidence-list">
+                            <div class="knowledge-empty-state">等待检索命中。</div>
+                        </div>
+                    </section>
+                    <aside class="knowledge-source-panel">
+                        <div class="knowledge-panel-head">
+                            <span><i class="fa fa-sitemap"></i> 知识覆盖</span>
+                            <em>实时</em>
+                        </div>
+                        <div class="knowledge-graph-strip" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span><span></span>
+                        </div>
+                        <div id="knowledge-source-list" class="knowledge-source-list">
+                            <div class="knowledge-empty-state">正在读取知识覆盖。</div>
+                        </div>
+                        <div class="knowledge-maintenance-panel">
+                            <button type="button" onclick="showAIGenerateModal()"><i class="fa fa-magic"></i> AI 补齐</button>
+                            <button type="button" onclick="showCreateKnowledgeModal()"><i class="fa fa-edit"></i> 维护</button>
+                        </div>
+                    </aside>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-documentation text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-question-circle text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 加载动画 -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 flex flex-col items-center space-x-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <p id="loading-text" class="mt-4 font-medium">执行中...</p>
+        </div>
+    </div>
+
+    <!-- AI生成知识库模态框 -->
+    <div id="ai-generate-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-dark">AI生成知识库内容</h3>
+                <button onclick="closeAIGenerateModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">生成提示</label>
+                    <textarea id="ai-prompt" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="请输入生成提示，例如：'生成一份关于Spring Boot 3.0新特性的知识库内容'">
+                    </textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">生成结果</label>
+                    <div id="ai-generated-content" class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-40 max-h-60 overflow-auto">
+                        <p class="text-gray-500">生成的内容将显示在这里...</p>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeAIGenerateModal()" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all">
+                        取消
+                    </button>
+                    <button onclick="generateKnowledgeWithAI()" class="px-4 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 transition-all">
+                        <i class="fa fa-magic mr-1"></i> 生成
+                    </button>
+                    <button onclick="saveGeneratedKnowledge()" id="save-generated-btn" class="px-4 py-2 bg-success text-white font-medium rounded-lg hover:bg-success/90 transition-all hidden">
+                        <i class="fa fa-save mr-1"></i> 保存到知识库
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI问答模态框 -->
+    <div id="ai-question-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-dark">AI知识库问答</h3>
+                <button onclick="closeAIQuestionModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">问题</label>
+                    <textarea id="ai-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="请输入您的问题，例如：'Spring Boot 3.0有哪些新特性？'">
+                    </textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">AI回答</label>
+                    <div id="ai-answer" class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-40 max-h-60 overflow-auto">
+                        <p class="text-gray-500">AI的回答将显示在这里...</p>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeAIQuestionModal()" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all">
+                        取消
+                    </button>
+                    <button onclick="askQuestionWithAI()" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-all">
+                        <i class="fa fa-question-circle mr-1"></i> 提问
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // 全局变量
+        let countdown = 0;
+        let timer = null;
+        let isLoggedIn = false;
+
+        // 标签页切换功能
+        function switchTab(tabId, event) {
+            const targetTab = document.getElementById(tabId + '-tab');
+            if (!targetTab) {
+                if (event && event.currentTarget) {
+                    event.currentTarget.classList.remove('text-primary', 'font-medium', 'border-b-2', 'border-primary');
+                    event.currentTarget.classList.add('text-gray-600', 'hover:text-primary');
+                }
+                return;
+            }
+
+            // 隐藏所有标签内容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            // 显示选中的标签内容
+            targetTab.classList.remove('hidden');
+            if (tabId === 'home') {
+                showHomeWorkbench();
+                refreshHomeOpsBrief();
+            }
+            if (tabId === 'deploy' && window.location.hash === '#deploy-result') {
+                openDeployPanel('result', { skipHash: true });
+            }
+
+            // 更新标签按钮状态
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('text-primary', 'font-medium', 'border-b-2', 'border-primary');
+                btn.classList.add('text-gray-600', 'hover:text-primary');
+            });
+
+            // 设置当前标签按钮为活动状态
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.remove('text-gray-600', 'hover:text-primary');
+                event.currentTarget.classList.add('text-primary', 'font-medium', 'border-b-2', 'border-primary');
+            } else {
+                // 如果没有event参数（比如通过URL哈希调用），手动找到对应的标签按钮并设置为活动状态
+                const tabBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => {
+                    return (tabId === 'home' && btn.textContent.includes('首页')) ||
+                           (tabId === 'deploy' && btn.textContent.includes('部署工具')) ||
+                           (tabId === 'logs' && btn.textContent.includes('Docker日志'));
+                });
+                if (tabBtn) {
+                    tabBtn.classList.remove('text-gray-600', 'hover:text-primary');
+                    tabBtn.classList.add('text-primary', 'font-medium', 'border-b-2', 'border-primary');
+                }
+            }
+        }
+
+        // 发送验证码
+        function sendCode() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            const sendCodeButton = document.getElementById('sendCodeButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+
+            if (!phone) {
+                errorMessage.textContent = '请输入手机号';
+                successMessage.textContent = '';
+                return;
+            }
+
+            if (!/^1[3-9]\d{9}$/.test(phone)) {
+                errorMessage.textContent = '请输入正确的手机号';
+                successMessage.textContent = '';
+                return;
+            }
+
+            errorMessage.textContent = '';
+            successMessage.textContent = '';
+            sendCodeButton.disabled = true;
+            sendCodeButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 发送中...';
+
+            // 发送验证码请求
+            fetch('/api/sms/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phone: phone })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    successMessage.textContent = '验证码已发送';
+                    startCountdown();
+                } else {
+                    errorMessage.textContent = data.message || '发送验证码失败';
+                    sendCodeButton.disabled = false;
+                    sendCodeButton.innerHTML = '发送验证码';
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = '发送验证码失败，请重试';
+                sendCodeButton.disabled = false;
+                sendCodeButton.innerHTML = '发送验证码';
+                console.error('发送验证码失败:', error);
+            });
+        }
+
+        // 倒计时函数
+        function startCountdown() {
+            countdown = 60;
+            const sendCodeButton = document.getElementById('sendCodeButton');
+            sendCodeButton.innerHTML = `${countdown}秒后重新发送`;
+
+            timer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    sendCodeButton.disabled = false;
+                    sendCodeButton.innerHTML = '发送验证码';
+                } else {
+                    sendCodeButton.innerHTML = `${countdown}秒后重新发送`;
+                }
+            }, 1000);
+        }
+
+        // 登录函数
+        function login() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            const code = document.getElementById('codeInput').value.trim();
+            const loginButton = document.getElementById('loginButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+
+            if (!phone) {
+                errorMessage.textContent = '请输入手机号';
+                successMessage.textContent = '';
+                return;
+            }
+
+            if (!code) {
+                errorMessage.textContent = '请输入验证码';
+                successMessage.textContent = '';
+                return;
+            }
+
+            errorMessage.textContent = '';
+            successMessage.textContent = '';
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 登录中...';
+
+            // 登录请求
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phone: phone, code: code })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    successMessage.textContent = '登录成功';
+                    isLoggedIn = true;
+
+                    // 保存登录状态到localStorage
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('loginTime', new Date().getTime().toString());
+                    localStorage.setItem('phone', phone);
+
+                    // 检查URL哈希
+                    const hash = window.location.hash.substring(1);
+                    const routedHash = resolveIndexTabHash(hash);
+
+                    // 如果URL哈希指向部署工具或Docker日志，直接显示对应页面
+                    if (routedHash === 'deploy' || routedHash === 'logs') {
+                        setTimeout(() => {
+                            document.getElementById('login-container').classList.add('hidden');
+                            switchTab(routedHash, null);
+                            openDeployPanelForHash(hash);
+                            // 确保对应标签按钮为活动状态
+                            const tabBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => {
+                                return routedHash === 'deploy' ? btn.textContent.includes('部署工具') : btn.textContent.includes('Docker日志');
+                            });
+                            if (tabBtn) {
+                                tabBtn.click();
+                            }
+                        }, 1000);
+                    } else {
+                        // 否则显示AI功能
+                        setTimeout(() => {
+                            document.getElementById('login-container').classList.add('hidden');
+                            document.getElementById('ai-features').classList.remove('hidden');
+                        }, 1000);
+                    }
+                } else {
+                    errorMessage.textContent = data.message || '登录失败';
+                    loginButton.disabled = false;
+                    loginButton.innerHTML = '登录';
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = '登录失败，请重试';
+                loginButton.disabled = false;
+                loginButton.innerHTML = '登录';
+                console.error('登录失败:', error);
+            });
+        }
+
+        // 绑定事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查登录状态
+            checkLoginStatus();
+
+            // 按Enter键登录
+            if (document.getElementById('codeInput')) {
+                document.getElementById('codeInput').addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        login();
+                    }
+                });
+            }
+
+            // 处理URL哈希，自动切换到对应标签页
+            const hash = window.location.hash.substring(1);
+            const routedHash = resolveIndexTabHash(hash);
+            if (routedHash === 'deploy' || routedHash === 'logs') {
+                // 无论登录状态如何，直接显示部署工具或Docker日志页面
+                document.getElementById('login-container').classList.add('hidden');
+                switchTab(routedHash, null);
+                openDeployPanelForHash(hash);
+                // 确保对应标签按钮为活动状态
+                const tabBtn = Array.from(document.querySelectorAll('.tab-btn')).find(btn => {
+                    return routedHash === 'deploy' ? btn.textContent.includes('部署工具') : btn.textContent.includes('Docker日志');
+                });
+                if (tabBtn) {
+                    tabBtn.click();
+                }
+            }
+            renderDeployActionRouteHint();
+            refreshHomeRuntimePreview();
+            refreshHomeOpsBrief();
+            refreshDeployOverview();
+            homeRuntimePreviewTimer = setInterval(refreshHomeRuntimePreview, 5000);
+            homeOpsBriefTimer = setInterval(refreshHomeOpsBrief, 15000);
+            deployOverviewTimer = setInterval(refreshDeployOverview, 5000);
+        });
+
+        // 检查登录状态
+        function checkLoginStatus() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+            const loginContainer = document.getElementById('login-container');
+            const aiFeatures = document.getElementById('ai-features');
+
+            showHomeWorkbench();
+
+            if (isLoggedIn && loginContainer) {
+                loginContainer.classList.add('hidden');
+            }
+        }
+
+        function showHomeWorkbench() {
+            const loginContainer = document.getElementById('login-container');
+            const aiFeatures = document.getElementById('ai-features');
+
+            if (loginContainer) {
+                loginContainer.classList.add('hidden');
+            }
+            if (aiFeatures) {
+                aiFeatures.classList.remove('hidden');
+            }
+        }
+
+        function appendLogLine(container, text, className = '') {
+            const line = document.createElement('p');
+            if (className) {
+                line.className = className;
+            }
+            line.textContent = text;
+            container.appendChild(line);
+        }
+
+        function appendLogBlock(container, title, content) {
+            appendLogLine(container, title, 'deploy-log-label');
+            const block = document.createElement('pre');
+            block.className = 'deploy-log-block';
+            block.textContent = content;
+            container.appendChild(block);
+        }
+
+        let deployOverviewTimer = null;
+        let homeRuntimePreviewTimer = null;
+        let homeOpsBriefTimer = null;
+
+        function clearBuildLog() {
+            const buildLog = document.getElementById('build-log');
+            if (buildLog) {
+                buildLog.innerHTML = '<p>执行日志已清空。</p>';
+            }
+        }
+
+        function setBuildStatus(kind, title, detail) {
+            const buildStatus = document.getElementById('build-status');
+            if (!buildStatus) {
+                return;
+            }
+            const icon = kind === 'success' ? 'fa-check-circle' : kind === 'error' ? 'fa-times-circle' : 'fa-spinner fa-spin';
+            buildStatus.className = 'deploy-current-status is-' + kind;
+            buildStatus.innerHTML = `
+                <span class="deploy-status-dot"></span>
+                <div>
+                    <strong><i class="fa ${icon}"></i> ${title}</strong>
+                    <p>${detail}</p>
+                </div>
+            `;
+        }
+
+        function resolveIndexTabHash(hash) {
+            return hash === 'deploy-result' ? 'deploy' : hash;
+        }
+
+        function openDeployPanelForHash(hash) {
+            if (hash === 'deploy-result') {
+                openDeployPanel('result', { skipHash: true });
+            }
+        }
+
+        function openDeployPanel(panelId, options = {}) {
+            const availablePanels = ['result', 'containers', 'log', 'models'];
+            const nextPanel = availablePanels.includes(panelId) ? panelId : 'result';
+
+            document.querySelectorAll('[data-deploy-tab]').forEach(tab => {
+                const active = tab.getAttribute('data-deploy-tab') === nextPanel;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', String(active));
+            });
+            document.querySelectorAll('[data-deploy-panel]').forEach(panel => {
+                panel.classList.toggle('is-active', panel.getAttribute('data-deploy-panel') === nextPanel);
+            });
+
+            if (!options.skipHash && window.location.hash !== '#deploy-result' && nextPanel === 'result') {
+                window.history.replaceState(null, '', '#deploy-result');
+            }
+            if (!options.skipHash && window.location.hash === '#deploy-result' && nextPanel !== 'result') {
+                window.history.replaceState(null, '', '#deploy');
+            }
+        }
+
+        function resolveDeployActionBaseUrl() {
+            if (window.location.port === '8081') {
+                return `${window.location.protocol}//${window.location.hostname}:8080`;
+            }
+            return '';
+        }
+
+        function fetchDeployAction(path, options) {
+            const baseUrl = resolveDeployActionBaseUrl();
+            return fetch(baseUrl + path, options).catch(error => {
+                if (baseUrl) {
+                    throw new Error(`宿主机部署器不可用，请先启动 ${baseUrl}/index.html#deploy 后重试。原始错误: ${error.message}`);
+                }
+                throw error;
+            });
+        }
+
+        function renderDeployActionRouteHint() {
+            const hint = document.getElementById('deploy-action-route-hint');
+            if (!hint) {
+                return;
+            }
+            const baseUrl = resolveDeployActionBaseUrl();
+            if (baseUrl) {
+                hint.textContent = '宿主机部署器';
+                hint.title = `当前是 Docker 版页面，部署动作会交给 ${baseUrl}`;
+                return;
+            }
+            hint.textContent = '本地环境';
+            hint.title = '当前页面直接执行本地构建与 Docker 部署';
+        }
+
+        function refreshHomeRuntimePreview() {
+            const state = document.getElementById('home-runtime-state');
+            if (!state) {
+                return;
+            }
+            fetch('/api/deploy/status')
+                .then(response => response.json())
+                .then(payload => {
+                    if (!payload.success) {
+                        renderHomeRuntimePreviewError(payload.message || '状态读取失败');
+                        return;
+                    }
+                    renderHomeRuntimePreview(payload.data || payload);
+                })
+                .catch(error => renderHomeRuntimePreviewError(error.message));
+        }
+
+        function renderHomeRuntimePreview(status) {
+            const metrics = status.serviceMetrics || {};
+            const deploymentLevel = status.deploymentState === 'FAILED' ? 'danger' : 'ok';
+            updateHomeRuntimeBadge('home-runtime-state', '部署 ' + (status.deploymentState || '--'), resolveHomeRuntimeLevel(deploymentLevel));
+            updateHomeRuntimeBadge('home-runtime-service', status.serviceState || '--', status.serviceReachable ? 'ok' : 'danger');
+            updateHomeRuntimeBadge('home-runtime-docker', status.dockerAvailable ? 'Docker UP' : 'Docker ERR', status.dockerAvailable ? 'ok' : 'danger');
+            updateHomeRuntimeOverall(status.serviceReachable && status.dockerAvailable && status.deploymentState !== 'FAILED');
+
+            setHomeRuntimeText('home-runtime-cpu', formatHomeRuntimePercent(metrics.systemCpuLoadPercent));
+            setHomeRuntimeText('home-runtime-cpu-detail', `系统 CPU ${formatHomeRuntimePercent(metrics.systemCpuLoadPercent)}`);
+            setHomeRuntimeText('home-runtime-threads', metrics.threadCount ?? '--');
+            setHomeRuntimeText('home-runtime-threads-detail', `守护线程 ${metrics.daemonThreadCount ?? '--'} / 峰值 ${metrics.peakThreadCount ?? '--'}`);
+            setHomeRuntimeText('home-runtime-heap', formatHomeRuntimePercent(metrics.heapUsagePercent ?? status.memoryUsagePercent));
+            setHomeRuntimeText('home-runtime-heap-detail', `非堆 ${formatHomeRuntimeStorage(metrics.nonHeapUsedMb, 'MB')}`);
+            setHomeRuntimeText('home-runtime-gc', metrics.gcCount ?? '--');
+            setHomeRuntimeText('home-runtime-gc-detail', `耗时 ${formatHomeRuntimeDuration(metrics.gcTimeMs)}`);
+            setHomeRuntimeText('home-runtime-disk', formatHomeRuntimeStorage(metrics.diskUsableGb, 'GB'));
+            setHomeRuntimeText('home-runtime-disk-detail', `使用率 ${formatHomeRuntimePercent(metrics.diskUsagePercent)}`);
+            setHomeRuntimeText('home-runtime-latency', formatDeployLatency(metrics.healthLatencyMs));
+            setHomeRuntimeText('home-runtime-loaded', metrics.loadedClassCount ?? '--');
+            setHomeRuntimeText('home-runtime-core-label', status.deploymentState || '--');
+            setHomeRuntimeText('home-runtime-docker-label', status.dockerAvailable ? 'ready' : 'error');
+            setHomeRuntimeText('home-runtime-jvm-label', `${formatHomeRuntimePercent(metrics.heapUsagePercent ?? status.memoryUsagePercent)} mem`);
+        }
+
+        function renderHomeRuntimePreviewError(message) {
+            updateHomeRuntimeBadge('home-runtime-state', '状态异常', 'danger');
+            updateHomeRuntimeBadge('home-runtime-service', '服务 --', 'warning');
+            updateHomeRuntimeBadge('home-runtime-docker', 'Docker --', 'warning');
+            updateHomeRuntimeOverall(false);
+            setHomeRuntimeText('home-runtime-cpu', '--');
+            setHomeRuntimeText('home-runtime-cpu-detail', '系统 CPU --');
+            setHomeRuntimeText('home-runtime-threads', '--');
+            setHomeRuntimeText('home-runtime-threads-detail', '守护线程 --');
+            setHomeRuntimeText('home-runtime-heap', '--');
+            setHomeRuntimeText('home-runtime-heap-detail', '非堆 --');
+            setHomeRuntimeText('home-runtime-gc', '--');
+            setHomeRuntimeText('home-runtime-gc-detail', '耗时 --');
+            setHomeRuntimeText('home-runtime-disk', '--');
+            setHomeRuntimeText('home-runtime-disk-detail', '使用率 --');
+            setHomeRuntimeText('home-runtime-latency', '--');
+            setHomeRuntimeText('home-runtime-loaded', '--');
+            setHomeRuntimeText('home-runtime-core-label', '--');
+            setHomeRuntimeText('home-runtime-docker-label', '--');
+            setHomeRuntimeText('home-runtime-jvm-label', '--');
+            console.warn('大厅运行态势读取失败:', message);
+        }
+
+        function updateHomeRuntimeBadge(id, text, level) {
+            const element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+            element.textContent = text;
+            element.classList.remove('is-ok', 'is-warning', 'is-danger');
+            element.classList.add('is-' + level);
+        }
+
+        function setHomeRuntimeText(id, text) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = text;
+            }
+        }
+
+        function resolveHomeRuntimeLevel(level) {
+            return ['ok', 'warning', 'danger'].includes(level) ? level : 'warning';
+        }
+
+        function updateHomeRuntimeOverall(ok) {
+            const element = document.getElementById('home-runtime-overall');
+            if (!element) {
+                return;
+            }
+            element.textContent = ok ? '运行正常' : '需要关注';
+            element.classList.remove('is-ok', 'is-danger');
+            element.classList.add(ok ? 'is-ok' : 'is-danger');
+        }
+
+        function formatHomeRuntimePercent(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number) || number < 0) {
+                return '--';
+            }
+            return `${number.toFixed(1)}%`;
+        }
+
+        function formatHomeRuntimeStorage(value, unit) {
+            const number = Number(value);
+            if (!Number.isFinite(number) || number < 0) {
+                return '--';
+            }
+            return `${Math.round(number)} ${unit}`;
+        }
+
+        function formatHomeRuntimeDuration(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number) || number < 0) {
+                return '--';
+            }
+            return `${Math.round(number)} ms`;
+        }
+
+        function refreshHomeOpsBrief() {
+            const knowledgeTotal = document.getElementById('home-knowledge-total');
+            if (!knowledgeTotal) {
+                return;
+            }
+
+            Promise.allSettled([
+                fetch('/api/knowledge/statistics').then(response => response.json()),
+                fetch('/api/model-evaluation/summary').then(response => response.json()),
+                fetch('/api/model-evaluation/runs?limit=3').then(response => response.json())
+            ]).then(results => {
+                const knowledgeStats = normalizeHomeApiPayload(results[0]);
+                const evaluationSummary = normalizeHomeApiPayload(results[1]);
+                const evaluationRuns = normalizeHomeApiPayload(results[2]);
+                renderHomeKnowledgeBrief(knowledgeStats);
+                renderHomeEvaluationBrief(evaluationSummary, evaluationRuns);
+                renderHomeActionBrief(knowledgeStats, evaluationSummary);
+            });
+        }
+
+        function normalizeHomeApiPayload(result) {
+            if (!result || result.status !== 'fulfilled') {
+                return null;
+            }
+            const payload = result.value;
+            if (payload && payload.success && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+                return payload.data;
+            }
+            return payload;
+        }
+
+        function renderHomeKnowledgeBrief(stats) {
+            const safeStats = stats || {};
+            const categoryStats = safeStats.categoryStats || {};
+            const tagStats = safeStats.tagStats || {};
+            const total = Number(safeStats.totalKnowledge || 0);
+            const published = Number(safeStats.publishedCount || 0);
+            const tagCount = Object.keys(tagStats).length;
+            setHomeRuntimeText('home-knowledge-total', formatHomeOpsNumber(total));
+            setHomeRuntimeText('home-knowledge-published', formatHomeOpsNumber(published));
+            setHomeRuntimeText('home-knowledge-tags', formatHomeOpsNumber(tagCount));
+            updateHomeBriefStatus('home-knowledge-status', published > 0 ? '可检索' : '待补充', published > 0 ? 'ok' : 'warning');
+            renderHomeKnowledgeTopics(categoryStats);
+        }
+
+        function renderHomeKnowledgeTopics(categoryStats) {
+            const container = document.getElementById('home-knowledge-topics');
+            if (!container) {
+                return;
+            }
+            const entries = Object.entries(categoryStats || {})
+                .sort((left, right) => Number(right[1] || 0) - Number(left[1] || 0))
+                .slice(0, 3);
+            if (!entries.length) {
+                container.innerHTML = '<article class="app-home-empty-row">暂无分类分布</article>';
+                return;
+            }
+            container.innerHTML = entries.map(([name, count]) => `
+                <article class="app-home-list-row">
+                    <span>${escapeDeployHtml(name)}</span>
+                    <em>${formatHomeOpsNumber(count)}</em>
+                </article>
+            `).join('');
+        }
+
+        function renderHomeEvaluationBrief(summary, runs) {
+            const safeSummary = summary || {};
+            const list = Array.isArray(runs) ? runs : [];
+            const totalRuns = Number(safeSummary.totalRuns || 0);
+            const failureRuns = Number(safeSummary.failureRuns || 0);
+            setHomeRuntimeText('home-evaluation-total', formatHomeOpsNumber(totalRuns));
+            setHomeRuntimeText('home-evaluation-success-rate', formatHomeOpsPercent(safeSummary.successRate));
+            setHomeRuntimeText('home-evaluation-failures', formatHomeOpsNumber(failureRuns));
+            updateHomeBriefStatus(
+                'home-evaluation-status',
+                failureRuns > 0 ? '有失败' : totalRuns > 0 ? '稳定' : '待采样',
+                failureRuns > 0 ? 'danger' : totalRuns > 0 ? 'ok' : 'warning'
+            );
+            renderHomeEvaluationRuns(list);
+        }
+
+        function renderHomeEvaluationRuns(runs) {
+            const container = document.getElementById('home-evaluation-run-list');
+            if (!container) {
+                return;
+            }
+            const list = Array.isArray(runs) ? runs : [];
+            if (!list.length) {
+                container.innerHTML = '<article class="app-home-empty-row">暂无测评记录</article>';
+                return;
+            }
+            container.innerHTML = list.slice(0, 3).map(run => `
+                <article class="app-home-run-row ${run.success ? 'is-ok' : 'is-danger'}">
+                    <span>${escapeDeployHtml(run.scene || '--')} · ${escapeDeployHtml(run.model || '--')}</span>
+                    <em>${run.success ? '成功' : '失败'} ${formatHomeOpsScore(run.overallScore)}</em>
+                </article>
+            `).join('');
+        }
+
+        function renderHomeActionBrief(stats, summary) {
+            const container = document.getElementById('home-action-list');
+            if (!container) {
+                return;
+            }
+            const published = Number((stats || {}).publishedCount || 0);
+            const totalRuns = Number((summary || {}).totalRuns || 0);
+            const failureRuns = Number((summary || {}).failureRuns || 0);
+            const actions = [
+                published > 0
+                    ? { href: '/index.html#knowledge', icon: 'fa-book', title: '扩展知识覆盖', detail: `${formatHomeOpsNumber(published)} 条可检索` }
+                    : { href: '/index.html#knowledge', icon: 'fa-book', title: '补齐知识覆盖', detail: '暂无可检索知识' },
+                failureRuns > 0
+                    ? { href: '/model-evaluation.html', icon: 'fa-exclamation-triangle', title: '处理测评失败', detail: `${formatHomeOpsNumber(failureRuns)} 条失败` }
+                    : { href: '/model-evaluation.html', icon: 'fa-line-chart', title: totalRuns > 0 ? '保持测评基线' : '建立测评基线', detail: totalRuns > 0 ? `${formatHomeOpsNumber(totalRuns)} 条样本` : '暂无样本' },
+                { href: '/service-dashboard.html', icon: 'fa-heartbeat', title: '查看运行态势', detail: document.getElementById('home-runtime-overall')?.textContent || '服务大屏' }
+            ];
+            container.innerHTML = actions.map(action => `
+                <a href="${escapeDeployAttribute(action.href)}" class="app-home-action-row">
+                    <i class="fa ${escapeDeployAttribute(action.icon)}"></i>
+                    <strong>${escapeDeployHtml(action.title)}</strong>
+                    <small>${escapeDeployHtml(action.detail)}</small>
+                </a>
+            `).join('');
+            setHomeRuntimeText('home-action-status', failureRuns > 0 || published <= 0 ? '需关注' : '就绪');
+        }
+
+        function updateHomeBriefStatus(id, text, level) {
+            const element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+            element.textContent = text;
+            element.classList.remove('is-ok', 'is-warning', 'is-danger');
+            element.classList.add('is-' + resolveHomeRuntimeLevel(level));
+        }
+
+        function formatHomeOpsNumber(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) {
+                return '--';
+            }
+            return Math.round(number).toLocaleString('zh-CN');
+        }
+
+        function formatHomeOpsPercent(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) {
+                return '--';
+            }
+            const percent = number <= 1 ? number * 100 : number;
+            return `${percent.toFixed(1)}%`;
+        }
+
+        function formatHomeOpsScore(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number)) {
+                return '--';
+            }
+            return Math.round(number);
+        }
+
+        function refreshDeployOverview() {
+            const state = document.getElementById('deploy-overview-state');
+            if (!state) {
+                return;
+            }
+            fetch('/api/deploy/status')
+                .then(response => response.json())
+                .then(payload => {
+                    if (!payload.success) {
+                        renderDeployOverviewError(payload.message || '状态读取失败');
+                        return;
+                    }
+                    renderDeployOverview(payload.data || payload);
+                })
+                .catch(error => renderDeployOverviewError(error.message));
+        }
+
+        function renderDeployOverview(status) {
+            setDeployText('deploy-overview-state', status.deploymentState || '--');
+            setDeployText('deploy-overview-message', status.deploymentMessage || '--');
+            setDeployText('deploy-overview-service', status.serviceState || '--');
+            setDeployText('deploy-overview-service-url', status.serviceUrl || '--');
+            setDeployText('deploy-overview-docker', status.dockerAvailable ? 'Docker 可用' : 'Docker 异常');
+            setDeployText('deploy-overview-containers', `${(status.containers || []).length} 个容器，健康延迟 ${formatDeployLatency(status.serviceMetrics?.healthLatencyMs)}`);
+            setDeployText('deploy-overview-runtime', formatDeployDuration(status.uptimeSeconds || 0));
+            setDeployText('deploy-overview-memory', `内存 ${formatDeployPercent(status.memoryUsagePercent)}`);
+            renderDeployDetail(status);
+            renderDeployContainers(status.containers || []);
+            renderDeployModelServices(status.modelServices || []);
+        }
+
+        function renderDeployOverviewError(message) {
+            setDeployText('deploy-overview-state', 'ERROR');
+            setDeployText('deploy-overview-message', message);
+            setDeployText('deploy-overview-service', '--');
+            setDeployText('deploy-overview-docker', '--');
+            setDeployText('deploy-detail-state', 'ERROR');
+            setDeployText('deploy-detail-message', message);
+            setDeployText('deploy-log-tail', '获取部署状态失败: ' + message);
+            setDeployHtml('deploy-container-list', '<article class="deploy-empty-row">容器状态读取失败</article>');
+            setDeployHtml('deploy-model-services', '<article class="deploy-empty-row">模型服务状态读取失败</article>');
+        }
+
+        function renderDeployDetail(status) {
+            const metrics = status.serviceMetrics || {};
+            setDeployText('deploy-detail-state', status.deploymentState || '--');
+            setDeployText('deploy-detail-message', status.deploymentMessage || '--');
+            setDeployText('deploy-detail-service', status.serviceState || '--');
+            setDeployText('deploy-detail-service-url', status.serviceUrl || '--');
+            setDeployText('deploy-detail-docker', status.dockerAvailable ? '可用' : '异常');
+            setDeployText('deploy-detail-docker-message', status.dockerAvailable ? '已读取容器状态' : (status.dockerError || '无法读取 Docker'));
+            setDeployText('deploy-detail-runtime', formatDeployDuration(status.uptimeSeconds || 0));
+            setDeployText('deploy-detail-processors', `CPU 核心 ${status.availableProcessors || 0}`);
+            setDeployText('deploy-detail-running', status.deploymentRunning ? '执行中' : '空闲');
+            setDeployText('deploy-detail-last-check', formatDeployTime(status.checkedAt));
+            setDeployText('deploy-detail-memory', `${status.memoryUsedMb || 0} / ${status.memoryMaxMb || 0} MB (${formatDeployPercent(status.memoryUsagePercent)})`);
+            setDeployHtml('deploy-detail-service-link', status.serviceUrl
+                ? `<a href="${escapeDeployAttribute(status.serviceUrl)}" target="_blank" rel="noreferrer">${escapeDeployHtml(status.serviceUrl)}</a>`
+                : '--');
+            setDeployText('deploy-log-tail', status.deployLogTail || '暂无部署日志');
+            const memoryBar = document.getElementById('deploy-detail-memory-bar');
+            if (memoryBar) {
+                memoryBar.style.width = `${Math.min(Number(status.memoryUsagePercent || 0), 100)}%`;
+            }
+            if (metrics.heapUsagePercent !== undefined) {
+                setDeployText('deploy-detail-memory', `${status.memoryUsedMb || 0} / ${status.memoryMaxMb || 0} MB，堆 ${formatDeployPercent(metrics.heapUsagePercent)}`);
+            }
+        }
+
+        function renderDeployContainers(containers) {
+            const container = document.getElementById('deploy-container-list');
+            if (!container) {
+                return;
+            }
+            if (!containers.length) {
+                container.innerHTML = '<article class="deploy-empty-row">暂无容器状态</article>';
+                return;
+            }
+
+            container.innerHTML = containers.map(item => {
+                const running = String(item.status || '').toLowerCase().startsWith('up');
+                return `
+                    <article class="deploy-container-item ${running ? 'is-up' : 'is-down'}">
+                        <div class="deploy-item-head">
+                            <strong>${escapeDeployHtml(item.name || '未知容器')}</strong>
+                            <span class="deploy-state-pill ${running ? 'is-up' : 'is-down'}">${running ? '运行中' : '未运行'}</span>
+                        </div>
+                        <p class="deploy-item-meta">${escapeDeployHtml(item.status || '未知状态')}</p>
+                        <p class="deploy-item-meta">${escapeDeployHtml(item.ports || '暂无端口映射')}</p>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function renderDeployModelServices(modelServices) {
+            const container = document.getElementById('deploy-model-services');
+            if (!container) {
+                return;
+            }
+            if (!modelServices.length) {
+                container.innerHTML = '<article class="deploy-empty-row">暂无模型服务状态</article>';
+                return;
+            }
+
+            container.innerHTML = modelServices.map(item => {
+                const state = String(item.state || 'UNKNOWN').toUpperCase();
+                const stateClass = state === 'UP' ? 'is-up' : state === 'DOWN' ? 'is-down' : 'is-degraded';
+                return `
+                    <article class="deploy-model-service-item ${stateClass}">
+                        <div class="deploy-item-head">
+                            <strong>${escapeDeployHtml(item.name || item.id || '模型服务')}</strong>
+                            <span class="deploy-state-pill ${stateClass}">${escapeDeployHtml(state)}</span>
+                        </div>
+                        <p class="deploy-item-meta">${escapeDeployHtml(item.modelSummary || item.message || '等待模型状态')}</p>
+                        <p class="deploy-item-meta">${escapeDeployHtml(item.endpoint || '')}</p>
+                        <p class="deploy-item-meta">${escapeDeployHtml(item.actionSuggestion || '')}</p>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function setDeployText(id, text) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = text;
+            }
+        }
+
+        function setDeployHtml(id, html) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.innerHTML = html;
+            }
+        }
+
+        function escapeDeployHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function escapeDeployAttribute(value) {
+            return escapeDeployHtml(value).replaceAll('`', '&#096;');
+        }
+
+        function formatDeployDuration(seconds) {
+            const value = Number(seconds || 0);
+            const hours = Math.floor(value / 3600);
+            const minutes = Math.floor((value % 3600) / 60);
+            if (hours > 0) {
+                return `${hours}h ${minutes}m`;
+            }
+            return `${minutes}m`;
+        }
+
+        function formatDeployPercent(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number) || number < 0) {
+                return '--';
+            }
+            return `${number.toFixed(1)}%`;
+        }
+
+        function formatDeployLatency(value) {
+            const number = Number(value);
+            if (!Number.isFinite(number) || number < 0) {
+                return '--';
+            }
+            return `${Math.round(number)} ms`;
+        }
+
+        function formatDeployTime(value) {
+            if (!value) {
+                return '--';
+            }
+            return new Date(value).toLocaleTimeString('zh-CN', { hour12: false });
+        }
+
+        // 构建项目
+        function buildProject() {
+            const buildLog = document.getElementById('build-log');
+
+            openDeployPanel('log', { skipHash: true });
+            setBuildStatus('running', '正在构建项目', '正在调用后端构建接口，请等待构建输出。');
+            buildLog.innerHTML = '';
+            appendLogLine(buildLog, '开始构建项目...');
+            appendLogLine(buildLog, '调用后端构建接口...');
+
+            // 调用后端构建接口
+            fetchDeployAction('/api/deploy/build', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    appendLogLine(buildLog, '构建成功');
+                    setBuildStatus('success', '构建成功', '最新构建产物已生成到 target 目录。');
+                    appendLogLine(buildLog, '最新的构建产物已生成到 target 目录');
+                    if (data.output) {
+                        appendLogBlock(buildLog, '构建输出:', data.output);
+                    }
+                } else {
+                    appendLogLine(buildLog, '构建失败', 'text-danger');
+                    setBuildStatus('error', '构建失败', '请查看执行日志中的错误信息。');
+                    if (data.error) {
+                        appendLogLine(buildLog, '错误信息: ' + data.error, 'text-danger');
+                    }
+                    if (data.output) {
+                        appendLogBlock(buildLog, '构建输出:', data.output);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('构建请求失败:', error);
+                appendLogLine(buildLog, '构建请求失败', 'text-danger');
+                setBuildStatus('error', '构建请求失败', '请确认后端服务和网络状态。');
+                appendLogLine(buildLog, '错误信息: ' + error.message, 'text-danger');
+            })
+            .finally(refreshDeployOverview);
+        }
+
+        // 部署项目
+        function deployProject() {
+            const buildLog = document.getElementById('build-log');
+
+            openDeployPanel('log', { skipHash: true });
+            setBuildStatus('running', '正在部署应用', '正在触发镜像构建、容器替换和健康检查。');
+            buildLog.innerHTML = '';
+            appendLogLine(buildLog, '开始部署应用...');
+            appendLogLine(buildLog, '调用后端部署接口...');
+
+            fetchDeployAction('/api/deploy/deploy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    appendLogLine(buildLog, '部署任务已启动');
+                    setBuildStatus('success', '部署任务已启动', '部署流程已提交，状态会继续在右侧概览刷新。');
+                    if (data.output) {
+                        appendLogBlock(buildLog, '部署输出:', data.output);
+                    }
+                } else {
+                    appendLogLine(buildLog, '部署失败', 'text-danger');
+                    setBuildStatus('error', '部署失败', '请查看执行日志并确认容器状态。');
+                    if (data.error) {
+                        appendLogLine(buildLog, '错误信息: ' + data.error, 'text-danger');
+                    }
+                    if (data.output) {
+                        appendLogBlock(buildLog, '部署输出:', data.output);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('部署请求失败:', error);
+                appendLogLine(buildLog, '部署请求失败', 'text-danger');
+                setBuildStatus('error', '部署请求失败', '请确认后端服务和 Docker 状态。');
+                appendLogLine(buildLog, '错误信息: ' + error.message, 'text-danger');
+            })
+            .finally(refreshDeployOverview);
+        }
+
+        // 重启项目
+        function restartProject() {
+            const buildLog = document.getElementById('build-log');
+
+            openDeployPanel('log', { skipHash: true });
+            setBuildStatus('running', '正在重启应用', '正在调用后端重启接口。');
+            buildLog.innerHTML = '';
+            appendLogLine(buildLog, '开始重启应用...');
+            appendLogLine(buildLog, '调用后端重启接口...');
+
+            // 调用后端重启接口
+            fetchDeployAction('/api/deploy/restart', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    appendLogLine(buildLog, '重启成功');
+                    setBuildStatus('success', '重启成功', '应用容器已完成重启动作。');
+                    if (data.output) {
+                        appendLogBlock(buildLog, '重启输出:', data.output);
+                    }
+                } else {
+                    appendLogLine(buildLog, '重启失败', 'text-danger');
+                    setBuildStatus('error', '重启失败', '请查看执行日志和容器运行状态。');
+                    if (data.error) {
+                        appendLogLine(buildLog, '错误信息: ' + data.error, 'text-danger');
+                    }
+                    if (data.output) {
+                        appendLogBlock(buildLog, '重启输出:', data.output);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('重启请求失败:', error);
+                appendLogLine(buildLog, '重启请求失败', 'text-danger');
+                setBuildStatus('error', '重启请求失败', '请确认后端服务和 Docker 状态。');
+                appendLogLine(buildLog, '错误信息: ' + error.message, 'text-danger');
+            })
+            .finally(refreshDeployOverview);
+        }
+
+        // 实时日志相关变量
+        let logEventSource = null;
+        let isRealTimeLogging = false;
+
+        // 查看Docker日志
+        function viewLogs() {
+            const containerSelect = document.getElementById('container-select');
+            const dockerLogs = document.getElementById('docker-logs');
+            const selectedContainer = containerSelect.value;
+
+            dockerLogs.innerHTML = '<p class="text-primary"><i class="fa fa-spinner fa-spin"></i> 正在获取日志...</p>';
+
+            // 调用后端接口获取真实的Docker容器日志
+            fetch('/api/deploy/logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ container: selectedContainer, tail: 1000 })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 显示真实的日志
+                    dockerLogs.textContent = data.output;
+                } else {
+                    // 显示错误信息
+                    dockerLogs.innerHTML = '<p class="text-danger">❌ 获取日志失败</p>';
+                    if (data.error) {
+                        dockerLogs.innerHTML += '<p class="text-danger">错误信息: ' + data.error + '</p>';
+                    }
+                    if (data.output) {
+                        dockerLogs.innerHTML += '<pre class="text-sm text-gray-600 bg-gray-50 p-2 rounded">' + data.output + '</pre>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('获取日志失败:', error);
+                dockerLogs.innerHTML = '<p class="text-danger">❌ 获取日志失败</p>';
+                dockerLogs.innerHTML += '<p class="text-danger">错误信息: ' + error.message + '</p>';
+            });
+        }
+
+        // 切换实时日志
+        function toggleRealTimeLogs() {
+            const containerSelect = document.getElementById('container-select');
+            const selectedContainer = containerSelect.value;
+            const statusElement = document.getElementById('log-status');
+            const toggleButton = document.getElementById('real-time-toggle');
+            const dockerLogs = document.getElementById('docker-logs');
+
+            if (isRealTimeLogging) {
+                // 停止实时日志
+                stopRealTimeLogs();
+                statusElement.textContent = '未连接';
+                toggleButton.innerHTML = '<i class="fa fa-play mr-1"></i> 开始实时日志';
+                toggleButton.classList.remove('bg-red-500', 'text-white');
+                toggleButton.classList.add('bg-gray-200', 'text-gray-700');
+                isRealTimeLogging = false;
+            } else {
+                // 开始实时日志
+                startRealTimeLogs(selectedContainer);
+                statusElement.textContent = '连接中...';
+                toggleButton.innerHTML = '<i class="fa fa-stop mr-1"></i> 停止实时日志';
+                toggleButton.classList.remove('bg-gray-200', 'text-gray-700');
+                toggleButton.classList.add('bg-red-500', 'text-white');
+                isRealTimeLogging = true;
+                dockerLogs.innerHTML = '<p class="text-primary"><i class="fa fa-spinner fa-spin"></i> 正在连接实时日志...</p>';
+            }
+        }
+
+        // 开始实时日志
+        function startRealTimeLogs(container) {
+            stopRealTimeLogs();
+
+            const statusElement = document.getElementById('log-status');
+            const dockerLogs = document.getElementById('docker-logs');
+            const url = `/api/deploy/logs/stream?container=${encodeURIComponent(container)}&tail=1000`;
+            logEventSource = new EventSource(url);
+
+            logEventSource.onopen = function() {
+                statusElement.textContent = '实时连接中';
+                statusElement.classList.remove('text-gray-500', 'text-danger');
+                statusElement.classList.add('text-green-500');
+                dockerLogs.textContent = '';
+            };
+
+            logEventSource.addEventListener('status', function() {
+                statusElement.textContent = '实时连接中';
+                statusElement.classList.remove('text-gray-500', 'text-danger');
+                statusElement.classList.add('text-green-500');
+            });
+
+            logEventSource.addEventListener('log', function(event) {
+                dockerLogs.textContent += event.data + '\n';
+                dockerLogs.scrollTop = dockerLogs.scrollHeight;
+            });
+
+            logEventSource.addEventListener('error', function(event) {
+                if (event.data) {
+                    dockerLogs.textContent += '实时日志错误: ' + event.data + '\n';
+                }
+                statusElement.textContent = '连接错误';
+                statusElement.classList.remove('text-gray-500', 'text-green-500');
+                statusElement.classList.add('text-danger');
+            });
+
+            logEventSource.onerror = function(error) {
+                console.error('实时日志连接失败:', error);
+                statusElement.textContent = '连接错误';
+                statusElement.classList.remove('text-gray-500', 'text-green-500');
+                statusElement.classList.add('text-danger');
+            };
+        }
+
+        // 停止实时日志
+        function stopRealTimeLogs() {
+            if (logEventSource) {
+                logEventSource.close();
+                logEventSource = null;
+            }
+
+            const statusElement = document.getElementById('log-status');
+            statusElement.classList.remove('text-green-500', 'text-danger');
+            statusElement.classList.add('text-gray-500');
+        }
+
+        // 清除Docker日志
+        function clearLogs() {
+            const dockerLogs = document.getElementById('docker-logs');
+            dockerLogs.innerHTML = '<p>日志已清除</p>';
+        }
+
+        // 下载Docker日志
+        function downloadLogs() {
+            const containerSelect = document.getElementById('container-select');
+            const selectedContainer = containerSelect.value;
+
+            fetch('/api/deploy/logs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ container: selectedContainer, tail: 5000 })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    const dockerLogs = document.getElementById('docker-logs');
+                    dockerLogs.innerHTML = '';
+                    appendLogLine(dockerLogs, '下载日志失败', 'text-danger');
+                    if (data.error) {
+                        appendLogLine(dockerLogs, '错误信息: ' + data.error, 'text-danger');
+                    }
+                    if (data.output) {
+                        appendLogBlock(dockerLogs, '日志输出:', data.output);
+                    }
+                    return;
+                }
+
+                const blob = new Blob([data.output || ''], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = selectedContainer + '-logs.txt';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            })
+            .catch(error => {
+                console.error('下载日志失败:', error);
+                const dockerLogs = document.getElementById('docker-logs');
+                dockerLogs.innerHTML = '';
+                appendLogLine(dockerLogs, '下载日志失败', 'text-danger');
+                appendLogLine(dockerLogs, '错误信息: ' + error.message, 'text-danger');
+            });
+        }
+
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', function() {
+            stopRealTimeLogs();
+            if (homeRuntimePreviewTimer) {
+                clearInterval(homeRuntimePreviewTimer);
+            }
+            if (homeOpsBriefTimer) {
+                clearInterval(homeOpsBriefTimer);
+            }
+            if (deployOverviewTimer) {
+                clearInterval(deployOverviewTimer);
+            }
+        });
+
+        // 知识库相关函数
+        function escapeKnowledgeText(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function normalizeKnowledgeItems(items) {
+            return Array.isArray(items) ? items : [];
+        }
+
+        function getKnowledgeTags(item) {
+            return Array.from(item.tags || [])
+                .map(tag => typeof tag === 'string' ? tag : tag.name)
+                .filter(Boolean);
+        }
+
+        function knowledgeSnippet(item, keyword) {
+            const content = String(item.content || item.description || '');
+            if (!content) {
+                return '该知识暂未写入正文，可先补齐内容后再参与问答。';
+            }
+            const needle = String(keyword || '').trim().toLowerCase();
+            const lower = content.toLowerCase();
+            const index = needle ? lower.indexOf(needle) : -1;
+            const start = index > 48 ? index - 48 : 0;
+            const excerpt = content.slice(start, start + 180);
+            return (start > 0 ? '...' : '') + excerpt + (start + 180 < content.length ? '...' : '');
+        }
+
+        function setKnowledgeAnswer(html, state = 'idle') {
+            const answer = document.getElementById('knowledge-answer');
+            if (!answer) {
+                return;
+            }
+            answer.dataset.state = state;
+            answer.innerHTML = html;
+        }
+
+        function setKnowledgeQuestionLabel(text) {
+            const label = document.getElementById('knowledge-current-question');
+            if (label) {
+                label.textContent = text || '等待问题';
+            }
+        }
+
+        function renderKnowledgeEvidence(items, keyword) {
+            const evidenceList = document.getElementById('knowledge-evidence-list');
+            const hitCount = document.getElementById('knowledge-hit-count');
+            const records = normalizeKnowledgeItems(items);
+
+            if (hitCount) {
+                hitCount.textContent = `${records.length} 条`;
+            }
+            if (!evidenceList) {
+                return;
+            }
+            if (records.length === 0) {
+                evidenceList.innerHTML = '<div class="knowledge-empty-state">没有命中证据，先补充知识或换个关键词。</div>';
+                return;
+            }
+
+            evidenceList.innerHTML = records.map((item, index) => {
+                const tags = getKnowledgeTags(item);
+                const score = Math.max(72, 96 - index * 7);
+                const title = escapeKnowledgeText(item.title || `知识片段 ${index + 1}`);
+                const snippet = escapeKnowledgeText(knowledgeSnippet(item, keyword));
+                const tagHtml = tags.slice(0, 3).map(tag => `<span>${escapeKnowledgeText(tag)}</span>`).join('');
+                return `
+                    <article class="knowledge-evidence-row">
+                        <div class="knowledge-evidence-rank">${index + 1}</div>
+                        <div class="knowledge-evidence-body">
+                            <div class="knowledge-evidence-title">
+                                <strong>${title}</strong>
+                                <em>${score}%</em>
+                            </div>
+                            <p>${snippet}</p>
+                            <div class="knowledge-evidence-tags">${tagHtml || '<span>未打标</span>'}</div>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        function renderKnowledgeSources(items) {
+            const sourceList = document.getElementById('knowledge-source-list');
+            const records = normalizeKnowledgeItems(items);
+            if (!sourceList) {
+                return;
+            }
+            if (records.length === 0) {
+                sourceList.innerHTML = '<div class="knowledge-empty-state">暂无可用知识，请先补充高质量片段。</div>';
+                renderKnowledgeEvidence([], '');
+                setKnowledgeAnswer('<strong>知识覆盖为空</strong><p>当前无法形成可靠 RAG 答案，需要先写入知识内容。</p>', 'empty');
+                return;
+            }
+
+            sourceList.innerHTML = records.slice(0, 8).map((item, index) => {
+                const tags = getKnowledgeTags(item);
+                const title = escapeKnowledgeText(item.title || `知识源 ${index + 1}`);
+                const status = escapeKnowledgeText(item.status || 'published');
+                return `
+                    <button type="button" class="knowledge-source-row" onclick="previewKnowledgeSource(${index})">
+                        <span>${index + 1}</span>
+                        <strong>${title}</strong>
+                        <em>${tags[0] ? escapeKnowledgeText(tags[0]) : status}</em>
+                    </button>
+                `;
+            }).join('');
+            window.currentKnowledgeSources = records;
+            renderKnowledgeEvidence(records.slice(0, 4), '');
+        }
+
+        function previewKnowledgeSource(index) {
+            const item = (window.currentKnowledgeSources || [])[index];
+            if (!item) {
+                return;
+            }
+            setKnowledgeQuestionLabel(item.title || '知识预览');
+            renderKnowledgeEvidence([item], item.title || '');
+            setKnowledgeAnswer(`
+                <strong>${escapeKnowledgeText(item.title || '知识预览')}</strong>
+                <p>${escapeKnowledgeText(knowledgeSnippet(item, ''))}</p>
+            `, 'preview');
+        }
+
+        function isKnowledgeAnswerUnavailable(answer) {
+            return !answer || /失败|timed out|I\/O error|Connection refused|Read timed out/i.test(String(answer));
+        }
+
+        function buildKnowledgeFallbackAnswer(question, evidence) {
+            const records = normalizeKnowledgeItems(evidence).slice(0, 3);
+            if (records.length === 0) {
+                return '当前没有命中可靠证据，无法生成可信答案。建议先补充相关知识片段或换一个更具体的问题。';
+            }
+            const evidenceSummary = records
+                .map((item, index) => `${index + 1}. ${item.title || '未命名知识'}：${knowledgeSnippet(item, question)}`)
+                .join('\n');
+            return `模型暂不可用，先给出基于命中证据的摘要：\n${evidenceSummary}`;
+        }
+
+        function renderKnowledgeAnswer(question, answer, contextCount, state = 'success') {
+            setKnowledgeQuestionLabel(question);
+            setKnowledgeAnswer(`
+                <strong>基于 ${contextCount || 0} 条证据生成</strong>
+                <p>${escapeKnowledgeText(answer || '没有生成有效答案，请先查看命中证据。')}</p>
+            `, state);
+        }
+
+        function loadKnowledgeList() {
+            const sourceList = document.getElementById('knowledge-source-list');
+            if (sourceList) {
+                sourceList.innerHTML = '<div class="knowledge-empty-state"><i class="fa fa-spinner fa-spin"></i> 正在读取知识覆盖。</div>';
+            }
+
+            fetch('/api/knowledge/list')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        renderKnowledgeSources(data.data);
+                    } else {
+                        setKnowledgeAnswer(`<strong>读取失败</strong><p>${escapeKnowledgeText(data.message || '无法加载知识内容')}</p>`, 'error');
+                    }
+                })
+                .catch(error => {
+                    setKnowledgeAnswer(`<strong>读取失败</strong><p>${escapeKnowledgeText(error.message)}</p>`, 'error');
+                    console.error('加载知识库失败:', error);
+                });
+        }
+
+        function searchKnowledge() {
+            const keyword = document.getElementById('knowledge-search').value.trim();
+
+            if (!keyword) {
+                setKnowledgeQuestionLabel('知识覆盖');
+                loadKnowledgeList();
+                return;
+            }
+
+            setKnowledgeQuestionLabel(keyword);
+            renderKnowledgeEvidence([], keyword);
+            setKnowledgeAnswer('<strong>检索中</strong><p>正在从标题、正文和标签里查找可引用证据。</p>', 'loading');
+
+            fetch(`/api/knowledge/search?keyword=${encodeURIComponent(keyword)}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const items = normalizeKnowledgeItems(data.data);
+                        renderKnowledgeEvidence(items, keyword);
+                        setKnowledgeAnswer(
+                            items.length
+                                ? `<strong>已命中 ${items.length} 条证据</strong><p>可以直接查看右侧证据，也可以点击“问知识库”生成可交付答案。</p>`
+                                : '<strong>没有命中</strong><p>当前知识覆盖不足，建议补充相关知识后再提问。</p>',
+                            items.length ? 'ready' : 'empty'
+                        );
+                    } else {
+                        setKnowledgeAnswer(`<strong>检索失败</strong><p>${escapeKnowledgeText(data.message || '接口返回异常')}</p>`, 'error');
+                    }
+                })
+                .catch(error => {
+                    setKnowledgeAnswer(`<strong>检索失败</strong><p>${escapeKnowledgeText(error.message)}</p>`, 'error');
+                    console.error('搜索知识库失败:', error);
+                });
+        }
+
+        function askKnowledgeQuestion() {
+            const question = document.getElementById('knowledge-search').value.trim();
+
+            if (!question) {
+                setKnowledgeAnswer('<strong>需要问题</strong><p>先输入一个业务问题或关键词，再让知识库回答。</p>', 'empty');
+                return;
+            }
+
+            setKnowledgeQuestionLabel(question);
+            setKnowledgeAnswer('<strong>生成中</strong><p>正在检索上下文并生成答案。</p>', 'loading');
+
+            Promise.all([
+                fetch(`/api/knowledge/search?keyword=${encodeURIComponent(question)}`).then(response => response.json()).catch(() => ({ success: false, data: [] })),
+                fetch('/api/knowledge/ai/answer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question: question })
+                }).then(response => response.json())
+            ])
+            .then(([searchResult, answerResult]) => {
+                const evidence = searchResult.success ? normalizeKnowledgeItems(searchResult.data) : [];
+                renderKnowledgeEvidence(evidence, question);
+                if (answerResult.success && !isKnowledgeAnswerUnavailable(answerResult.answer)) {
+                    renderKnowledgeAnswer(question, answerResult.answer, answerResult.contextCount ?? evidence.length);
+                } else if (evidence.length > 0) {
+                    renderKnowledgeAnswer(question, buildKnowledgeFallbackAnswer(question, evidence), evidence.length, 'ready');
+                } else {
+                    setKnowledgeAnswer(`<strong>生成失败</strong><p>${escapeKnowledgeText(answerResult.message || answerResult.error || '模型暂不可用')}</p>`, 'error');
+                }
+            })
+            .catch(error => {
+                setKnowledgeAnswer(`<strong>生成失败</strong><p>${escapeKnowledgeText(error.message)}</p>`, 'error');
+                console.error('知识库问答失败:', error);
+            });
+        }
+
+        function loadCategories() {
+            const categorySelect = document.getElementById('knowledge-category');
+
+            // 调用后端接口获取分类列表
+            fetch('/api/knowledge/categories')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        // 清空现有选项（保留第一个"全部分类"选项）
+                        while (categorySelect.options.length > 1) {
+                            categorySelect.remove(1);
+                        }
+
+                        // 添加分类选项
+                        data.data.forEach(category => {
+                            const option = document.createElement('option');
+                            option.value = category.id;
+                            option.textContent = category.name;
+                            categorySelect.appendChild(option);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('加载分类失败:', error);
+                });
+        }
+
+        function loadKnowledgeStatistics() {
+            // 调用后端接口获取统计信息
+            fetch('/api/knowledge/statistics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        document.getElementById('total-knowledge').textContent = data.data.totalKnowledge || 0;
+                        document.getElementById('published-knowledge').textContent = data.data.publishedCount || 0;
+                        document.getElementById('total-categories').textContent = Object.keys(data.data.categoryStats || {}).length;
+                    }
+                })
+                .catch(error => {
+                    console.error('加载统计信息失败:', error);
+                });
+        }
+
+        function showCreateKnowledgeModal() {
+            // 这里可以实现一个模态框来创建知识库
+            // 为了简化，这里使用prompt来模拟
+            const title = prompt('请输入知识库标题:');
+            const content = prompt('请输入知识库内容:');
+
+            if (title && content) {
+                createKnowledge(title, content);
+            }
+        }
+
+        function createKnowledge(title, content) {
+            // 调用后端接口创建知识库
+            fetch('/api/knowledge/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, content, status: 'published' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('创建知识库成功！');
+                    loadKnowledgeList();
+                    loadKnowledgeStatistics();
+                } else {
+                    alert(`创建知识库失败：${data.message}`);
+                }
+            })
+            .catch(error => {
+                alert(`创建知识库失败：${error.message}`);
+                console.error('创建知识库失败:', error);
+            });
+        }
+
+        function editKnowledge(id) {
+            // 调用后端接口获取知识库详情
+            fetch(`/api/knowledge/detail/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data) {
+                        const knowledge = data.data;
+                        const title = prompt('请输入知识库标题:', knowledge.title);
+                        const content = prompt('请输入知识库内容:', knowledge.content);
+
+                        if (title && content) {
+                            updateKnowledge(id, title, content);
+                        }
+                    } else {
+                        alert(`获取知识库详情失败：${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    alert(`获取知识库详情失败：${error.message}`);
+                    console.error('获取知识库详情失败:', error);
+                });
+        }
+
+        function updateKnowledge(id, title, content) {
+            // 调用后端接口更新知识库
+            fetch('/api/knowledge/update', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ id, title, content, status: 'published' })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('更新知识库成功！');
+                    loadKnowledgeList();
+                } else {
+                    alert(`更新知识库失败：${data.message}`);
+                }
+            })
+            .catch(error => {
+                alert(`更新知识库失败：${error.message}`);
+                console.error('更新知识库失败:', error);
+            });
+        }
+
+        function deleteKnowledge(id) {
+            if (confirm('确定要删除这个知识库吗？')) {
+                // 调用后端接口删除知识库
+                fetch(`/api/knowledge/delete/${id}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('删除知识库成功！');
+                        loadKnowledgeList();
+                        loadKnowledgeStatistics();
+                    } else {
+                        alert(`删除知识库失败：${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    alert(`删除知识库失败：${error.message}`);
+                    console.error('删除知识库失败:', error);
+                });
+            }
+        }
+
+        // AI功能相关函数
+        function showAIGenerateModal() {
+            document.getElementById('ai-generate-modal').classList.remove('hidden');
+        }
+
+        function closeAIGenerateModal() {
+            document.getElementById('ai-generate-modal').classList.add('hidden');
+            document.getElementById('ai-prompt').value = '';
+            document.getElementById('ai-generated-content').innerHTML = '<p class="text-gray-500">生成的内容将显示在这里...</p>';
+            document.getElementById('save-generated-btn').classList.add('hidden');
+        }
+
+        function showAIQuestionModal() {
+            document.getElementById('ai-question-modal').classList.remove('hidden');
+        }
+
+        function closeAIQuestionModal() {
+            document.getElementById('ai-question-modal').classList.add('hidden');
+            document.getElementById('ai-question').value = '';
+            document.getElementById('ai-answer').innerHTML = '<p class="text-gray-500">AI的回答将显示在这里...</p>';
+        }
+
+        function generateKnowledgeWithAI() {
+            const prompt = document.getElementById('ai-prompt').value.trim();
+            const generatedContent = document.getElementById('ai-generated-content');
+
+            if (!prompt) {
+                alert('请输入生成提示');
+                return;
+            }
+
+            generatedContent.innerHTML = '<p class="text-primary"><i class="fa fa-spinner fa-spin"></i> AI正在生成内容...</p>';
+
+            // 调用后端AI生成接口
+            fetch('/api/knowledge/ai/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ prompt: prompt })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    generatedContent.innerHTML = '<pre class="text-sm whitespace-pre-wrap">' + data.content + '</pre>';
+                    document.getElementById('save-generated-btn').classList.remove('hidden');
+                } else {
+                    generatedContent.innerHTML = '<p class="text-danger">❌ 生成失败</p>';
+                    if (data.error) {
+                        generatedContent.innerHTML += '<p class="text-danger">错误信息: ' + data.error + '</p>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('生成知识库失败:', error);
+                generatedContent.innerHTML = '<p class="text-danger">❌ 生成失败</p>';
+                generatedContent.innerHTML += '<p class="text-danger">错误信息: ' + error.message + '</p>';
+            });
+        }
+
+        function saveGeneratedKnowledge() {
+            const generatedContent = document.getElementById('ai-generated-content').textContent;
+
+            if (!generatedContent || generatedContent.includes('生成的内容将显示在这里') || generatedContent.includes('AI正在生成内容')) {
+                alert('请先生成内容');
+                return;
+            }
+
+            const title = prompt('请输入知识库标题:');
+            if (title) {
+                // 调用后端接口创建知识库
+                fetch('/api/knowledge/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title: title, content: generatedContent, status: 'published' })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('保存知识库成功！');
+                        closeAIGenerateModal();
+                        loadKnowledgeList();
+                        loadKnowledgeStatistics();
+                    } else {
+                        alert(`保存知识库失败：${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    alert(`保存知识库失败：${error.message}`);
+                    console.error('保存知识库失败:', error);
+                });
+            }
+        }
+
+        function askQuestionWithAI() {
+            const question = document.getElementById('ai-question').value.trim();
+            const aiAnswer = document.getElementById('ai-answer');
+
+            if (!question) {
+                alert('请输入问题');
+                return;
+            }
+
+            aiAnswer.innerHTML = '<p class="text-primary"><i class="fa fa-spinner fa-spin"></i> AI正在思考...</p>';
+
+            // 调用后端AI问答接口
+            fetch('/api/knowledge/ai/answer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    aiAnswer.innerHTML = '<pre class="text-sm whitespace-pre-wrap">' + data.answer + '</pre>';
+                } else {
+                    aiAnswer.innerHTML = '<p class="text-danger">❌ 回答失败</p>';
+                    if (data.error) {
+                        aiAnswer.innerHTML += '<p class="text-danger">错误信息: ' + data.error + '</p>';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('AI回答问题失败:', error);
+                aiAnswer.innerHTML = '<p class="text-danger">❌ 回答失败</p>';
+                aiAnswer.innerHTML += '<p class="text-danger">错误信息: ' + error.message + '</p>';
+            });
+        }
+
+        // 监听知识库分类选择变化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 监听知识库分类选择变化
+            const categorySelect = document.getElementById('knowledge-category');
+            if (categorySelect) {
+                categorySelect.addEventListener('change', function() {
+                    const categoryId = this.value;
+                    if (categoryId) {
+                        setKnowledgeQuestionLabel(this.options[this.selectedIndex].textContent);
+                        setKnowledgeAnswer('<strong>筛选中</strong><p>正在按知识域收敛证据范围。</p>', 'loading');
+                        fetch(`/api/knowledge/category/${categoryId}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    const records = normalizeKnowledgeItems(data.data);
+                                    renderKnowledgeSources(records);
+                                    setKnowledgeAnswer(
+                                        records.length
+                                            ? `<strong>${escapeKnowledgeText(this.options[this.selectedIndex].textContent)}</strong><p>已切换到该知识域，右侧显示可参与回答的证据。</p>`
+                                            : '<strong>该知识域为空</strong><p>需要补充知识内容后才能参与问答。</p>',
+                                        records.length ? 'ready' : 'empty'
+                                    );
+                                } else {
+                                    setKnowledgeAnswer(`<strong>筛选失败</strong><p>${escapeKnowledgeText(data.message || '接口返回异常')}</p>`, 'error');
+                                }
+                            })
+                            .catch(error => {
+                                setKnowledgeAnswer(`<strong>筛选失败</strong><p>${escapeKnowledgeText(error.message)}</p>`, 'error');
+                                console.error('按分类加载知识库失败:', error);
+                            });
+                    } else {
+                        loadKnowledgeList();
+                    }
+                });
+            }
+        });
+
+        // 监听标签页切换，当切换到知识库标签页时加载数据
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabId = this.onclick.toString().match(/switchTab\('(\w+)'/)[1];
+                    if (tabId === 'knowledge') {
+                        loadKnowledgeList();
+                        loadCategories();
+                        loadKnowledgeStatistics();
+                    }
+                });
+            });
+            if (location.hash === '#knowledge' || !document.getElementById('knowledge-tab')?.classList.contains('hidden')) {
+                loadKnowledgeList();
+                loadCategories();
+                loadKnowledgeStatistics();
+            }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

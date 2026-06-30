@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档摘要 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <style>
+        :root {
+            --summary-border: rgba(125, 211, 252, 0.22);
+            --summary-panel: rgba(3, 10, 20, 0.84);
+            --summary-soft: rgba(8, 19, 36, 0.8);
+            --summary-primary: #22d3ee;
+            --summary-success: #34d399;
+            --summary-danger: #fb7185;
+            --summary-muted: #9fb5c9;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            color: #e2e8f0;
+            background: #020617;
+        }
+
+        body[data-app-page="document-summary"] .app-content-shell {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        body[data-app-page="document-summary"] .app-workbench-hero {
+            display: none;
+        }
+
+        body[data-app-page="document-summary"] main.app-workbench {
+            padding-top: 8px;
+        }
+
+        .summary-shell {
+            width: min(100%, 1720px);
+            height: calc(100vh - var(--app-header-height) - 24px);
+            min-height: 0;
+            margin: 0 auto;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .summary-command-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            border: 1px solid var(--summary-border);
+            border-radius: 8px;
+            background: rgba(3, 12, 24, 0.68);
+            padding: 10px 12px;
+        }
+
+        .summary-command-title {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-command-title i {
+            width: 34px;
+            height: 34px;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid rgba(34, 211, 238, 0.42);
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        .summary-command-title h2 {
+            font-size: 18px;
+            line-height: 1.15;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+
+        .summary-command-title span {
+            display: block;
+            margin-top: 2px;
+            color: #93c5fd;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .summary-command-meta {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .summary-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 30px;
+            border: 1px solid var(--summary-border);
+            border-radius: 7px;
+            padding: 6px 9px;
+            color: #dbeafe;
+            background: rgba(8, 19, 36, 0.74);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+            gap: 18px;
+            min-height: 0;
+        }
+
+        .summary-panel {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--summary-border);
+            border-radius: 8px;
+            background: var(--summary-panel);
+            overflow: visible;
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .summary-panel-header {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--summary-border);
+        }
+
+        .summary-panel-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .summary-panel-body {
+            min-height: 0;
+            padding: 16px;
+        }
+
+        .summary-input-body,
+        .summary-result-body {
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-gutter: stable;
+        }
+
+        .summary-stack {
+            display: grid;
+            gap: 14px;
+        }
+
+        .summary-file-box,
+        .summary-contract {
+            display: grid;
+            gap: 10px;
+            border: 1px dashed #7dd3fc;
+            border-radius: 8px;
+            background: var(--summary-soft);
+            padding: 12px;
+        }
+
+        .summary-field {
+            display: grid;
+            gap: 7px;
+        }
+
+        .summary-field label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #cbd5e1;
+        }
+
+        .summary-field input {
+            width: 100%;
+            border: 1px solid var(--summary-border);
+            border-radius: 7px;
+            padding: 9px 10px;
+            background: rgba(8, 19, 36, 0.82);
+            color: #e2e8f0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .summary-status {
+            min-height: 30px;
+            border-radius: 7px;
+            padding: 8px 10px;
+            background: rgba(8, 19, 36, 0.74);
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .summary-status.is-loading {
+            color: #67e8f9;
+            background: rgba(37, 99, 235, 0.18);
+        }
+
+        .summary-status.is-error {
+            color: #fecdd3;
+            background: rgba(127, 29, 29, 0.22);
+        }
+
+        .summary-status.is-success {
+            color: #dcfce7;
+            background: rgba(6, 78, 59, 0.22);
+        }
+
+        .summary-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            border-radius: 7px;
+            border: 1px solid transparent;
+            padding: 9px 12px;
+            font-size: 13px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+
+        .summary-button-primary {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+            color: #082f49;
+        }
+
+        .summary-button-primary:hover {
+            background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+        }
+
+        .summary-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.58;
+        }
+
+        .summary-contract-title {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #f8fafc;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .summary-contract ul {
+            display: grid;
+            gap: 6px;
+            margin: 0;
+            padding-left: 18px;
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .summary-empty,
+        .summary-error,
+        .summary-card,
+        .summary-metric {
+            border: 1px solid var(--summary-border);
+            border-radius: 8px;
+            background: var(--summary-soft);
+        }
+
+        .summary-empty,
+        .summary-error {
+            display: grid;
+            place-items: center;
+            min-height: 260px;
+            padding: 24px;
+            color: #94a3b8;
+            text-align: center;
+        }
+
+        .summary-error {
+            color: #fecdd3;
+            background: rgba(127, 29, 29, 0.2);
+        }
+
+        .summary-report {
+            display: grid;
+            gap: 14px;
+        }
+
+        .summary-overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .summary-metric {
+            min-height: 86px;
+            padding: 12px;
+        }
+
+        .summary-metric span {
+            display: block;
+            color: var(--summary-muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .summary-metric strong {
+            display: block;
+            margin-top: 8px;
+            color: #f8fafc;
+            font-size: 22px;
+            line-height: 1.1;
+        }
+
+        .summary-card {
+            display: grid;
+            gap: 10px;
+            padding: 14px;
+        }
+
+        .summary-section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: #f8fafc;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .summary-text {
+            color: #dbeafe;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .summary-list {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            padding-left: 18px;
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .summary-keyword-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .summary-keyword-list span {
+            display: inline-flex;
+            align-items: center;
+            min-height: 26px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 7px;
+            padding: 4px 8px;
+            color: #dbeafe;
+            background: rgba(15, 23, 42, 0.74);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .summary-fields {
+            display: grid;
+            gap: 10px;
+        }
+
+        .summary-field-row {
+            display: grid;
+            grid-template-columns: minmax(96px, 150px) minmax(0, 1fr);
+            gap: 10px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 7px;
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.5);
+        }
+
+        .summary-field-row strong {
+            color: #67e8f9;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .summary-field-row div {
+            color: #dbeafe;
+            font-size: 13px;
+            line-height: 1.65;
+            white-space: pre-line;
+        }
+
+        .summary-module-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .summary-module {
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 7px;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 12px;
+        }
+
+        .summary-module h4 {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 0 0 8px;
+            color: #f8fafc;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .summary-module-code {
+            color: var(--summary-muted);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .summary-point-list {
+            display: grid;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .summary-point-list li {
+            display: grid;
+            gap: 4px;
+            border-top: 1px solid rgba(125, 211, 252, 0.12);
+            padding-top: 8px;
+        }
+
+        .summary-point-list li:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .summary-point-list strong {
+            color: #bae6fd;
+            font-size: 12px;
+        }
+
+        .summary-point-list span {
+            color: #cbd5e1;
+            font-size: 13px;
+            line-height: 1.65;
+            white-space: pre-line;
+        }
+
+        @media (max-width: 980px) {
+            .summary-shell {
+                height: auto;
+                min-height: calc(100vh - var(--app-header-height) - 18px);
+            }
+
+            .summary-grid,
+            .summary-overview-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .summary-command-strip {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .summary-field-row {
+                grid-template-columns: minmax(0, 1fr);
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<main>
+    <section class="summary-shell">
+        <div class="summary-command-strip" aria-label="文档摘要状态">
+            <div class="summary-command-title">
+                <i class="fa fa-file-text-o"></i>
+                <div>
+                    <h2>文档摘要</h2>
+                    <span id="summary-active-document">等待文件</span>
+                </div>
+            </div>
+            <div class="summary-command-meta">
+                <span class="summary-chip"><i class="fa fa-file-pdf-o"></i>PDF</span>
+                <span class="summary-chip"><i class="fa fa-file-word-o"></i>DOCX</span>
+                <span class="summary-chip"><i class="fa fa-lightbulb-o"></i>AI 工程提示词</span>
+            </div>
+        </div>
+
+        <div class="summary-grid">
+            <aside class="summary-panel">
+                <div class="summary-panel-header">
+                    <div class="summary-panel-title"><i class="fa fa-upload text-blue-600"></i>摘要输入</div>
+                </div>
+                <div class="summary-panel-body summary-input-body">
+                    <form id="document-summary-form" class="summary-stack">
+                        <div class="summary-file-box">
+                            <div class="summary-field">
+                                <label for="summary-file">选择摘要文件</label>
+                                <input id="summary-file" type="file" accept=".docx,.pdf">
+                            </div>
+                            <div id="summary-file-status" class="summary-status">请先选择需要提取摘要的 PDF 或 DOCX 文件。</div>
+                            <button id="summary-upload-button" type="submit" class="summary-button summary-button-primary">
+                                <i class="fa fa-magic"></i>提取摘要
+                            </button>
+                        </div>
+
+                        <div class="summary-contract" aria-label="AI 工程提示词">
+                            <div class="summary-contract-title"><i class="fa fa-lightbulb-o"></i>AI 工程提示词</div>
+                            <ul>
+                                <li>生成结构化合同摘要 JSON，而不是泛化段落摘要。</li>
+                                <li>先判断是否属于合同文本；非合同只输出忠实通用摘要。</li>
+                                <li>销售、采购、服务、租赁合同按固定字段提取并保留字段顺序。</li>
+                                <li>四类之外合同按原文章节和业务逻辑提取关键字段。</li>
+                                <li>固定输出标的与价款、履行方式、违约责任、争议解决、其他条款五个模块。</li>
+                                <li>只基于上传文件解析出的正文，不补充正文之外的事实，不输出隐藏思维链。</li>
+                            </ul>
+                        </div>
+                    </form>
+                </div>
+            </aside>
+
+            <section class="summary-panel">
+                <div class="summary-panel-header">
+                    <div class="summary-panel-title"><i class="fa fa-list-alt text-blue-600"></i>摘要结果</div>
+                    <div id="summary-source" class="summary-chip">未生成</div>
+                </div>
+                <div id="summary-result-panel" class="summary-panel-body summary-result-body">
+                    <div class="summary-empty">
+                        <div>
+                            <div class="text-lg font-extrabold text-slate-100">等待摘要</div>
+                            <div class="mt-2 text-sm">上传 PDF 或 DOCX 后展示整体摘要、核心要点和关键词。</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('document-summary-form').addEventListener('submit', extractDocumentSummary);
+        document.getElementById('summary-file').addEventListener('change', updateSelectedFile);
+    });
+
+    function updateSelectedFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) {
+            renderFileStatus('请先选择需要提取摘要的 PDF 或 DOCX 文件。');
+            updateActiveDocument('等待文件');
+            return;
+        }
+        updateActiveDocument(file.name.replace(/\.[^.]+$/, ''));
+        renderFileStatus(`已选择：${file.name}，点击“提取摘要”开始处理。`, 'success');
+    }
+
+    function extractDocumentSummary(event) {
+        event.preventDefault();
+        const fileInput = document.getElementById('summary-file');
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+            renderSummaryFailure('请先选择 PDF 或 DOCX 文件。');
+            return;
+        }
+        const extension = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : '';
+        if (!['pdf', 'docx'].includes(extension)) {
+            renderSummaryFailure('当前摘要页仅支持 PDF 和 DOCX 文件。');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        setSummaryButtonLoading(true);
+        renderFileStatus('正在解析文件并提取摘要...', 'loading');
+        renderSummaryLoading();
+
+        fetch('/api/document-summary/summarize', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('接口返回 ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data || data.success === false) {
+                    throw new Error(data && data.message ? data.message : '摘要提取失败');
+                }
+                renderFileStatus(data.message || '摘要提取完成。', 'success');
+                renderSummaryResult(data);
+                updateActiveDocument(data.documentName || file.name.replace(/\.[^.]+$/, ''));
+            })
+            .catch(error => {
+                const message = safeErrorMessage(error);
+                renderFileStatus(message, 'error');
+                renderSummaryFailure('摘要提取失败：' + message);
+            })
+            .finally(() => setSummaryButtonLoading(false));
+    }
+
+    function renderSummaryLoading() {
+        document.getElementById('summary-source').textContent = '处理中';
+        document.getElementById('summary-result-panel').innerHTML = `
+            <div class="summary-empty">
+                <div>
+                    <i class="fa fa-spinner fa-spin text-cyan-300 text-xl"></i>
+                    <div class="mt-3 text-sm">正在生成摘要...</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSummaryResult(data) {
+        const keyPoints = Array.isArray(data.keyPoints) ? data.keyPoints : [];
+        const keywords = Array.isArray(data.keywords) ? data.keywords : [];
+        const summaryFields = data.summaryFields && typeof data.summaryFields === 'object' ? data.summaryFields : {};
+        const structuredModules = Array.isArray(data.structuredModules) ? data.structuredModules : [];
+        document.getElementById('summary-source').textContent = sourceLabel(data.source);
+        document.getElementById('summary-result-panel').innerHTML = `
+            <div class="summary-report">
+                <div class="summary-overview-grid">
+                    <div class="summary-metric">
+                        <span>文档名称</span>
+                        <strong>${escapeHtml(data.documentName || '-')}</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <span>文档类型</span>
+                        <strong>${escapeHtml(data.documentType || '-')}</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <span>合同类型</span>
+                        <strong>${escapeHtml(data.contract ? (data.contractType || data.documentType || '-') : '非合同')}</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <span>正文长度</span>
+                        <strong>${escapeHtml(data.contentLength || 0)} 字</strong>
+                    </div>
+                    <div class="summary-metric">
+                        <span>摘要来源</span>
+                        <strong>${escapeHtml(sourceLabel(data.source))}</strong>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-section-title"><span><i class="fa fa-file-text-o"></i>整体摘要</span></div>
+                    <div class="summary-text">${escapeHtml(data.summary || '未生成摘要。')}</div>
+                </div>
+                ${renderSummaryFields(summaryFields)}
+                ${renderStructuredModules(structuredModules)}
+                <div class="summary-card">
+                    <div class="summary-section-title"><span><i class="fa fa-list"></i>核心要点</span></div>
+                    <ol id="summary-key-points" class="summary-list">
+                        ${keyPoints.length ? keyPoints.map(point => `<li>${escapeHtml(point)}</li>`).join('') : '<li>暂无核心要点。</li>'}
+                    </ol>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-section-title"><span><i class="fa fa-tags"></i>关键词</span></div>
+                    <div id="summary-keywords" class="summary-keyword-list">
+                        ${keywords.length ? keywords.map(keyword => `<span>${escapeHtml(keyword)}</span>`).join('') : '<span>暂无关键词</span>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSummaryFields(summaryFields) {
+        const entries = Object.entries(summaryFields)
+            .filter(([name, value]) => name && String(value || '').trim());
+        if (!entries.length) {
+            return '';
+        }
+        return `
+            <div class="summary-card">
+                <div class="summary-section-title"><span><i class="fa fa-table"></i>结构化摘要字段</span></div>
+                <div id="summary-fields" class="summary-fields">
+                    ${entries.map(([name, value]) => `
+                        <div class="summary-field-row">
+                            <strong>${escapeHtml(name)}</strong>
+                            <div>${escapeHtml(normalizeBulletText(value))}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStructuredModules(modules) {
+        if (!modules.length) {
+            return '';
+        }
+        return `
+            <div class="summary-card">
+                <div class="summary-section-title"><span><i class="fa fa-sitemap"></i>五模块结构化摘要</span></div>
+                <div id="structured-summary-modules" class="summary-module-list">
+                    ${modules.map(module => `
+                        <section class="summary-module">
+                            <h4>
+                                <span>${escapeHtml(module.moduleName || '未命名模块')}</span>
+                                <span class="summary-module-code">${escapeHtml(module.moduleCode || '')}</span>
+                            </h4>
+                            ${renderStructuredPoints(module.points)}
+                        </section>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStructuredPoints(points) {
+        const safePoints = Array.isArray(points) ? points : [];
+        if (!safePoints.length) {
+            return '<div class="summary-text">暂无提取要点。</div>';
+        }
+        return `
+            <ul class="summary-point-list">
+                ${safePoints.map(point => `
+                    <li>
+                        <strong>${escapeHtml(point.name || '摘要点')}</strong>
+                        <span>${escapeHtml(point.detail || '')}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
+    function renderSummaryFailure(message) {
+        document.getElementById('summary-source').textContent = '失败';
+        document.getElementById('summary-result-panel').innerHTML = `
+            <div class="summary-error">
+                <div>
+                    <div class="font-extrabold">摘要提取失败</div>
+                    <div class="mt-2 text-sm">${escapeHtml(message)}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderFileStatus(message, tone) {
+        const status = document.getElementById('summary-file-status');
+        status.className = 'summary-status' + (tone ? ' is-' + tone : '');
+        status.textContent = message;
+    }
+
+    function setSummaryButtonLoading(loading) {
+        const button = document.getElementById('summary-upload-button');
+        button.disabled = loading;
+        button.innerHTML = loading
+            ? '<i class="fa fa-spinner fa-spin"></i>提取中'
+            : '<i class="fa fa-magic"></i>提取摘要';
+    }
+
+    function updateActiveDocument(name) {
+        document.getElementById('summary-active-document').textContent = name || '等待文件';
+    }
+
+    function sourceLabel(source) {
+        return source === 'ollama' ? '模型摘要' : '本地摘要';
+    }
+
+    function safeErrorMessage(error) {
+        return error && error.message ? error.message : String(error || '未知错误');
+    }
+
+    function normalizeBulletText(value) {
+        return String(value ?? '')
+            .replace(/^- /gm, '• ')
+            .trim();
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    Object.assign(window, {
+        extractDocumentSummary,
+        renderSummaryFailure,
+        renderSummaryResult,
+        renderSummaryFields,
+        renderStructuredModules
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

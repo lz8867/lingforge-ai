@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档质量评测 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        success: '#34d399',
+                        warning: '#f59e0b',
+                        danger: '#fb7185'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --dq-border: rgba(125, 211, 252, 0.22);
+            --dq-panel: rgba(3, 10, 20, 0.82);
+            --dq-muted: #9fb5c9;
+            --dq-soft: rgba(8, 19, 36, 0.8);
+            --dq-primary: #22d3ee;
+            --dq-success: #34d399;
+            --dq-warning: #f59e0b;
+            --dq-danger: #fb7185;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            color: #e2e8f0;
+            background: #020617;
+        }
+
+        body[data-app-page="document-quality"] .app-content-shell {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        body[data-app-page="document-quality"] .app-workbench-hero {
+            display: none;
+        }
+
+        body[data-app-page="document-quality"] main.app-workbench {
+            padding-top: 8px;
+        }
+
+        .dq-shell {
+            width: min(100%, 1720px);
+            height: calc(100vh - var(--app-header-height) - 24px);
+            min-height: 0;
+            margin: 0 auto;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .dq-command-strip {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 8px;
+            background: rgba(3, 12, 24, 0.68);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            padding: 10px 12px;
+        }
+
+        .dq-command-title {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ecfeff;
+        }
+
+        .dq-command-title i {
+            width: 34px;
+            height: 34px;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid rgba(34, 211, 238, 0.42);
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.12);
+            box-shadow: 0 10px 26px rgba(34, 211, 238, 0.18);
+        }
+
+        .dq-command-title h2 {
+            font-size: 18px;
+            line-height: 1.15;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+
+        .dq-command-title span {
+            display: block;
+            margin-top: 2px;
+            color: #93c5fd;
+            font-size: 12px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dq-command-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .dq-command-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 30px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 7px;
+            padding: 6px 9px;
+            color: #dbeafe;
+            background: rgba(8, 19, 36, 0.74);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dq-grid {
+            display: grid;
+            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+            gap: 18px;
+            align-items: stretch;
+            min-height: 0;
+        }
+
+        .dq-panel {
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--dq-panel);
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            overflow: visible;
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .dq-panel-header {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--dq-border);
+        }
+
+        .dq-panel-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .dq-panel-tools {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .dq-export-button {
+            min-height: 30px;
+            border: 1px solid var(--dq-border);
+            border-radius: 7px;
+            padding: 6px 9px;
+            background: rgba(8, 19, 36, 0.74);
+            color: #dbeafe;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .dq-export-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .dq-export-button:not(:disabled):hover {
+            border-color: var(--dq-primary);
+            color: var(--dq-primary);
+            background: rgba(34, 211, 238, 0.14);
+        }
+
+        .dq-panel-body {
+            min-height: 0;
+            padding: 16px;
+        }
+
+        .dq-result-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+            overscroll-behavior: contain;
+            padding-bottom: 16px;
+        }
+
+        .dq-stack {
+            display: grid;
+            gap: 14px;
+        }
+
+        .dq-field {
+            display: grid;
+            gap: 7px;
+        }
+
+        .dq-field label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .dq-field input,
+        .dq-field select,
+        .dq-field textarea {
+            width: 100%;
+            border: 1px solid var(--dq-border);
+            border-radius: 7px;
+            padding: 9px 10px;
+            background: rgba(8, 19, 36, 0.82);
+            color: #e2e8f0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .dq-field textarea {
+            min-height: 260px;
+            max-height: 42vh;
+            resize: vertical;
+        }
+
+        .dq-hidden-textarea {
+            display: none;
+        }
+
+        .dq-content-card {
+            display: grid;
+            gap: 10px;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: var(--dq-soft);
+            padding: 12px;
+        }
+
+        .dq-content-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .dq-content-meta strong {
+            display: block;
+            color: #f8fafc;
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        .dq-file-input {
+            border: 1px dashed #7dd3fc;
+            background: var(--dq-soft);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .dq-file-input input[type="file"] {
+            background: rgba(8, 19, 36, 0.82);
+        }
+
+        .dq-file-status {
+            min-height: 28px;
+            border-radius: 7px;
+            padding: 8px 10px;
+            background: var(--dq-soft);
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .dq-file-status.is-loading {
+            background: rgba(37, 99, 235, 0.18);
+            color: #1d4ed8;
+        }
+
+        .dq-file-status.is-error {
+            background: rgba(251, 113, 133, 0.14);
+            color: #991b1b;
+        }
+
+        .dq-file-status.is-success {
+            background: rgba(52, 211, 153, 0.14);
+            color: #065f46;
+        }
+
+        .dq-field input:focus,
+        .dq-field select:focus,
+        .dq-field textarea:focus {
+            outline: none;
+            border-color: var(--dq-primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .dq-actions {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 10px;
+        }
+
+        .dq-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            border-radius: 7px;
+            border: 1px solid transparent;
+            padding: 9px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+
+        .dq-button-primary {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+            color: #082f49;
+        }
+
+        .dq-button-primary:hover {
+            background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+        }
+
+        .dq-button-secondary {
+            background: rgba(8, 19, 36, 0.74);
+            border-color: var(--dq-border);
+            color: #dbeafe;
+        }
+
+        .dq-button-secondary:hover {
+            background: var(--dq-soft);
+        }
+
+        .dq-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .dq-score-hero {
+            display: grid;
+            grid-template-columns: minmax(150px, 210px) minmax(0, 1fr);
+            gap: 14px;
+            align-items: stretch;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(3, 10, 20, 0.56));
+            padding: 14px;
+        }
+
+        .dq-score-main {
+            display: grid;
+            place-items: center;
+            text-align: center;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--dq-border);
+            min-height: 136px;
+        }
+
+        .dq-score-main-value {
+            font-size: 48px;
+            line-height: 1;
+            font-weight: 900;
+        }
+
+        .dq-score-facts {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .dq-score-tile,
+        .dq-metric-tile {
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: var(--dq-soft);
+            padding: 12px;
+            min-height: 86px;
+        }
+
+        .dq-score-label,
+        .dq-metric-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--dq-muted);
+        }
+
+        .dq-score-value {
+            margin-top: 8px;
+            font-size: 28px;
+            line-height: 1;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .dq-metric-value {
+            margin-top: 8px;
+            font-size: 22px;
+            line-height: 1;
+            font-weight: 800;
+            color: #f8fafc;
+        }
+
+        .dq-section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 18px 0 10px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .dq-section-title span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dq-link-button {
+            border: 0;
+            background: transparent;
+            color: var(--dq-primary);
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .dq-link-button:hover {
+            text-decoration: underline;
+        }
+
+        .dq-report-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .dq-report-stage {
+            height: 100%;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .dq-report-tabs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .dq-report-tab {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 34px;
+            border: 1px solid var(--dq-border);
+            border-radius: 7px;
+            padding: 7px 10px;
+            color: #cbd5e1;
+            background: rgba(8, 19, 36, 0.74);
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: border-color 160ms ease, background 160ms ease;
+        }
+
+        .dq-report-tab:hover,
+        .dq-report-tab.is-active {
+            border-color: var(--dq-primary);
+            color: #1d4ed8;
+            background: rgba(59, 130, 246, 0.16);
+            box-shadow: 0 8px 22px rgba(37, 99, 235, 0.1);
+        }
+
+        .dq-report-view {
+            min-height: 0;
+            overflow: hidden;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: rgba(3, 10, 20, 0.84);
+        }
+
+        .dq-tab-panel {
+            display: none;
+            height: 100%;
+            min-height: 0;
+            overflow: auto;
+            padding: 12px;
+        }
+
+        .dq-tab-panel.is-active {
+            display: block;
+        }
+
+        .dq-focus-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+            gap: 12px;
+            min-height: 0;
+        }
+
+        .dq-focus-panel {
+            min-height: 0;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: var(--dq-soft);
+            padding: 12px;
+        }
+
+        .dq-focus-panel .dq-section-title {
+            margin-top: 0;
+        }
+
+        .dq-bars {
+            display: grid;
+            gap: 10px;
+        }
+
+        .dq-history-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .dq-history-meta {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dq-pagination {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .dq-pagination span {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dq-pagination button:disabled {
+            cursor: not-allowed;
+            opacity: 0.42;
+        }
+
+        .dq-trend-chart-panel {
+            min-height: 260px;
+            margin-top: 14px;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.5));
+            padding: 12px;
+        }
+
+        .dq-trend-chart {
+            display: block;
+            width: 100%;
+            height: 260px;
+        }
+
+        .dq-trend-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dq-trend-legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dq-trend-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: #22d3ee;
+        }
+
+        .dq-trend-legend {
+            color: #94a3b8;
+        }
+
+        .dq-bar-row {
+            display: grid;
+            grid-template-columns: 92px minmax(0, 1fr) 46px;
+            gap: 10px;
+            align-items: center;
+            min-height: 28px;
+        }
+
+        .dq-bar-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #e2e8f0;
+        }
+
+        .dq-bar-track {
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(30, 41, 59, 0.76);
+            overflow: hidden;
+        }
+
+        .dq-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--dq-primary);
+        }
+
+        .dq-bar-score {
+            text-align: right;
+            font-size: 13px;
+            font-weight: 800;
+            color: #e2e8f0;
+        }
+
+        .dq-dimension-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .dq-dimension-card {
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: var(--dq-soft);
+            padding: 12px;
+            min-height: 104px;
+        }
+
+        .dq-dimension-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .dq-dimension-score {
+            font-size: 22px;
+            font-weight: 900;
+        }
+
+        .dq-dimension-note {
+            margin-top: 8px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .dq-issue-summary-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .dq-issue-summary-item {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: start;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: var(--dq-soft);
+            padding: 12px;
+        }
+
+        .dq-issue-summary-item strong {
+            display: block;
+            color: #f8fafc;
+            font-size: 13px;
+        }
+
+        .dq-issue-summary-item p {
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .dq-issue-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 13px;
+        }
+
+        .dq-issue-table th,
+        .dq-issue-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--dq-border);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .dq-issue-table th {
+            background: rgba(15, 23, 42, 0.76);
+            font-size: 12px;
+            color: #e2e8f0;
+        }
+
+        .dq-issue-table tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .dq-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .dq-badge-p0 {
+            background: rgba(251, 113, 133, 0.18);
+            color: #991b1b;
+        }
+
+        .dq-badge-p1 {
+            background: rgba(245, 158, 11, 0.18);
+            color: #9a3412;
+        }
+
+        .dq-badge-p2 {
+            background: rgba(125, 211, 252, 0.18);
+            color: #92400e;
+        }
+
+        .dq-badge-p3 {
+            background: rgba(34, 197, 94, 0.16);
+            color: #075985;
+        }
+
+        .dq-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .dq-recommendations {
+            display: grid;
+            gap: 8px;
+            padding-left: 0;
+        }
+
+        .dq-recommendations li {
+            list-style: none;
+            border-left: 3px solid var(--dq-primary);
+            background: var(--dq-soft);
+            padding: 9px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .dq-empty,
+        .dq-error {
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            background: var(--dq-soft);
+            padding: 18px;
+            color: #94a3b8;
+            line-height: 1.7;
+        }
+
+        .dq-error {
+            border-color: #fecaca;
+            background: rgba(251, 113, 133, 0.14);
+            color: #991b1b;
+        }
+
+        .dq-empty strong {
+            display: block;
+            color: #f8fafc;
+            font-size: 14px;
+        }
+
+        .dq-empty span {
+            display: block;
+            margin-top: 4px;
+            color: #94a3b8;
+            font-size: 12px;
+        }
+
+        .dq-detail-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            background: rgba(2, 6, 23, 0.58);
+        }
+
+        .dq-detail-modal.hidden {
+            display: none;
+        }
+
+        .dq-modal-panel {
+            width: min(980px, calc(100vw - 32px));
+            max-height: min(760px, calc(100vh - 48px));
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            background: var(--dq-panel);
+            border-radius: 8px;
+            border: 1px solid var(--dq-border);
+            box-shadow: 0 24px 80px rgba(2, 6, 23, 0.28);
+            overflow: hidden;
+        }
+
+        .dq-modal-header,
+        .dq-modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--dq-border);
+        }
+
+        .dq-modal-footer {
+            border-top: 1px solid var(--dq-border);
+            border-bottom: 0;
+            justify-content: flex-end;
+        }
+
+        .dq-modal-body {
+            min-height: 0;
+            overflow: auto;
+            padding: 16px;
+        }
+
+        .dq-modal-body textarea {
+            width: 100%;
+            min-height: 420px;
+            border: 1px solid var(--dq-border);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            line-height: 1.65;
+            color: #e2e8f0;
+            background: rgba(6, 15, 28, 0.85);
+            resize: vertical;
+        }
+
+        .dq-history-meta,
+        .dq-section-title span,
+        .dq-score-facts .dq-score-value + span,
+        .dq-section-title {
+            color: #94a3b8;
+        }
+
+        .dq-workbench {
+            width: min(100%, 1720px);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .dq-workbench .dq-panel,
+        .dq-workbench .dq-report-view,
+        .dq-workbench .dq-trend-chart-panel,
+        .dq-workbench .dq-modal-panel {
+            box-shadow: 0 12px 34px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .dq-workbench .text-slate-900,
+        .dq-workbench .text-slate-800,
+        .dq-workbench .text-slate-700,
+        .dq-workbench .text-slate-600,
+        body[data-app-page="document-quality"] .text-slate-900,
+        body[data-app-page="document-quality"] .text-slate-800,
+        body[data-app-page="document-quality"] .text-slate-700,
+        body[data-app-page="document-quality"] .text-slate-600 {
+            color: #f8fafc !important;
+        }
+
+        .dq-workbench .text-gray-500,
+        .dq-workbench .text-gray-600,
+        .dq-workbench .text-gray-400,
+        .dq-workbench .text-sky-800,
+        body[data-app-page="document-quality"] .text-gray-500,
+        body[data-app-page="document-quality"] .text-gray-600,
+        body[data-app-page="document-quality"] .text-gray-400,
+        body[data-app-page="document-quality"] .text-sky-800 {
+            color: #94a3b8 !important;
+        }
+
+        @media (max-width: 1180px) {
+            .dq-grid,
+            .dq-summary-grid,
+            .dq-score-hero,
+            .dq-score-facts,
+            .dq-focus-grid,
+            .dq-metrics-grid,
+            .dq-dimension-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .dq-grid,
+            .dq-summary-grid,
+            .dq-metrics-grid,
+            .dq-score-hero,
+            .dq-score-facts,
+            .dq-focus-grid,
+            .dq-dimension-grid,
+            .dq-issue-summary-item,
+            .dq-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .dq-bar-row {
+                grid-template-columns: 82px minmax(0, 1fr) 42px;
+            }
+
+            .dq-history-head,
+            .dq-pagination {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .dq-trend-chart-panel {
+                min-height: 220px;
+                padding: 10px;
+            }
+
+            .dq-trend-chart {
+                height: 220px;
+            }
+        }
+
+        @media (min-width: 1181px) {
+            body[data-app-layout="active"] .dq-shell {
+                height: 100%;
+                display: grid;
+                grid-template-rows: auto minmax(0, 1fr);
+                gap: 12px;
+            }
+
+            body[data-app-layout="active"] .dq-grid {
+                height: 100%;
+                min-height: 0;
+            }
+
+            body[data-app-layout="active"] .dq-input-panel,
+            body[data-app-layout="active"] .dq-report-panel {
+                height: 100%;
+            }
+
+            body[data-app-layout="active"] .dq-input-panel {
+                display: grid;
+                grid-template-rows: auto minmax(0, 1fr);
+            }
+
+            body[data-app-layout="active"] .dq-report-panel {
+                display: grid;
+                grid-template-rows: auto minmax(0, 1fr);
+            }
+
+            body[data-app-layout="active"] .dq-result-body {
+                overflow-y: auto;
+                overflow-x: hidden;
+                scrollbar-gutter: stable;
+            }
+
+            body[data-app-layout="active"] .dq-input-panel .dq-panel-body {
+                overflow-y: auto;
+                overflow-x: hidden;
+                scrollbar-gutter: stable;
+            }
+
+        }
+</style>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<main>
+    <section class="dq-workbench dq-shell">
+        <div class="dq-command-strip" aria-label="文档质量工作台状态">
+            <div class="dq-command-title">
+                <i class="fa fa-check-square-o"></i>
+                <div>
+                    <h2>文档质量</h2>
+                    <span id="dq-active-document">待评测</span>
+                </div>
+            </div>
+            <div class="dq-command-meta">
+                <span class="dq-command-chip"><i class="fa fa-shield"></i>规则</span>
+                <span class="dq-command-chip"><i class="fa fa-balance-scale"></i>Judge</span>
+                <span class="dq-command-chip"><i class="fa fa-calculator"></i>指标</span>
+            </div>
+        </div>
+
+        <div class="dq-grid dq-main-grid">
+            <aside class="dq-panel dq-input-panel">
+                <div class="dq-panel-header">
+                    <div class="dq-panel-title"><i class="fa fa-file-text-o text-blue-600"></i>评测输入</div>
+                </div>
+                <div class="dq-panel-body">
+                    <form id="document-quality-form" class="dq-stack">
+                        <div class="dq-field dq-file-input">
+                            <label for="document-file">选择文档文件</label>
+                            <input id="document-file" type="file" accept=".docx,.pdf,.md,.markdown,.txt,.html,.htm">
+                            <div class="text-xs text-sky-800">支持 DOCX、PDF、Markdown、TXT、HTML。选择文件后会自动读取正文并开始评测。</div>
+                            <div id="file-status" class="dq-file-status">请先选择需要评测的文档文件。</div>
+                        </div>
+                        <div class="dq-field">
+                            <label for="document-name">文档名称</label>
+                            <input id="document-name" value="文档质量智能评测系统设计文档">
+                        </div>
+                        <div class="dq-field">
+                            <label for="document-type">文档类型</label>
+                            <select id="document-type">
+                                <option value="技术设计文档">技术设计文档</option>
+                                <option value="知识库文档">知识库文档</option>
+                                <option value="业务说明文档">业务说明文档</option>
+                                <option value="SOP操作文档">SOP操作文档</option>
+                                <option value="AI生成文档">AI生成文档</option>
+                            </select>
+                        </div>
+                        <div class="dq-field">
+                            <label for="document-content">解析正文</label>
+                            <textarea id="document-content" class="dq-hidden-textarea" aria-hidden="true"></textarea>
+                            <div class="dq-content-card">
+                                <div class="dq-content-meta">
+                                    <div>正文状态<strong id="content-state">未读取</strong></div>
+                                    <div>正文长度<strong id="content-length">0 字</strong></div>
+                                </div>
+                                <button type="button" class="dq-button dq-button-secondary" onclick="openDocumentContentModal()">
+                                    <i class="fa fa-file-text-o"></i>查看解析正文
+                                </button>
+                            </div>
+                        </div>
+                        <div class="dq-actions">
+                            <button id="evaluate-button" type="submit" class="dq-button dq-button-primary">
+                                <i class="fa fa-line-chart"></i>开始质量评测
+                            </button>
+                            <button id="fill-sample-button" type="button" class="dq-button dq-button-secondary">
+                                <i class="fa fa-pencil-square-o"></i>填入设计文档样例
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </aside>
+
+            <section class="dq-panel dq-report-panel dq-score-panel">
+                <div class="dq-panel-header">
+                    <div class="dq-panel-title"><i class="fa fa-dashboard text-blue-600"></i>评测报告</div>
+                    <div class="dq-panel-tools">
+                        <button type="button" class="dq-export-button" data-export-format="html" onclick="exportQualityReport('html')" disabled>HTML</button>
+                        <button type="button" class="dq-export-button" data-export-format="pdf" onclick="exportQualityReport('pdf')" disabled>PDF</button>
+                        <button type="button" class="dq-export-button" data-export-format="json" onclick="exportQualityReport('json')" disabled>JSON</button>
+                        <button type="button" class="dq-export-button" onclick="loadQualityHistory(0)">历史</button>
+                        <button type="button" class="dq-export-button" onclick="loadQualityTrend()">趋势</button>
+                    </div>
+                </div>
+                <div id="quality-result" class="dq-panel-body dq-result-body">
+                    <div class="dq-empty">
+                        <strong>等待文档</strong>
+                        <span>选择文件后开始评测</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+</main>
+
+<div id="quality-detail-modal" class="dq-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="quality-detail-title">
+    <div class="dq-modal-panel">
+        <div class="dq-modal-header">
+            <h3 id="quality-detail-title" class="text-base font-extrabold text-slate-900">质量详情</h3>
+            <button type="button" class="dq-link-button" onclick="closeQualityDetailModal()">关闭</button>
+        </div>
+        <div id="quality-detail-content" class="dq-modal-body"></div>
+        <div class="dq-modal-footer">
+            <button type="button" class="dq-button dq-button-secondary" onclick="closeQualityDetailModal()">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div id="document-content-modal" class="dq-detail-modal hidden" role="dialog" aria-modal="true" aria-labelledby="document-content-title">
+    <div class="dq-modal-panel">
+        <div class="dq-modal-header">
+            <h3 id="document-content-title" class="text-base font-extrabold text-slate-900">解析后的文档正文</h3>
+            <button type="button" class="dq-link-button" onclick="closeDocumentContentModal()">关闭</button>
+        </div>
+        <div class="dq-modal-body">
+            <textarea id="document-content-editor" placeholder="选择文件后自动读取正文；也可以在这里微调后重新评测。"></textarea>
+        </div>
+        <div class="dq-modal-footer">
+            <button type="button" class="dq-button dq-button-secondary" onclick="closeDocumentContentModal()">取消</button>
+            <button type="button" class="dq-button dq-button-primary" onclick="applyDocumentContentEdit()">更新正文</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let lastEvaluationResult = null;
+    let qualityHistoryPage = 0;
+    const qualityHistoryPageSize = 8;
+    let qualityAutoTrendLoaded = false;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('document-quality-form').addEventListener('submit', evaluateDocumentQuality);
+        document.getElementById('fill-sample-button').addEventListener('click', fillSampleDocument);
+        document.getElementById('document-file').addEventListener('change', extractDocumentFile);
+        loadQualityHistory(0, { autoLoadTrend: true });
+        updateDocumentContentSummary();
+    });
+
+    function extractDocumentFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) {
+            renderFileStatus('请先选择需要评测的文档文件。');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        renderFileStatus('正在读取文件内容...', 'loading');
+        renderLoading('正在读取文件并准备评测...');
+
+        fetch('/api/document-quality/extract', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('接口返回 ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data || data.success === false) {
+                    throw new Error(data && data.message ? data.message : '文件解析失败');
+                }
+                document.getElementById('document-name').value = data.documentName || file.name.replace(/\.[^.]+$/, '');
+                document.getElementById('document-type').value = supportedDocumentType(data.documentType);
+                document.getElementById('document-content').value = data.content || '';
+                updateDocumentContentSummary();
+                renderFileStatus(`${data.message || '已读取文件内容'} 正文长度：${(data.content || '').length} 字。`, 'success');
+                evaluateExtractedDocument();
+            })
+            .catch(error => {
+                renderFileStatus(safeErrorMessage(error), 'error');
+                renderFailure('文件读取失败：' + safeErrorMessage(error));
+            });
+    }
+
+    function evaluateExtractedDocument() {
+        const payload = readEvaluationPayload();
+        if (!payload.content) {
+            renderFailure('文件已选择，但未解析到可评测正文。');
+            return;
+        }
+        submitEvaluationPayload(payload);
+    }
+
+    function evaluateDocumentQuality(event) {
+        event.preventDefault();
+        const payload = readEvaluationPayload();
+
+        if (!payload.content) {
+            renderFailure('请先选择文档文件，或在正文区域填入需要评测的内容。');
+            return;
+        }
+
+        submitEvaluationPayload(payload);
+    }
+    function readEvaluationPayload() {
+        return {
+            documentName: document.getElementById('document-name').value.trim(),
+            documentType: document.getElementById('document-type').value,
+            content: document.getElementById('document-content').value.trim()
+        };
+    }
+
+    function submitEvaluationPayload(payload) {
+        setEvaluateButtonLoading(true);
+        renderLoading('正在评测文档内容质量...');
+        fetch('/api/document-quality/evaluate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('接口返回 ' + response.status);
+                }
+                return response.json();
+            })
+            .then(renderEvaluationResult)
+            .catch(error => renderFailure('文档质量评测请求失败：' + safeErrorMessage(error)))
+            .finally(() => setEvaluateButtonLoading(false));
+    }
+
+    function renderEvaluationResult(data) {
+        if (!data || data.success === false) {
+            renderFailure(data && data.message ? data.message : '文档质量评测失败。');
+            return;
+        }
+
+        lastEvaluationResult = data;
+        setExportButtonsEnabled(true);
+        updateActiveDocumentLabel(data.documentName || readEvaluationPayload().documentName || '已完成评测');
+        const result = document.getElementById('quality-result');
+        result.innerHTML = `
+            <div class="dq-report-stage">
+                ${renderScoreSummary(data)}
+                <div class="dq-report-tabs" role="tablist" aria-label="质量报告视图">
+                    <button type="button" class="dq-report-tab is-active" data-quality-tab="summary" onclick="switchQualityReportTab('summary')"><i class="fa fa-compass"></i>概览</button>
+                    <button type="button" class="dq-report-tab" data-quality-tab="issues" onclick="switchQualityReportTab('issues')"><i class="fa fa-warning"></i>问题</button>
+                    <button type="button" class="dq-report-tab" data-quality-tab="scores" onclick="switchQualityReportTab('scores')"><i class="fa fa-sliders"></i>评分</button>
+                    <button type="button" class="dq-report-tab" data-quality-tab="evidence" onclick="switchQualityReportTab('evidence')"><i class="fa fa-search"></i>证据</button>
+                    <button type="button" class="dq-report-tab" data-quality-tab="fields" onclick="switchQualityReportTab('fields')"><i class="fa fa-sitemap"></i>字段</button>
+                    <button type="button" class="dq-report-tab" data-quality-tab="advice" onclick="switchQualityReportTab('advice')"><i class="fa fa-wrench"></i>建议</button>
+                </div>
+                <div class="dq-report-view">
+                    <section class="dq-tab-panel is-active" data-quality-panel="summary">
+                        <div class="dq-focus-grid">
+                            <div class="dq-focus-panel">
+                                <div class="dq-section-title"><span><i class="fa fa-warning text-amber-600"></i>优先处理问题</span><button type="button" class="dq-link-button" onclick="switchQualityReportTab('issues')">查看全部问题</button></div>
+                                ${renderIssueSummary(data.issues || [])}
+                            </div>
+                            <div class="dq-focus-panel">
+                                <div class="dq-section-title"><span><i class="fa fa-wrench text-blue-600"></i>整改动作</span><button type="button" class="dq-link-button" onclick="switchQualityReportTab('advice')">展开建议</button></div>
+                                ${renderRecommendations((data.recommendations || []).slice(0, 3))}
+                            </div>
+                        </div>
+                    </section>
+                    <section class="dq-tab-panel" data-quality-panel="issues">
+                        <div class="dq-section-title mt-0"><span><i class="fa fa-list text-amber-600"></i>全部问题</span><button type="button" class="dq-link-button" onclick="openQualityDetailModal('issues')">弹窗查看</button></div>
+                        ${renderIssueTable(data.issues || [])}
+                    </section>
+                    <section class="dq-tab-panel" data-quality-panel="scores">
+                        <div class="dq-section-title mt-0"><span><i class="fa fa-bullseye text-blue-600"></i>维度评分</span><button type="button" class="dq-link-button" onclick="openQualityDetailModal('score')">评分明细</button></div>
+                        ${renderDimensionCards(data.dimensionScores || [])}
+                    </section>
+                    <section class="dq-tab-panel" data-quality-panel="evidence">
+                        <div class="dq-section-title mt-0"><span><i class="fa fa-calculator text-blue-600"></i>量化指标</span><button type="button" class="dq-link-button" onclick="openQualityDetailModal('evidence')">证据弹窗</button></div>
+                        ${renderMetricCards(data.metrics || [])}
+                        <div class="dq-section-title"><span><i class="fa fa-search text-blue-600"></i>RAG 证据</span></div>
+                        ${renderRagRetrieval(data.visualizationData && data.visualizationData.ragRetrieval ? data.visualizationData.ragRetrieval : [])}
+                    </section>
+                    <section class="dq-tab-panel" data-quality-panel="fields">
+                        <div class="dq-section-title mt-0"><span><i class="fa fa-sitemap text-blue-600"></i>抽取字段</span><button type="button" class="dq-link-button" onclick="openQualityDetailModal('fields')">字段弹窗</button></div>
+                        ${renderExtractedFields(data.visualizationData && data.visualizationData.extractedFields ? data.visualizationData.extractedFields : [])}
+                        <div class="dq-section-title"><span><i class="fa fa-random text-blue-600"></i>编排链路</span></div>
+                        ${renderSkillPipeline(data.visualizationData && data.visualizationData.skillPipeline ? data.visualizationData.skillPipeline : [])}
+                    </section>
+                    <section class="dq-tab-panel" data-quality-panel="advice">
+                        <div class="dq-section-title mt-0"><span><i class="fa fa-wrench text-blue-600"></i>整改建议</span></div>
+                        ${renderRecommendations(data.recommendations || [])}
+                    </section>
+                </div>
+            </div>
+        `;
+    }
+
+    function switchQualityReportTab(tab) {
+        const result = document.getElementById('quality-result');
+        const tabs = result.querySelectorAll('[data-quality-tab]');
+        const panels = result.querySelectorAll('[data-quality-panel]');
+        tabs.forEach(button => {
+            button.classList.toggle('is-active', button.dataset.qualityTab === tab);
+        });
+        panels.forEach(panel => {
+            panel.classList.toggle('is-active', panel.dataset.qualityPanel === tab);
+        });
+    }
+
+    function exportQualityReport(format) {
+        if (!lastEvaluationResult) {
+            renderFailure('请先完成一次文档质量评测，再导出报告。');
+            return;
+        }
+        setExportButtonsEnabled(false);
+        fetch('/api/document-quality/export', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({format, result: lastEvaluationResult})
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('接口返回 ' + response.status);
+                }
+                return response.json();
+            })
+            .then(downloadExportResult)
+            .catch(error => renderFailure('报告导出失败：' + safeErrorMessage(error)))
+            .finally(() => setExportButtonsEnabled(true));
+    }
+
+    function downloadExportResult(data) {
+        if (!data || data.success === false) {
+            throw new Error(data && data.message ? data.message : '报告导出失败');
+        }
+        const bytes = base64ToBytes(data.contentBase64 || '');
+        const blob = new Blob([bytes], {type: data.contentType || 'application/octet-stream'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.fileName || 'document-quality-report';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function loadQualityHistory(page = 0, options = {}) {
+        page = Math.max(0, Number(page) || 0);
+        qualityHistoryPage = page;
+        renderLoading('正在读取最近评测历史...');
+        const shouldAutoLoadTrend = options && options.autoLoadTrend === true;
+        fetch(`/api/document-quality/history/page?page=${page}&size=${qualityHistoryPageSize}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('接口返回 ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                renderQualityHistory(data);
+                if (
+                    shouldAutoLoadTrend
+                    && !qualityAutoTrendLoaded
+                    && Array.isArray((data && data.records) ? data.records : [])
+                    && (data.records.length > 0)
+                ) {
+                    qualityAutoTrendLoaded = true;
+                    loadQualityTrend();
+                }
+            })
+            .catch(error => renderFailure('历史记录读取失败：' + safeErrorMessage(error)));
+    }
+
+    function loadQualityTrend() {
+        const payload = readEvaluationPayload();
+        const query = payload.documentName
+            ? '?documentName=' + encodeURIComponent(payload.documentName)
+            : '?documentType=' + encodeURIComponent(payload.documentType || '');
+        renderLoading('正在读取质量趋势...');
+        fetch('/api/document-quality/trend' + query)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('接口返回 ' + response.status);
+                }
+                return response.json();
+            })
+            .then(renderQualityTrend)
+            .catch(error => renderFailure('趋势数据读取失败：' + safeErrorMessage(error)));
+    }
+
+    function renderQualityHistory(pageResult) {
+        const rows = sortHistoryRecordsDesc(Array.isArray(pageResult) ? pageResult : (pageResult && pageResult.records ? pageResult.records : []));
+        const page = pageResult && pageResult.page !== undefined ? Number(pageResult.page) : qualityHistoryPage;
+        const size = pageResult && pageResult.size !== undefined ? Number(pageResult.size) : qualityHistoryPageSize;
+        const totalElements = pageResult && pageResult.totalElements !== undefined ? Number(pageResult.totalElements) : rows.length;
+        const totalPages = pageResult && pageResult.totalPages !== undefined ? Number(pageResult.totalPages) : (rows.length ? 1 : 0);
+        const result = document.getElementById('quality-result');
+        result.innerHTML = `
+            <div class="dq-history-head">
+                <div class="dq-section-title mt-0 mb-0"><i class="fa fa-history text-blue-600"></i>最近评测历史</div>
+                <div class="dq-history-meta">按评测时间倒序 · 每页 ${escapeHtml(size)} 条 · 共 ${escapeHtml(totalElements)} 条</div>
+            </div>
+            ${rows.length ? `
+                <div class="overflow-x-auto">
+                    <table class="dq-issue-table">
+                        <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>文档</th>
+                            <th>类型</th>
+                            <th>得分</th>
+                            <th>问题</th>
+                            <th>Judge</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        ${rows.map(record => `
+                            <tr>
+                                <td>${escapeHtml(formatDateTime(record.createdAt))}</td>
+                                <td>${escapeHtml(record.documentName || '-')}</td>
+                                <td>${escapeHtml(record.documentType || '-')}</td>
+                                <td><strong>${escapeHtml(record.overallScore ?? 0)}</strong></td>
+                                <td>${escapeHtml(record.issueCount ?? 0)}</td>
+                                <td>${escapeHtml(record.llmJudgeSource || '-')}</td>
+                            </tr>
+                        `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                ${renderHistoryPagination(page, totalPages, totalElements)}
+            ` : '<div class="dq-empty">暂无历史记录。完成一次评测后会自动入库。</div>'}
+        `;
+    }
+
+    function sortHistoryRecordsDesc(records) {
+        return [...records].sort((left, right) => {
+            const leftTime = new Date(left.createdAt || 0).getTime();
+            const rightTime = new Date(right.createdAt || 0).getTime();
+            return rightTime - leftTime;
+        });
+    }
+
+    function renderHistoryPagination(page, totalPages, totalElements) {
+        const safePage = Math.max(0, Number(page) || 0);
+        const safeTotalPages = Math.max(0, Number(totalPages) || 0);
+        const previousDisabled = safePage <= 0 ? 'disabled' : '';
+        const nextDisabled = safeTotalPages === 0 || safePage >= safeTotalPages - 1 ? 'disabled' : '';
+        return `
+            <div class="dq-pagination" aria-label="历史记录分页">
+                <span>第 ${escapeHtml(safeTotalPages === 0 ? 0 : safePage + 1)} / ${escapeHtml(safeTotalPages)} 页</span>
+                <span>共 ${escapeHtml(totalElements || 0)} 条历史</span>
+                <button type="button" class="dq-export-button" onclick="loadQualityHistory(${safePage - 1})" ${previousDisabled}>上一页</button>
+                <button type="button" class="dq-export-button" onclick="loadQualityHistory(${safePage + 1})" ${nextDisabled}>下一页</button>
+            </div>
+        `;
+    }
+
+    function renderQualityTrend(trend) {
+        const points = trend && Array.isArray(trend.points) ? trend.points : [];
+        const result = document.getElementById('quality-result');
+        result.innerHTML = `
+            <div class="dq-section-title mt-0"><i class="fa fa-line-chart text-blue-600"></i>质量趋势</div>
+            <div class="dq-summary-grid">
+                <div class="dq-score-tile">
+                    <div class="dq-score-label">范围</div>
+                    <div class="mt-2 text-base font-extrabold text-slate-900">${escapeHtml(trend && trend.scope ? trend.scope : '暂无历史数据')}</div>
+                </div>
+                <div class="dq-score-tile">
+                    <div class="dq-score-label">平均分</div>
+                    <div class="dq-score-value text-slate-900">${escapeHtml(trend ? trend.averageScore : 0)}</div>
+                </div>
+                <div class="dq-score-tile">
+                    <div class="dq-score-label">首尾变化</div>
+                    <div class="dq-score-value" style="color:${Number(trend && trend.deltaScore || 0) >= 0 ? '#059669' : '#dc2626'}">${escapeHtml(trend ? trend.deltaScore : 0)}</div>
+                </div>
+                <div class="dq-score-tile">
+                    <div class="dq-score-label">记录数</div>
+                    <div class="dq-score-value text-slate-900">${points.length}</div>
+                </div>
+            </div>
+            ${points.length ? `
+                <div class="dq-trend-chart-panel">
+                    <canvas id="quality-trend-chart" class="dq-trend-chart" aria-label="质量趋势折线图"></canvas>
+                    <div class="dq-trend-legend">
+                        <span><i class="dq-trend-dot"></i>综合得分</span>
+                        <span>横轴按评测时间从早到晚排列</span>
+                    </div>
+                </div>
+            ` : '<div class="dq-empty mt-4">暂无可展示趋势点。完成多次同名文档评测后会形成趋势。</div>'}
+        `;
+        if (points.length) {
+            requestAnimationFrame(() => drawQualityTrendLine(points));
+        }
+    }
+
+    function drawQualityTrendLine(points) {
+        const canvas = document.getElementById('quality-trend-chart');
+        if (!canvas) {
+            return;
+        }
+        const sortedPoints = [...points].sort((left, right) => {
+            const leftTime = new Date(left.createdAt || 0).getTime();
+            const rightTime = new Date(right.createdAt || 0).getTime();
+            return leftTime - rightTime;
+        });
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(320, Math.floor(rect.width || canvas.clientWidth || 320));
+        const height = Math.max(220, Math.floor(rect.height || canvas.clientHeight || 260));
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.height = `${height}px`;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        const padding = {top: 18, right: 18, bottom: 38, left: 44};
+        const plotWidth = width - padding.left - padding.right;
+        const plotHeight = height - padding.top - padding.bottom;
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 1;
+        ctx.font = '12px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'right';
+        [0, 25, 50, 75, 100].forEach(score => {
+            const y = padding.top + (100 - score) / 100 * plotHeight;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
+            ctx.stroke();
+            ctx.fillText(String(score), padding.left - 8, y + 4);
+        });
+        const toX = index => sortedPoints.length === 1
+            ? padding.left + plotWidth / 2
+            : padding.left + index / (sortedPoints.length - 1) * plotWidth;
+        const toY = point => padding.top + (100 - clamp(Number(point.overallScore) || 0, 0, 100)) / 100 * plotHeight;
+        const gradient = ctx.createLinearGradient(padding.left, 0, width - padding.right, 0);
+        gradient.addColorStop(0, '#22d3ee');
+        gradient.addColorStop(1, '#06b6d4');
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        sortedPoints.forEach((point, index) => {
+            const x = toX(index);
+            const y = toY(point);
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.stroke();
+        sortedPoints.forEach((point, index) => {
+            const x = toX(index);
+            const y = toY(point);
+            ctx.fillStyle = '#020617';
+            ctx.strokeStyle = scoreColor(point.overallScore);
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#f8fafc';
+            ctx.textAlign = 'center';
+            ctx.fillText(String(point.overallScore ?? 0), x, Math.max(14, y - 10));
+        });
+        const first = sortedPoints[0];
+        const last = sortedPoints[sortedPoints.length - 1];
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'left';
+        ctx.fillText(formatDateTime(first.createdAt).slice(0, 10), padding.left, height - 12);
+        ctx.textAlign = 'right';
+        ctx.fillText(formatDateTime(last.createdAt).slice(0, 10), width - padding.right, height - 12);
+    }
+
+    function setExportButtonsEnabled(enabled) {
+        document.querySelectorAll('[data-export-format]').forEach(button => {
+            button.disabled = !enabled;
+        });
+    }
+
+    function base64ToBytes(value) {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes;
+    }
+
+    function updateDocumentContentSummary() {
+        const content = document.getElementById('document-content').value || '';
+        document.getElementById('content-state').textContent = content.trim() ? '已读取' : '未读取';
+        document.getElementById('content-length').textContent = `${content.trim().length} 字`;
+    }
+
+    function updateActiveDocumentLabel(label) {
+        const target = document.getElementById('dq-active-document');
+        if (target) {
+            target.textContent = label || '待评测';
+        }
+    }
+
+    function openDocumentContentModal() {
+        document.getElementById('document-content-editor').value = document.getElementById('document-content').value || '';
+        document.getElementById('document-content-modal').classList.remove('hidden');
+    }
+
+    function closeDocumentContentModal() {
+        document.getElementById('document-content-modal').classList.add('hidden');
+    }
+
+    function applyDocumentContentEdit() {
+        document.getElementById('document-content').value = document.getElementById('document-content-editor').value || '';
+        updateDocumentContentSummary();
+        closeDocumentContentModal();
+    }
+
+    function openQualityDetailModal(type) {
+        if (!lastEvaluationResult) {
+            renderFailure('请先完成一次文档质量评测，再查看详情。');
+            return;
+        }
+        const data = lastEvaluationResult;
+        const scoreWeights = data.visualizationData && data.visualizationData.scoreWeights
+            ? data.visualizationData.scoreWeights
+            : {ruleEngine: 40, llmJudge: 50, quantitativeMetrics: 10};
+        const detailMap = {
+            score: {
+                title: '评分明细',
+                content: `
+                    ${renderLlmJudgeSummary(data.visualizationData || {})}
+                    <div class="dq-section-title"><span><i class="fa fa-bullseye text-blue-600"></i>六大维度 LLM-Judge</span></div>
+                    ${renderDimensionBars(data.dimensionScores || [])}
+                    <div class="dq-section-title"><span><i class="fa fa-balance-scale text-blue-600"></i>综合打分权重</span></div>
+                    ${renderScoreWeights(data, scoreWeights)}
+                `
+            },
+            issues: {
+                title: '全部问题',
+                content: renderIssueTable(data.issues || [])
+            },
+            evidence: {
+                title: '证据与指标',
+                content: `
+                    <div class="dq-section-title mt-0"><span><i class="fa fa-calculator text-blue-600"></i>量化指标</span></div>
+                    ${renderMetricCards(data.metrics || [])}
+                    <div class="dq-section-title"><span><i class="fa fa-search text-blue-600"></i>RAG 检索证据</span></div>
+                    ${renderRagRetrieval(data.visualizationData && data.visualizationData.ragRetrieval ? data.visualizationData.ragRetrieval : [])}
+                `
+            },
+            fields: {
+                title: '结构化字段与编排链路',
+                content: `
+                    <div class="dq-section-title mt-0"><span><i class="fa fa-sitemap text-blue-600"></i>结构化字段</span></div>
+                    ${renderExtractedFields(data.visualizationData && data.visualizationData.extractedFields ? data.visualizationData.extractedFields : [])}
+                    <div class="dq-section-title"><span><i class="fa fa-random text-blue-600"></i>AI Skill 编排</span></div>
+                    ${renderSkillPipeline(data.visualizationData && data.visualizationData.skillPipeline ? data.visualizationData.skillPipeline : [])}
+                `
+            }
+        };
+        const detail = detailMap[type] || detailMap.score;
+        document.getElementById('quality-detail-title').textContent = detail.title;
+        document.getElementById('quality-detail-content').innerHTML = detail.content;
+        document.getElementById('quality-detail-modal').classList.remove('hidden');
+    }
+
+    function closeQualityDetailModal() {
+        document.getElementById('quality-detail-modal').classList.add('hidden');
+    }
+
+    function renderScoreSummary(data) {
+        const p0Count = (data.issues || []).filter(issue => issue.severity === 'P0').length;
+        const p1Count = (data.issues || []).filter(issue => issue.severity === 'P1').length;
+        const source = data.visualizationData && data.visualizationData.llmJudgeSource ? data.visualizationData.llmJudgeSource : 'heuristic';
+        const sourceLabel = source === 'ollama' ? 'Ollama' : source === 'openai' ? 'OpenAI' : '启发式';
+        const fieldCoverage = data.visualizationData && data.visualizationData.fieldExtractionCoverage !== undefined
+            ? data.visualizationData.fieldExtractionCoverage
+            : 0;
+        return `
+            <div class="dq-score-hero">
+                <div class="dq-score-main">
+                    <div>
+                        <div class="dq-score-label">综合得分</div>
+                        <div class="dq-score-main-value" style="color:${scoreColor(data.overallScore)}">${escapeHtml(data.overallScore)}</div>
+                        <div class="mt-2 text-sm font-extrabold text-slate-900">${escapeHtml(data.grade || '-')}</div>
+                    </div>
+                </div>
+                <div class="dq-score-facts">
+                    <div class="dq-score-tile">
+                        <div class="dq-score-label">问题总数</div>
+                        <div class="dq-score-value text-slate-900">${escapeHtml((data.issues || []).length)}</div>
+                    </div>
+                    <div class="dq-score-tile">
+                        <div class="dq-score-label">阻断/重点</div>
+                        <div class="dq-score-value text-slate-900">${p0Count}/${p1Count}</div>
+                    </div>
+                    <div class="dq-score-tile">
+                        <div class="dq-score-label">Judge 来源</div>
+                        <div class="mt-2 text-base font-extrabold text-slate-900">${escapeHtml(sourceLabel)}</div>
+                    </div>
+                    <div class="dq-score-tile">
+                        <div class="dq-score-label">字段覆盖</div>
+                        <div class="dq-score-value text-slate-900">${escapeHtml(fieldCoverage)}<span class="text-sm text-gray-500">%</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderLlmJudgeSummary(visualizationData) {
+        const source = visualizationData.llmJudgeSource || 'heuristic';
+        const summary = visualizationData.llmJudgeSummary || visualizationData.llmJudgeMessage || '当前使用本地规则、RAG 证据和量化指标生成评分。';
+        const sourceLabel = source === 'ollama' ? 'Ollama LLM Judge' : source === 'openai' ? 'OpenAI LLM Judge' : '启发式兜底';
+        return `
+            <div class="dq-metric-tile mb-4">
+                <div class="dq-metric-label">LLM Judge 来源</div>
+                <div class="dq-metric-value text-base">${escapeHtml(sourceLabel)}</div>
+                <div class="text-xs text-gray-500 mt-2">${escapeHtml(summary)}</div>
+            </div>
+        `;
+    }
+
+    function renderDimensionBars(dimensions) {
+        if (!dimensions.length) {
+            return '<div class="dq-empty">暂无维度评分。</div>';
+        }
+        return `<div class="dq-bars">
+            ${dimensions.map(dimension => `
+                <div class="dq-bar-row">
+                    <div class="dq-bar-name">${escapeHtml(dimension.name)}</div>
+                    <div class="dq-bar-track">
+                        <div class="dq-bar-fill" style="width:${clamp(dimension.score, 0, 100)}%; background:${scoreColor(dimension.score)}"></div>
+                    </div>
+                    <div class="dq-bar-score">${escapeHtml(dimension.score)}</div>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    function renderDimensionCards(dimensions) {
+        if (!dimensions.length) {
+            return '<div class="dq-empty">暂无维度评分。</div>';
+        }
+        return `<div class="dq-dimension-grid">
+            ${dimensions.map(dimension => {
+                const suggestions = Array.isArray(dimension.suggestions) ? dimension.suggestions : [];
+                return `
+                    <div class="dq-dimension-card">
+                        <div class="dq-dimension-card-head">
+                            <span>${escapeHtml(dimension.name)}</span>
+                            <span class="dq-dimension-score" style="color:${scoreColor(dimension.score)}">${escapeHtml(dimension.score)}</span>
+                        </div>
+                        <div class="dq-bar-track mt-3">
+                            <div class="dq-bar-fill" style="width:${clamp(dimension.score, 0, 100)}%; background:${scoreColor(dimension.score)}"></div>
+                        </div>
+                        <div class="dq-dimension-note">${escapeHtml(suggestions[0] || dimension.reason || '暂无突出扣分说明。')}</div>
+                    </div>
+                `;
+            }).join('')}
+        </div>`;
+    }
+
+    function renderScoreWeights(data, scoreWeights) {
+        const breakdown = data.visualizationData && data.visualizationData.scoreBreakdown
+            ? data.visualizationData.scoreBreakdown
+            : {ruleEngine: data.ruleScore, llmJudge: data.llmJudgeScore, quantitativeMetrics: data.metricScore};
+        const rows = [
+            ['规则引擎', breakdown.ruleEngine, scoreWeights.ruleEngine],
+            ['LLM-Judge', breakdown.llmJudge, scoreWeights.llmJudge],
+            ['量化指标', breakdown.quantitativeMetrics, scoreWeights.quantitativeMetrics]
+        ];
+        return `<div class="dq-bars">
+            ${rows.map(row => `
+                <div class="dq-bar-row">
+                    <div class="dq-bar-name">${row[0]}</div>
+                    <div class="dq-bar-track">
+                        <div class="dq-bar-fill" style="width:${clamp(row[1], 0, 100)}%; background:${scoreColor(row[1])}"></div>
+                    </div>
+                    <div class="dq-bar-score">${escapeHtml(row[1])}<span class="text-gray-400 text-xs">/${escapeHtml(row[2])}%</span></div>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    function renderIssueTable(issues) {
+        if (!issues.length) {
+            return '<div class="dq-empty">未发现规则或 Judge rubric 明确扣分项。</div>';
+        }
+        return `
+            <div class="overflow-x-auto">
+                <table class="dq-issue-table">
+                    <thead>
+                    <tr>
+                        <th>级别</th>
+                        <th>类别</th>
+                        <th>位置</th>
+                        <th>问题</th>
+                        <th>整改建议</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    ${issues.map(issue => `
+                        <tr>
+                            <td><span class="dq-badge ${severityClass(issue.severity)}">${escapeHtml(issue.severity)}</span></td>
+                            <td>${escapeHtml(issue.category)}</td>
+                            <td>${escapeHtml(issue.location)}</td>
+                            <td>
+                                <div class="font-semibold text-slate-900">${escapeHtml(issue.description)}</div>
+                                <div class="text-xs text-gray-500 mt-1">${escapeHtml(issue.evidence || '')}</div>
+                            </td>
+                            <td>${escapeHtml(issue.suggestion)}</td>
+                        </tr>
+                    `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function renderIssueSummary(issues) {
+        if (!issues.length) {
+            return '<div class="dq-empty">未发现阻断或重点问题。可以通过“查看评分明细”复核维度得分。</div>';
+        }
+        const severityRank = {P0: 0, P1: 1, P2: 2, P3: 3};
+        const topIssues = [...issues]
+            .sort((first, second) => (severityRank[first.severity] ?? 9) - (severityRank[second.severity] ?? 9))
+            .slice(0, 3);
+        return `<div class="dq-issue-summary-list">
+            ${topIssues.map(issue => `
+                <div class="dq-issue-summary-item">
+                    <span class="dq-badge ${severityClass(issue.severity)}">${escapeHtml(issue.severity)}</span>
+                    <div>
+                        <strong>${escapeHtml(issue.description)}</strong>
+                        <p>${escapeHtml(issue.location || issue.category || '')}${issue.evidence ? ' · ' + escapeHtml(issue.evidence) : ''}</p>
+                    </div>
+                    <button type="button" class="dq-link-button" onclick="openQualityDetailModal('issues')">详情</button>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    function renderMetricCards(metrics) {
+        if (!metrics.length) {
+            return '<div class="dq-empty">暂无量化指标。</div>';
+        }
+        return `<div class="dq-metrics-grid">
+            ${metrics.map(metric => `
+                <div class="dq-metric-tile">
+                    <div class="dq-metric-label">${escapeHtml(metric.name)}</div>
+                    <div class="dq-metric-value">${escapeHtml(metric.value)}<span class="text-sm text-gray-500 ml-1">${escapeHtml(metric.unit || '')}</span></div>
+                    <div class="text-xs text-gray-500 mt-2">${escapeHtml(metric.description || '')}</div>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    function renderRagRetrieval(items) {
+        if (!items.length) {
+            return '<div class="dq-empty">暂无 RAG 检索证据。</div>';
+        }
+        return `<div class="dq-bars">
+            ${items.map(item => {
+                const topHit = item.topHits && item.topHits.length ? item.topHits[0] : null;
+                return `
+                    <div class="dq-metric-tile">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="dq-metric-label">${escapeHtml(item.label || item.requirementId)}</div>
+                            <span class="dq-badge ${item.matched ? 'severity-p2' : 'severity-p1'}">${item.matched ? '命中' : '缺口'}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2">相似度：${escapeHtml(item.topScore || 0)}</div>
+                        ${topHit ? `
+                            <div class="text-sm text-slate-800 mt-2">${escapeHtml(topHit.title || topHit.chunkId)}</div>
+                            <div class="text-xs text-gray-500 mt-1">${escapeHtml(topHit.location || '')}</div>
+                            <div class="text-xs text-gray-600 mt-2">${escapeHtml(topHit.content || '')}</div>
+                        ` : '<div class="text-xs text-gray-500 mt-2">未检索到可展示片段。</div>'}
+                    </div>
+                `;
+            }).join('')}
+        </div>`;
+    }
+
+    function renderExtractedFields(fields) {
+        if (!fields.length) {
+            return '<div class="dq-empty">暂无结构化字段抽取结果。</div>';
+        }
+        return `<div class="dq-metrics-grid">
+            ${fields.map(field => {
+                const values = Array.isArray(field.values) ? field.values : [];
+                const evidence = Array.isArray(field.evidence) ? field.evidence : [];
+                return `
+                    <div class="dq-metric-tile">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="dq-metric-label">${escapeHtml(field.name || field.id)}</div>
+                            <span class="dq-badge ${fieldStatusClass(field.status)}">${escapeHtml(fieldStatusLabel(field.status))}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2">置信度：${escapeHtml(field.confidence || 0)}</div>
+                        ${values.length ? `
+                            <ul class="dq-recommendations mt-3">
+                                ${values.slice(0, 4).map(value => `<li>${escapeHtml(value)}</li>`).join('')}
+                            </ul>
+                        ` : `<div class="text-xs text-gray-500 mt-3">${escapeHtml(field.suggestion || '未抽取到可用字段。')}</div>`}
+                        ${evidence.length ? `
+                            <div class="text-xs text-gray-500 mt-3">
+                                证据：${evidence.slice(0, 2).map(item => escapeHtml((item.chunkId || '-') + '@' + (item.location || '-'))).join('；')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('')}
+        </div>`;
+    }
+
+    function renderSkillPipeline(stages) {
+        if (!stages.length) {
+            return '<div class="dq-empty">暂无 AI Skill 编排链路。</div>';
+        }
+        return `<div class="dq-bars">
+            ${stages.map(stage => `
+                <div class="dq-metric-tile">
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="dq-metric-label">${escapeHtml(stage.stage || '-')}</div>
+                        <span class="dq-badge ${pipelineStatusClass(stage.status)}">${escapeHtml(stage.status || '-')}</span>
+                    </div>
+                    <div class="text-sm text-slate-800 mt-2">${escapeHtml(stage.summary || '')}</div>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    function renderRecommendations(recommendations) {
+        if (!recommendations.length) {
+            return '<div class="dq-empty">暂无整改建议。</div>';
+        }
+        return `<ul class="dq-recommendations">
+            ${recommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+        </ul>`;
+    }
+
+    function fillSampleDocument() {
+        document.getElementById('document-file').value = '';
+        document.getElementById('document-name').value = '文档质量智能评测系统设计文档';
+        document.getElementById('document-type').value = '技术设计文档';
+        document.getElementById('document-content').value = `1. 项目概述
+搭建规则引擎 + LLM-Judge + 量化指标 + 可视化报告的自动化文档质量评测系统。
+
+2. 整体系统架构
+接入层、调度层、核心引擎层、数据存储层。
+
+3. 核心模块详细设计
+包含文档解析、规则引擎、LLM评测、量化指标、报告生成。`;
+        updateDocumentContentSummary();
+        updateActiveDocumentLabel('文档质量智能评测系统设计文档');
+        renderFileStatus('已填入设计文档样例，可点击开始质量评测。');
+    }
+
+    function renderLoading(message) {
+        setExportButtonsEnabled(false);
+        document.getElementById('quality-result').innerHTML = `
+            <div class="dq-empty">
+                <i class="fa fa-spinner fa-spin mr-2"></i>${escapeHtml(message || '正在处理...')}
+            </div>
+        `;
+    }
+
+    function renderFileStatus(message, tone) {
+        const status = document.getElementById('file-status');
+        status.className = 'dq-file-status' + (tone ? ' is-' + tone : '');
+        status.textContent = message;
+    }
+
+    function supportedDocumentType(documentType) {
+        const select = document.getElementById('document-type');
+        const values = Array.from(select.options).map(option => option.value);
+        return values.includes(documentType) ? documentType : '业务说明文档';
+    }
+
+    function renderFailure(message) {
+        lastEvaluationResult = null;
+        setExportButtonsEnabled(false);
+        document.getElementById('quality-result').innerHTML = `
+            <div class="dq-error">
+                <div class="font-bold">评测失败</div>
+                <div class="mt-2">${escapeHtml(message)}</div>
+            </div>
+        `;
+    }
+
+    function setEvaluateButtonLoading(loading) {
+        const button = document.getElementById('evaluate-button');
+        button.disabled = loading;
+        button.innerHTML = loading
+            ? '<i class="fa fa-spinner fa-spin"></i>评测中'
+            : '<i class="fa fa-line-chart"></i>开始质量评测';
+    }
+
+    function scoreColor(score) {
+        if (score >= 90) {
+            return '#059669';
+        }
+        if (score >= 80) {
+            return '#2563eb';
+        }
+        if (score >= 60) {
+            return '#d97706';
+        }
+        return '#dc2626';
+    }
+
+    function severityClass(severity) {
+        return {
+            P0: 'dq-badge-p0',
+            P1: 'dq-badge-p1',
+            P2: 'dq-badge-p2',
+            P3: 'dq-badge-p3'
+        }[severity] || 'dq-badge-p3';
+    }
+
+    function fieldStatusLabel(status) {
+        return {
+            complete: '已抽取',
+            missing: '缺失',
+            risk: '风险',
+            not_applicable: '可选'
+        }[status] || status || '-';
+    }
+
+    function fieldStatusClass(status) {
+        return {
+            complete: 'dq-badge-p2',
+            missing: 'dq-badge-p1',
+            risk: 'dq-badge-p0',
+            not_applicable: 'dq-badge-p3'
+        }[status] || 'dq-badge-p3';
+    }
+
+    function pipelineStatusClass(status) {
+        return {
+            completed: 'dq-badge-p2',
+            attention: 'dq-badge-p1',
+            degraded: 'dq-badge-p1',
+            blocked: 'dq-badge-p0'
+        }[status] || 'dq-badge-p3';
+    }
+
+    function safeErrorMessage(error) {
+        return error && error.message ? error.message : String(error || '未知错误');
+    }
+
+    function formatDateTime(value) {
+        if (!value) {
+            return '-';
+        }
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('zh-CN', {hour12: false});
+    }
+
+    function clamp(value, min, max) {
+        const number = Number(value) || 0;
+        return Math.max(min, Math.min(max, number));
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    Object.assign(window, {
+        applyDocumentContentEdit,
+        closeDocumentContentModal,
+        closeQualityDetailModal,
+        exportQualityReport,
+        loadQualityHistory,
+        loadQualityTrend,
+        openDocumentContentModal,
+        openQualityDetailModal,
+        renderEvaluationResult,
+        switchQualityReportTab
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

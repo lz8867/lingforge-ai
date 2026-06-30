@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  chart-demo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chart-demo:latest
+    container_name: chart-demo
+    ports:
+      - "8081:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    environment:
+      - MYSQL_PASSWORD=activiti
+      - SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/activiti?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - DEPLOY_PROJECT_DIR=/workspace
+
+    restart: always
+    working_dir: /app

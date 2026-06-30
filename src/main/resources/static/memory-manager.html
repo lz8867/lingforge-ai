@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>记忆管理 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+        }
+    </style>
+    <style>
+
+        .user-input {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+        }
+        .user-input h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .input-field {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-field label {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .input-field input,
+        .input-field select,
+        .input-field textarea {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        .input-field input:focus,
+        .input-field select:focus,
+        .input-field textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .input-field textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        button.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        button.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        button.danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        button.danger:hover {
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+        .filter-bar {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-bar h2 {
+            color: #333;
+            font-size: 1.3em;
+            margin: 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 20px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .filter-btn:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .filter-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+        .memory-list {
+            display: grid;
+            gap: 20px;
+        }
+        .memory-card {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .memory-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+        .memory-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .memory-card .card-header .memory-type {
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .memory-card .card-header .memory-type.user_input {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .memory-card .card-header .memory-type.ai_response {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+        .memory-card .card-header .memory-type.prompt_template {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+        .memory-card .card-header .memory-time {
+            color: #999;
+            font-size: 12px;
+        }
+        .memory-card .card-content {
+            color: #333;
+            line-height: 1.6;
+            font-size: 14px;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .memory-card .card-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .memory-card .card-actions button {
+            padding: 6px 15px;
+            font-size: 13px;
+        }
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 60px 20px;
+            font-size: 1.1em;
+        }
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <a href="/index.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="/index.html#deploy" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-cogs mr-1"></i> 部署工具
+                </a>
+                <a href="/index.html#logs" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-terminal mr-1"></i> Docker 日志
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-4 memory-workbench">
+                <aside class="memory-insight-panel">
+                    <div class="memory-panel-title">
+                        <span class="memory-panel-kicker">核心数据</span>
+                        <h2><i class="fa fa-pie-chart"></i> 记忆画像</h2>
+                    </div>
+                    <div class="memory-signal-grid" aria-label="当前记忆核心指标">
+                        <div class="memory-signal-row">
+                            <span>命中窗口</span>
+                            <strong id="memoryLoadedSignal">0 条</strong>
+                        </div>
+                        <div class="memory-signal-row">
+                            <span>用户占比</span>
+                            <strong id="memoryUserShare">0%</strong>
+                        </div>
+                        <div class="memory-signal-row">
+                            <span>模型占比</span>
+                            <strong id="memoryAiShare">0%</strong>
+                        </div>
+                        <div class="memory-signal-row">
+                            <span>长期资产</span>
+                            <strong id="memoryAssetCount">0 条</strong>
+                        </div>
+                    </div>
+                    <div class="memory-distribution-list" id="memoryDistributionList" aria-label="记忆类型分布">
+                        <div class="memory-distribution-row">
+                            <span>用户输入</span>
+                            <strong>0</strong>
+                            <div class="memory-distribution-track"><i></i></div>
+                        </div>
+                        <div class="memory-distribution-row">
+                            <span>AI 响应</span>
+                            <strong>0</strong>
+                            <div class="memory-distribution-track"><i></i></div>
+                        </div>
+                        <div class="memory-distribution-row">
+                            <span>提示词模板</span>
+                            <strong>0</strong>
+                            <div class="memory-distribution-track"><i></i></div>
+                        </div>
+                    </div>
+                    <details class="memory-secondary-compose">
+                        <summary>
+                            <span><i class="fa fa-plus-circle"></i> 手动新增记忆</span>
+                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
+                        </summary>
+                        <div class="user-input memory-compose-panel">
+                            <p class="memory-panel-hint">仅用于补充明确偏好、长期背景或后续对话必须引用的信息。</p>
+                            <div class="input-group">
+                                <div class="input-field">
+                                    <label>用户ID</label>
+                                    <input type="text" id="userId" placeholder="输入用户ID（默认：default_user）" value="default_user">
+                                </div>
+                                <div class="input-field">
+                                    <label>记忆类型</label>
+                                    <select id="memoryType">
+                                        <option value="user_input">用户输入</option>
+                                        <option value="ai_response">AI 响应</option>
+                                        <option value="prompt_template">提示词模板</option>
+                                        <option value="preference">用户偏好</option>
+                                        <option value="context">上下文信息</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="input-field" style="margin-bottom: 15px;">
+                                <label>记忆内容</label>
+                                <textarea id="memoryContent" placeholder="输入要保存的记忆内容..."></textarea>
+                            </div>
+                            <div class="input-field" style="margin-bottom: 15px;">
+                                <label>元数据（可选）</label>
+                                <input type="text" id="memoryMetadata" placeholder="额外的元数据信息...">
+                            </div>
+                            <div class="button-group">
+                                <button class="secondary" onclick="clearInput()"><i class="fa fa-eraser"></i> 清空</button>
+                                <button onclick="saveMemory()"><i class="fa fa-bookmark"></i> 保存记忆</button>
+                            </div>
+                        </div>
+                    </details>
+                </aside>
+
+                <div class="filter-bar memory-filter-panel">
+                    <div class="memory-filter-heading">
+                        <span class="memory-panel-kicker">查询条件</span>
+                        <h2><i class="fa fa-filter"></i> 检索窗口</h2>
+                    </div>
+                    <label class="memory-search" for="memorySearch">
+                        <i class="fa fa-search" aria-hidden="true"></i>
+                        <input type="search" id="memorySearch" placeholder="按关键词缩小命中窗口...">
+                    </label>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all" onclick="filterMemories('all', this)">全部</button>
+                        <button class="filter-btn" data-filter="user_input" onclick="filterMemories('user_input', this)">用户输入</button>
+                        <button class="filter-btn" data-filter="ai_response" onclick="filterMemories('ai_response', this)">AI 响应</button>
+                        <button class="filter-btn" data-filter="prompt_template" onclick="filterMemories('prompt_template', this)">提示词模板</button>
+                        <button class="filter-btn" data-filter="preference" onclick="filterMemories('preference', this)">用户偏好</button>
+                        <button class="filter-btn" data-filter="context" onclick="filterMemories('context', this)">上下文</button>
+                    </div>
+                </div>
+
+                <div class="memory-list-header">
+                    <div>
+                        <span class="memory-panel-kicker">结果窗口</span>
+                        <h3>命中摘要</h3>
+                        <p class="memory-list-subtitle">只展示短线索，避免原文内容反客为主。</p>
+                    </div>
+                    <span id="memoryResultCount">0 条</span>
+                </div>
+
+                <div class="memory-list" id="memoryList">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p>加载中...</p>
+                    </div>
+                </div>
+                <div id="memoryListStatus" class="memory-list-status" aria-live="polite"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-documentation text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-question-circle text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let currentFilter = 'all';
+        let currentSearch = '';
+        let memoryItems = [];
+        let currentPage = 0;
+        let memoryPageSize = 12;
+        let hasMore = false;
+        let isLoading = false;
+        let searchDebounceTimer = null;
+        let loadToken = 0;
+        let summaryCounts = {
+            total: 0,
+            user_input: 0,
+            ai_response: 0,
+            prompt_template: 0,
+            preference: 0,
+            context: 0
+        };
+
+        async function loadMemories({ reset = false } = {}) {
+            if (isLoading && !reset) {
+                return;
+            }
+
+            const requestToken = ++loadToken;
+            const userId = document.getElementById('userId').value;
+
+            if (!userId) {
+                return;
+            }
+
+            if (reset) {
+                currentPage = 0;
+                memoryItems = [];
+                hasMore = false;
+            }
+
+            isLoading = true;
+            updateResultCount(memoryItems.length, summaryCounts.total);
+            renderMemories();
+
+            try {
+                const params = new URLSearchParams({
+                    page: String(currentPage),
+                    size: String(memoryPageSize)
+                });
+
+                if (currentFilter !== 'all') {
+                    params.set('type', currentFilter);
+                }
+
+                const normalizedSearch = currentSearch.trim();
+                if (normalizedSearch) {
+                    params.set('q', normalizedSearch);
+                }
+
+                const response = await fetch(`/api/memory/user/${encodeURIComponent(userId)}/search?${params}`);
+
+                if (!response.ok) {
+                    throw new Error('response.status=' + response.status);
+                }
+
+                const result = await response.json();
+                const isLatestRequest = requestToken === loadToken;
+                const nextItems = Array.isArray(result.memories) ? result.memories : [];
+                const pageIndex = Number(result.page);
+
+                if (isLatestRequest) {
+                    memoryItems = memoryItems.concat(nextItems);
+                    currentPage = Number.isFinite(pageIndex) ? (pageIndex + 1) : (currentPage + 1);
+                    hasMore = Boolean(result.hasMore);
+
+                    if (result.summary) {
+                        summaryCounts = result.summary;
+                    }
+                    if (typeof result.total === 'number') {
+                        summaryCounts.total = result.total;
+                    }
+
+                    updateStatsFromResult();
+                    renderMemories();
+                }
+            } catch (error) {
+                if (requestToken === loadToken) {
+                    console.error('加载记忆失败:', error);
+                    hasMore = false;
+                    renderMemories();
+                }
+            }
+            if (requestToken === loadToken) {
+                isLoading = false;
+                renderMemories();
+            }
+        }
+
+        async function saveMemory() {
+            const userId = document.getElementById('userId').value;
+            const type = document.getElementById('memoryType').value;
+            const content = document.getElementById('memoryContent').value;
+            const metadata = document.getElementById('memoryMetadata').value;
+
+            if (!content.trim()) {
+                alert('请输入记忆内容');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/memory/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        userId: userId,
+                        content: content,
+                        type: type,
+                        metadata: metadata || null
+                    })
+                });
+
+                if (response.ok) {
+                    clearInput();
+                    loadMemories({ reset: true });
+                } else {
+                    alert('保存失败');
+                }
+            } catch (error) {
+                console.error('保存记忆失败:', error);
+                alert('保存失败: ' + error.message);
+            }
+        }
+
+        async function deleteMemory(memoryId) {
+            if (!confirm('确定要删除这条记忆吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/memory/${memoryId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    loadMemories({ reset: true });
+                } else {
+                    alert('删除失败');
+                }
+            } catch (error) {
+                console.error('删除记忆失败:', error);
+                alert('删除失败: ' + error.message);
+            }
+        }
+
+        function filterMemories(type) {
+            currentFilter = type;
+
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeButton = arguments.length > 1
+                ? arguments[1]
+                : document.querySelector(`.filter-btn[data-filter="${type}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+            }
+
+            loadMemories({ reset: true });
+        }
+
+        function renderMemories() {
+            const listContainer = document.getElementById('memoryList');
+            const statusContainer = document.getElementById('memoryListStatus');
+            const visibleCount = memoryItems.length;
+            const totalCount = summaryCounts.total || visibleCount;
+
+            updateResultCount(visibleCount, totalCount);
+
+            if (memoryItems.length === 0 && !isLoading) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p>暂无记忆记录</p>
+                    </div>
+                `;
+                if (statusContainer) {
+                    statusContainer.innerHTML = '';
+                }
+                return;
+            }
+
+            if (memoryItems.length === 0 && isLoading) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <p>加载中...</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = memoryItems.map(memory => `
+                <article class="memory-result-row memory-${getSafeTypeClass(memory.type)}">
+                    <div class="memory-row-marker" aria-hidden="true"></div>
+                    <div class="memory-row-main">
+                        <div class="memory-row-meta">
+                            <span class="memory-type ${getSafeTypeClass(memory.type)}">
+                                <i class="fa ${getTypeIcon(memory.type)}" aria-hidden="true"></i>
+                                ${escapeHtml(getTypeLabel(memory.type))}
+                            </span>
+                            <span class="memory-source">${escapeHtml(getTypeSource(memory.type))}</span>
+                            <span class="memory-time">${formatDate(memory.createdAt)}</span>
+                        </div>
+                        <p class="memory-snippet"><span>线索</span>${escapeHtml(toSnippet(memory.content, 64))}</p>
+                        ${memory.metadata ? `<p class="memory-row-metadata"><span>元数据</span>已记录</p>` : ''}
+                    </div>
+                    <div class="memory-row-actions">
+                        <button class="danger memory-delete-button" title="删除这条记忆" aria-label="删除这条记忆" onclick="deleteMemory(${Number(memory.id)})">
+                            <i class="fa fa-trash-o" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </article>
+            `).join('');
+            if (statusContainer) {
+                statusContainer.innerHTML = isLoading ? `
+                    <span class="memory-loadmore-text">加载中...</span>
+                ` : renderLoadmoreState();
+            }
+        }
+
+        function renderLoadmoreState() {
+            if (!hasMore) {
+                if (!summaryCounts.total && summaryCounts.total !== 0) {
+                    return '';
+                }
+                return `<span class="memory-loadmore-text">已展示全部 ${summaryCounts.total} 条</span>`;
+            }
+
+            return `<button type="button" class="memory-loadmore-btn secondary" onclick="loadMoreMemories()">加载更多</button>`;
+        }
+
+        function loadMoreMemories() {
+            if (isLoading || !hasMore) {
+                return;
+            }
+            loadMemories();
+        }
+
+        function updateResultCount(count, total) {
+            const countElement = document.getElementById('memoryResultCount');
+            if (countElement) {
+                countElement.textContent = `${count} / ${total} 条`;
+            }
+            updateMemoryInsights();
+        }
+
+        function updateStatsFromResult() {
+            updateMemoryInsights();
+        }
+
+        function updateMemoryInsights() {
+            const loadedElement = document.getElementById('memoryLoadedSignal');
+            const userShareElement = document.getElementById('memoryUserShare');
+            const aiShareElement = document.getElementById('memoryAiShare');
+            const assetCountElement = document.getElementById('memoryAssetCount');
+            const distributionElement = document.getElementById('memoryDistributionList');
+
+            if (loadedElement) {
+                loadedElement.textContent = `${memoryItems.length} 条`;
+            }
+            if (userShareElement) {
+                userShareElement.textContent = `${getTypeShare('user_input')}%`;
+            }
+            if (aiShareElement) {
+                aiShareElement.textContent = `${getTypeShare('ai_response')}%`;
+            }
+            if (assetCountElement) {
+                assetCountElement.textContent = `${getTypeCount('prompt_template') + getTypeCount('preference') + getTypeCount('context')} 条`;
+            }
+            if (distributionElement) {
+                distributionElement.innerHTML = ['user_input', 'ai_response', 'prompt_template', 'preference', 'context']
+                    .map(renderDistributionRow)
+                    .join('');
+            }
+        }
+
+        function renderDistributionRow(type) {
+            const count = getTypeCount(type);
+            const share = getTypeShare(type);
+            return `
+                <div class="memory-distribution-row">
+                    <span>${escapeHtml(getTypeLabel(type))}</span>
+                    <strong>${count}</strong>
+                    <div class="memory-distribution-track">
+                        <i style="width: ${share}%"></i>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getTypeCount(type) {
+            return Number(summaryCounts[type] || 0);
+        }
+
+        function getTypeShare(type) {
+            const total = Number(summaryCounts.total || 0);
+            if (!total) {
+                return 0;
+            }
+            return Math.round((getTypeCount(type) / total) * 100);
+        }
+
+        function getTypeLabel(type) {
+            const labels = {
+                'user_input': '用户输入',
+                'ai_response': 'AI 响应',
+                'prompt_template': '提示词模板',
+                'preference': '用户偏好',
+                'context': '上下文'
+            };
+            return labels[type] || type;
+        }
+
+        function getTypeIcon(type) {
+            const icons = {
+                'user_input': 'fa-user-o',
+                'ai_response': 'fa-comments-o',
+                'prompt_template': 'fa-file-text-o',
+                'preference': 'fa-sliders',
+                'context': 'fa-link'
+            };
+            return icons[type] || 'fa-tag';
+        }
+
+        function getTypeSource(type) {
+            const sources = {
+                'user_input': '用户表达',
+                'ai_response': '模型回复',
+                'prompt_template': '提示词沉淀',
+                'preference': '长期偏好',
+                'context': '会话背景'
+            };
+            return sources[type] || '未分类记忆';
+        }
+
+        function getSafeTypeClass(type) {
+            return String(type || 'unknown').replace(/[^a-z0-9_-]/gi, '-');
+        }
+
+        function toSnippet(text, maxLength = 120) {
+            const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+            if (normalized.length <= maxLength) {
+                return normalized;
+            }
+            return normalized.slice(0, maxLength) + '...';
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearInput() {
+            document.getElementById('memoryContent').value = '';
+            document.getElementById('memoryMetadata').value = '';
+        }
+
+        document.getElementById('userId').addEventListener('change', () => loadMemories({ reset: true }));
+        document.getElementById('memorySearch').addEventListener('input', event => {
+            currentSearch = event.target.value;
+            if (searchDebounceTimer) {
+                clearTimeout(searchDebounceTimer);
+            }
+            searchDebounceTimer = setTimeout(() => {
+                loadMemories({ reset: true });
+            }, 280);
+        });
+        loadMemories({ reset: true });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

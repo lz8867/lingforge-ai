@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户登录</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+            font-weight: 700;
+        }
+        .logo {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .phone-input {
+            display: flex;
+            gap: 10px;
+        }
+        .phone-input input:first-child {
+            flex: 1;
+        }
+        .phone-input button {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            white-space: nowrap;
+        }
+        .phone-input button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .phone-input button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .login-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            margin-top: 20px;
+        }
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .login-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-bottom: 15px;
+            min-height: 20px;
+        }
+        .success-message {
+            color: #2ecc71;
+            font-size: 14px;
+            margin-bottom: 15px;
+            min-height: 20px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body>
+    <main class="login-workbench">
+        <section class="login-signal-panel" aria-label="登录状态与入口">
+            <div class="login-signal-head">
+                <span>Account Gateway</span>
+                <h1><i class="fa fa-sign-in"></i> 账号登录</h1>
+            </div>
+            <div class="login-signal-grid">
+                <div>
+                    <span>认证方式</span>
+                    <strong>短信验证码</strong>
+                </div>
+                <div>
+                    <span>会话入口</span>
+                    <strong>AI 工具台</strong>
+                </div>
+                <div>
+                    <span>表单状态</span>
+                    <strong>待输入</strong>
+                </div>
+                <div>
+                    <span>安全边界</span>
+                    <strong>一次性验证码</strong>
+                </div>
+            </div>
+            <div class="login-route-list">
+                <a href="/index.html"><i class="fa fa-home"></i><span>返回首页</span></a>
+                <a href="/chat.html"><i class="fa fa-comments"></i><span>进入对话</span></a>
+                <a href="/memory-manager.html"><i class="fa fa-database"></i><span>查看记忆</span></a>
+            </div>
+        </section>
+
+        <section class="login-container login-form-panel" aria-label="短信验证码登录表单">
+            <div class="login-form-head">
+                <div class="login-mark"><i class="fa fa-mobile"></i></div>
+                <div>
+                    <span>SMS Verify</span>
+                    <h2>短信验证码登录</h2>
+                </div>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+
+            <div class="input-group">
+                <label>手机号</label>
+                <input type="tel" id="phoneInput" placeholder="请输入手机号" maxlength="11">
+            </div>
+
+            <div class="input-group">
+                <label>验证码</label>
+                <div class="phone-input">
+                    <input type="text" id="codeInput" placeholder="请输入验证码" maxlength="6">
+                    <button onclick="sendCode()" id="sendCodeButton">发送验证码</button>
+                </div>
+            </div>
+
+            <button onclick="login()" class="login-button" id="loginButton">登录</button>
+        </section>
+    </main>
+
+    <script>
+        let countdown = 0;
+        let timer = null;
+
+        function sendCode() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            const sendCodeButton = document.getElementById('sendCodeButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+
+            if (!phone) {
+                errorMessage.textContent = '请输入手机号';
+                successMessage.textContent = '';
+                return;
+            }
+
+            if (!/^1[3-9]\d{9}$/.test(phone)) {
+                errorMessage.textContent = '请输入正确的手机号';
+                successMessage.textContent = '';
+                return;
+            }
+
+            errorMessage.textContent = '';
+            successMessage.textContent = '';
+            sendCodeButton.disabled = true;
+            sendCodeButton.innerHTML = '<span class="loading"></span>';
+
+            // 发送验证码请求
+            fetch('/api/sms/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phone: phone })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    successMessage.textContent = '验证码已发送';
+                    startCountdown();
+                } else {
+                    errorMessage.textContent = data.message || '发送验证码失败';
+                    sendCodeButton.disabled = false;
+                    sendCodeButton.innerHTML = '发送验证码';
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = '发送验证码失败，请重试';
+                sendCodeButton.disabled = false;
+                sendCodeButton.innerHTML = '发送验证码';
+                console.error('发送验证码失败:', error);
+            });
+        }
+
+        function startCountdown() {
+            countdown = 60;
+            const sendCodeButton = document.getElementById('sendCodeButton');
+            sendCodeButton.innerHTML = `${countdown}秒后重新发送`;
+
+            timer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    sendCodeButton.disabled = false;
+                    sendCodeButton.innerHTML = '发送验证码';
+                } else {
+                    sendCodeButton.innerHTML = `${countdown}秒后重新发送`;
+                }
+            }, 1000);
+        }
+
+        function login() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            const code = document.getElementById('codeInput').value.trim();
+            const loginButton = document.getElementById('loginButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+
+            if (!phone) {
+                errorMessage.textContent = '请输入手机号';
+                successMessage.textContent = '';
+                return;
+            }
+
+            if (!code) {
+                errorMessage.textContent = '请输入验证码';
+                successMessage.textContent = '';
+                return;
+            }
+
+            errorMessage.textContent = '';
+            successMessage.textContent = '';
+            loginButton.disabled = true;
+            loginButton.innerHTML = '<span class="loading"></span>';
+
+            // 登录请求
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phone: phone, code: code })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 保存登录状态到localStorage
+                    localStorage.setItem('isLoggedIn', 'true');
+                    localStorage.setItem('loginTime', new Date().getTime().toString());
+                    localStorage.setItem('phone', phone);
+
+                    // 登录成功，跳转到主页面
+                    window.location.href = '/index.html';
+                } else {
+                    errorMessage.textContent = data.message || '登录失败';
+                    loginButton.disabled = false;
+                    loginButton.innerHTML = '登录';
+                }
+            })
+            .catch(error => {
+                errorMessage.textContent = '登录失败，请重试';
+                loginButton.disabled = false;
+                loginButton.innerHTML = '登录';
+                console.error('登录失败:', error);
+            });
+        }
+
+        // 按Enter键登录
+        document.getElementById('codeInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                login();
+            }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

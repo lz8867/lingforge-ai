@@ -1,0 +1,27 @@
+{
+  "name": "lingforge-ai",
+  "version": "1.0.0",
+  "description": "Open AI application framework powered by Spring Boot, Spring AI, React and local models",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test:layout": "node scripts/validate-frontend-layout.mjs",
+    "test:static-layout": "node scripts/validate-static-pages.mjs"
+  },
+  "private": true,
+  "dependencies": {
+    "@ant-design/icons": "^5.3.7",
+    "antd": "^5.16.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.160.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.4.5",
+    "vite": "^4.5.3"
+  }
+}

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>对话功能 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <a href="/index.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="/index.html#deploy" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-cogs mr-1"></i> 部署工具
+                </a>
+                <a href="/index.html#logs" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-terminal mr-1"></i> Docker 日志
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <section class="chat-workbench">
+            <aside class="chat-context-panel">
+                <div class="chat-panel-head">
+                    <span class="chat-kicker">对话上下文</span>
+                    <h2><i class="fa fa-sitemap"></i> 会话控制台</h2>
+                </div>
+                <div class="chat-signal-grid" aria-label="当前会话状态">
+                    <div>
+                        <span>用户</span>
+                        <strong>default_user</strong>
+                    </div>
+                    <div>
+                        <span>模式</span>
+                        <strong>连续问答</strong>
+                    </div>
+                    <div>
+                        <span>通道</span>
+                        <strong>Spring AI</strong>
+                    </div>
+                    <div>
+                        <span>状态</span>
+                        <strong>就绪</strong>
+                    </div>
+                </div>
+                <div class="chat-route-list">
+                    <a href="/memory-manager.html"><i class="fa fa-database"></i><span>查看记忆</span></a>
+                    <a href="/prompt-demo.html"><i class="fa fa-flask"></i><span>调试模板</span></a>
+                    <a href="/rag-demo.html"><i class="fa fa-search"></i><span>检索增强</span></a>
+                </div>
+                <section class="mt-4 rounded-lg border border-gray-200 bg-white">
+                    <div class="px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+                        <div class="text-sm font-semibold text-gray-700"><i class="fa fa-magnifying-glass"></i> RAG 检索洞察</div>
+                        <button type="button" id="chat-retrieval-toggle" class="text-xs text-primary underline decoration-dotted hidden" onclick="toggleChatRetrievalDetails()">
+                            查看检索轨迹
+                        </button>
+                    </div>
+                    <div id="chat-retrieval-content" class="p-3 text-xs text-gray-600 leading-relaxed">
+                        等待 AI 返回消息后会显示本次对话的检索命中状态。
+                    </div>
+                    <pre id="chat-retrieval-trace" class="hidden p-3 border-t border-gray-100 text-[11px] text-gray-500 bg-gray-50 whitespace-pre-wrap"></pre>
+                </section>
+            </aside>
+
+            <section class="chat-history-panel">
+                <div class="chat-panel-head">
+                    <span class="chat-kicker">消息流</span>
+                    <h2><i class="fa fa-comments"></i> AI 对话</h2>
+                </div>
+                <div id="chat-history" class="chat-history-scroll">
+                    <div class="flex items-start mb-4">
+                        <div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                            <i class="fa fa-robot"></i>
+                        </div>
+                        <div class="ml-3 bg-gray-100 rounded-lg p-3 max-w-[80%]">
+                            <p class="text-gray-700">你好！我是 Spring AI 助手，有什么可以帮助你的吗？</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="chat-compose-panel">
+                <label class="chat-compose-label" for="message-input">
+                    <i class="fa fa-keyboard-o"></i>
+                    <span>输入问题</span>
+                </label>
+                <div class="chat-compose-row">
+                    <input type="text" id="message-input" placeholder="输入你的问题..." class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                    <button onclick="sendMessage()" class="px-6 py-2 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-lg hover:shadow-lg transition-all whitespace-nowrap">
+                        <i class="fa fa-paper-plane mr-1"></i> 发送
+                    </button>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-documentation text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-question-circle text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 加载动画 -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 flex flex-col items-center space-x-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <p id="loading-text" class="mt-4 font-medium">AI 思考中...</p>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        const SKILL_MONITOR_ENDPOINT = '/api/skill-monitor/usage';
+        const CHAT_SKILL_ID = 'chat-assistant';
+
+        // 发送消息
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            const userId = 'default_user'; // 默认用户ID
+            const startedAt = performance.now();
+
+            if (!message) return;
+
+            // 显示用户消息
+            addMessageToHistory(message, 'user');
+            messageInput.value = '';
+
+            // 显示加载动画
+            document.getElementById('loading-overlay').classList.remove('hidden');
+
+            // 发送请求到后端
+            let requestSuccess = false;
+            let retrievalUsed = false;
+            let retrievalReason = '';
+            let retrievalTrace = [];
+
+            fetch(`/chat?message=${encodeURIComponent(message)}&userId=${encodeURIComponent(userId)}`)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    const responseText = data.response || '';
+                    const fallbackText = data.message || 'AI 未返回有效内容';
+                    const retrieval = extractRetrievalMetadata({
+                        retrievalUsed: data.retrievalUsed,
+                        retrievalGateReason: data.retrievalGateReason,
+                        retrievalTrace: data.retrievalTrace,
+                        retrieval: data.retrieval
+                    });
+                    retrievalUsed = retrieval.used;
+                    retrievalReason = retrieval.gateReason;
+                    retrievalTrace = retrieval.trace;
+                    renderChatRetrievalPanel(retrieval);
+
+                    // 隐藏加载动画
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    // 显示 AI 回复
+                    if (data.success === true) {
+                        requestSuccess = true;
+                        addMessageToHistory(responseText, 'ai');
+                    } else {
+                        addMessageToHistory(fallbackText, 'ai');
+                        if (data.details) {
+                            addMessageToHistory(`详细信息: ${data.details}`, 'ai');
+                        }
+                    }
+                    const aiText = requestSuccess ? responseText : fallbackText;
+                    const normalizedReportText = data.success === true
+                        ? '对话成功，已返回完整回复。'
+                        : `对话失败：${fallbackText}`;
+                    reportSkillUsage({
+                        skillId: CHAT_SKILL_ID,
+                        skillName: 'chat-assistant',
+                        status: requestSuccess ? 'SUCCESS' : 'FAILURE',
+                        source: 'frontend',
+                        durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+                        note: `${normalizedReportText} | 检索: ${retrievalUsed ? '已命中' : '未命中'} | 门禁: ${retrievalReason || '未知'} | 用户: ${message}`
+                    });
+                })
+                .catch(error => {
+                    console.error('发送消息失败:', error);
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    addMessageToHistory('抱歉，AI 服务暂时不可用，请稍后重试。', 'ai');
+                    reportSkillUsage({
+                        skillId: CHAT_SKILL_ID,
+                        skillName: 'chat-assistant',
+                        status: 'FAILURE',
+                        source: 'frontend',
+                        durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+                        note: `HTTP / 网络异常：${safeMessage(error)} | 用户: ${message}`
+                    });
+                });
+        }
+
+        // 添加消息到历史记录
+        function addMessageToHistory(message, sender) {
+            const chatHistory = document.getElementById('chat-history');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex items-start mb-4 ${sender === 'user' ? 'justify-end' : ''}`;
+
+            const formattedMessage = renderStructuredMessage(message);
+
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="mr-3 bg-primary text-white rounded-lg p-3 max-w-[80%]">
+                        <p>${formattedMessage}</p>
+                    </div>
+                    <div class="bg-gray-300 text-gray-700 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                        <i class="fa fa-user"></i>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                        <i class="fa fa-robot"></i>
+                    </div>
+                    <div class="ml-3 bg-gray-100 rounded-lg p-3 max-w-[80%]">
+                        <p class="text-gray-700 leading-relaxed">${formattedMessage}</p>
+                    </div>
+                `;
+            }
+
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function safeMessage(value) {
+            if (value && value.message) {
+                return String(value.message);
+            }
+            return String(value || '未知错误');
+        }
+
+        function renderStructuredMessage(raw) {
+            const text = String(raw == null ? '' : raw);
+            const lines = escapeHtml(text).split(/\r?\n/);
+            const blocks = [];
+            let paragraph = [];
+            let listType = null;
+            const listItems = [];
+
+            const flushParagraph = () => {
+                if (!paragraph.length) return;
+                const content = paragraph.join('<br>');
+                blocks.push(`<p>${applyInlineMarkdown(content)}</p>`);
+                paragraph = [];
+            };
+
+            const flushList = () => {
+                if (!listItems.length) {
+                    return;
+                }
+                const tag = listType === 'ol' ? 'ol' : 'ul';
+                const listHtml = `<${tag} class="list-decimal list-inside ml-4">` +
+                    listItems.map(item => `<li>${applyInlineMarkdown(item)}</li>`).join('') +
+                    `</${tag}>`;
+                blocks.push(listHtml);
+                listItems.length = 0;
+                listType = null;
+            };
+
+            for (const rawLine of lines) {
+                const line = rawLine.trimEnd();
+                const heading = line.match(/^(#{1,3})\s+(.*)$/);
+                if (heading) {
+                    flushParagraph();
+                    flushList();
+                    const level = Math.min(heading[1].length, 3);
+                    blocks.push(`<h${level + 1} class="font-semibold mt-2 mb-1">${applyInlineMarkdown(heading[2])}</h${level + 1}>`);
+                    continue;
+                }
+
+                const ordered = line.match(/^\d+[.\)]\s+(.*)$/);
+                if (ordered) {
+                    if (listType !== 'ol') {
+                        flushParagraph();
+                        flushList();
+                        listType = 'ol';
+                    }
+                    listItems.push(ordered[1]);
+                    continue;
+                }
+
+                const bullet = line.match(/^[\-*]\s+(.*)$/);
+                if (bullet) {
+                    if (listType !== 'ul') {
+                        flushParagraph();
+                        flushList();
+                        listType = 'ul';
+                    }
+                    listItems.push(bullet[1]);
+                    continue;
+                }
+
+                if (!line.trim()) {
+                    flushParagraph();
+                    flushList();
+                    blocks.push('');
+                    continue;
+                }
+
+                paragraph.push(applyInlineMarkdown(line));
+            }
+
+            flushParagraph();
+            flushList();
+            return blocks.filter(Boolean).join('\n');
+        }
+
+        function applyInlineMarkdown(text) {
+            return String(text)
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-100 text-slate-700">$1</code>');
+        }
+
+        function extractRetrievalMetadata(data) {
+            const retrieval = data?.retrieval || {};
+            const used = data?.retrievalUsed !== undefined
+                ? Boolean(data.retrievalUsed)
+                : Boolean(retrieval.used);
+            const gateReason = data?.retrievalGateReason || retrieval.gateReason || '未返回检索门禁信息';
+            const trace = Array.isArray(data?.retrievalTrace)
+                ? data.retrievalTrace
+                : Array.isArray(retrieval.trace)
+                    ? retrieval.trace
+                    : [];
+            const scene = data?.retrievalScene || retrieval.scene || 'chat';
+            const query = data?.retrievalQuery || retrieval.query || '';
+            return {
+                used,
+                gateReason,
+                trace,
+                scene,
+                query
+            };
+        }
+
+        function renderChatRetrievalPanel(retrieval) {
+            const panel = document.getElementById('chat-retrieval-content');
+            const tracePanel = document.getElementById('chat-retrieval-trace');
+            const toggleButton = document.getElementById('chat-retrieval-toggle');
+            if (!panel || !tracePanel || !toggleButton) {
+                return;
+            }
+            const safeQuery = escapeHtml(retrieval.query || '—');
+            const safeScene = escapeHtml(retrieval.scene || 'chat');
+            const safeReason = escapeHtml(retrieval.gateReason || '未返回');
+            const listTrace = Array.isArray(retrieval.trace) ? retrieval.trace : [];
+            const traceText = listTrace.length
+                ? listTrace.map(item => `<li>${escapeHtml(item)}</li>`).join('')
+                : '<li>暂无检索链路明细。</li>';
+
+            panel.innerHTML = [
+                `<div class="flex items-center justify-between"><span class="font-semibold text-gray-700">${retrieval.used ? '✅ 已命中检索' : '⚠️ 未命中检索'}</span><span>${safeScene}</span></div>`,
+                `<div>命中原因：${safeReason}</div>`,
+                `<div>查询：${safeQuery}</div>`
+            ].join('');
+
+            tracePanel.textContent = listTrace.length ? listTrace.join('\n') : '检索轨迹空';
+            tracePanel.className = 'hidden p-3 border-t border-gray-100 text-[11px] text-gray-500 bg-gray-50 whitespace-pre-wrap';
+            toggleButton.classList.remove('hidden');
+            toggleButton.textContent = listTrace.length ? '查看检索轨迹' : '检索轨迹不可用';
+        }
+
+        function toggleChatRetrievalDetails() {
+            const tracePanel = document.getElementById('chat-retrieval-trace');
+            const toggle = document.getElementById('chat-retrieval-toggle');
+            if (!tracePanel || !toggle) {
+                return;
+            }
+            const hidden = tracePanel.classList.contains('hidden');
+            tracePanel.classList.toggle('hidden', !hidden);
+            toggle.textContent = hidden ? '收起检索轨迹' : '查看检索轨迹';
+        }
+
+        function reportSkillUsage(payload) {
+            const safePayload = {
+                skillId: payload?.skillId || '',
+                skillName: payload?.skillName || payload?.skillId || 'skill',
+                status: payload?.status || 'UNKNOWN',
+                source: payload?.source || 'frontend',
+                durationMs: Math.max(0, Number(payload?.durationMs) || 0),
+                note: String(payload?.note || '')
+            };
+            if (!safePayload.skillId) {
+                return;
+            }
+            fetch(SKILL_MONITOR_ENDPOINT, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(safePayload)
+            }).catch(error => {
+                console.warn('Skill 上报失败:', error);
+            });
+        }
+
+        // 按 Enter 键发送消息
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

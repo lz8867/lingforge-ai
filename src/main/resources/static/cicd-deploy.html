@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部署结果已合并 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        secondary: '#34d399',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<header></header>
+
+<main class="deployment-status-page mx-auto max-w-4xl px-4 py-6">
+    <section class="status-panel app-workbench-panel p-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wider text-cyan-300">Deployment Result</p>
+                <h1 class="mt-2 text-2xl font-black text-white">部署结果已合并到部署工作台</h1>
+                <p class="mt-2 text-sm text-slate-400">正在跳转到统一的部署工作台，旧入口仅作为兼容链接保留。</p>
+            </div>
+            <a href="/index.html#deploy-result" class="inline-flex items-center justify-center gap-2 rounded border border-cyan-400/40 px-4 py-2 text-sm font-bold text-cyan-100 hover:border-cyan-300">
+                <i class="fa fa-arrow-right"></i>
+                打开部署工作台
+            </a>
+        </div>
+    </section>
+</main>
+
+<script>
+    window.location.replace('/index.html#deploy-result');
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

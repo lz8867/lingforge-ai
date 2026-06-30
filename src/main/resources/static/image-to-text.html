@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图生文 - Spring AI Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        success: '#28a745',
+                        danger: '#dc3545',
+                        warning: '#ffc107',
+                        info: '#17a2b8',
+                        light: '#f8f9fa',
+                        dark: '#343a40'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .gradient-bg {
+                @apply bg-gradient-to-r from-primary to-secondary;
+            }
+            .drag-active {
+                @apply border-2 border-primary bg-blue-50;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <a href="/index.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="/chat.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-comments mr-1"></i> 对话功能
+                </a>
+                <a href="/prompt-demo.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-lightbulb mr-1"></i> 提示词工程
+                </a>
+                <a href="/memory-manager.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-brain mr-1"></i> 记忆管理
+                </a>
+                <a href="/text-to-image.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-image mr-1"></i> 文生图
+                </a>
+                <a href="/image-to-text.html" class="text-primary font-medium border-b-2 border-primary pb-1">
+                    <i class="fa fa-file-alt mr-1"></i> 图生文
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <div class="text-center mb-4">
+                    <div class="text-2xl mb-2"><i class="fa fa-file-alt text-primary"></i></div>
+                    <h2 class="text-2xl font-bold text-dark">图生文</h2>
+                    <p class="text-gray-600 mt-2">上传图片，AI 为您生成描述文字</p>
+                </div>
+
+                <div class="space-y-6 media-workbench" data-media-mode="image-to-text">
+                    <section class="media-control-panel">
+                    <!-- 图片上传区域 -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">上传图片</label>
+                        <div id="image-upload-area" class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-primary transition-all cursor-pointer">
+                            <input type="file" id="image-upload" accept="image/*" class="hidden">
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fa fa-cloud-upload text-4xl text-gray-400 mb-4"></i>
+                                <p class="text-gray-600 mb-2">点击或拖拽图片到此处上传</p>
+                                <p class="text-xs text-gray-500">支持 JPG、PNG、WebP 格式，最大 10MB</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 生成设置 -->
+                    <div id="generate-settings" class="hidden">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">生成设置</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">描述类型</label>
+                                <select id="description-type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                                    <option value="detailed">详细描述</option>
+                                    <option value="concise">简洁描述</option>
+                                    <option value="creative">创意描述</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">语言</label>
+                                <select id="description-language" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                                    <option value="zh">中文</option>
+                                    <option value="en">英文</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 生成按钮 -->
+                    <div id="generate-section" class="hidden flex justify-center">
+                        <button onclick="generateDescription()" id="generate-button" class="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white font-medium rounded-lg hover:shadow-lg transition-all flex items-center">
+                            <i class="fa fa-magic mr-2"></i> 生成描述
+                        </button>
+                    </div>
+                    </section>
+
+                    <section class="media-preview-panel">
+                    <!-- 上传后的图片预览 -->
+                    <div id="image-preview" class="hidden">
+                        <h3 class="text-sm font-medium text-gray-700 mb-2">图片预览</h3>
+                        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <img id="preview-image" src="" alt="预览图片" class="max-w-full h-auto rounded-lg">
+                        </div>
+                    </div>
+
+                    <!-- 生成结果 -->
+                    <div id="description-result" class="mt-8 hidden" tabindex="-1">
+                        <h3 class="text-lg font-semibold text-dark mb-4">生成结果</h3>
+                        <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                            <div id="description-content" class="text-gray-800 whitespace-pre-wrap">
+                                <!-- 生成的描述将显示在这里 -->
+                            </div>
+                        </div>
+                        <div class="flex justify-center mt-4 space-x-2">
+                            <button onclick="copyDescription()" id="copy-description-button" class="px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all flex items-center">
+                                <i class="fa fa-copy mr-1"></i> 复制描述
+                            </button>
+                            <button onclick="regenerateDescription()" class="px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition-all flex items-center">
+                                <i class="fa fa-redo mr-1"></i> 重新生成
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="media-empty-state">
+                        <i class="fa fa-file-alt"></i>
+                        <strong>等待图片分析</strong>
+                        <p>左侧上传图片并选择描述类型后，预览和生成文案会显示在这里。</p>
+                    </div>
+
+                    <!-- 加载动画 -->
+                    <div id="loading" class="hidden">
+                        <div class="flex flex-col items-center justify-center py-12">
+                            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mb-4"></div>
+                            <p class="text-gray-600">AI 正在分析图片并生成描述，请稍候...</p>
+                        </div>
+                    </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-documentation text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-question-circle text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // 全局变量
+        let uploadedImage = null;
+
+        // 初始化上传区域
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('image-upload-area');
+            const fileInput = document.getElementById('image-upload');
+
+            // 点击上传
+            uploadArea.addEventListener('click', function() {
+                fileInput.click();
+            });
+
+            // 文件选择
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files[0]) {
+                    handleFileUpload(e.target.files[0]);
+                }
+            });
+
+            // 拖拽上传
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('drag-active');
+            });
+
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-active');
+            });
+
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('drag-active');
+
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileUpload(e.dataTransfer.files[0]);
+                }
+            });
+        });
+
+        // 处理文件上传
+        function handleFileUpload(file) {
+            // 验证文件类型
+            if (!file.type.startsWith('image/')) {
+                renderDescriptionFailure({
+                    message: '请上传图片文件',
+                    description: '当前只支持 JPG / PNG / WebP 格式图片。',
+                    error: '文件类型不符合图片 MIME 要求。'
+                });
+                return;
+            }
+
+            // 验证文件大小
+            if (file.size > 10 * 1024 * 1024) {
+                renderDescriptionFailure({
+                    message: '图片大小超限',
+                    description: '请在 10MB 以下重新上传。支持 JPG / PNG / WebP。',
+                    error: '上传文件体积过大。'
+                });
+                return;
+            }
+
+            uploadedImage = file;
+
+            // 显示图片预览
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewImage = document.getElementById('preview-image');
+                previewImage.src = e.target.result;
+                document.getElementById('image-preview').classList.remove('hidden');
+                document.getElementById('generate-settings').classList.remove('hidden');
+                document.getElementById('generate-section').classList.remove('hidden');
+                document.getElementById('description-result').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 生成描述
+        function generateDescription() {
+            if (!uploadedImage) {
+                renderDescriptionFailure({
+                    message: '请先上传图片',
+                    description: '请先选择一张清晰图片，系统将基于图片内容生成描述。'
+                });
+                return;
+            }
+
+            const descriptionType = document.getElementById('description-type').value;
+            const descriptionLanguage = document.getElementById('description-language').value;
+            const generateButton = document.getElementById('generate-button');
+            const loading = document.getElementById('loading');
+            const descriptionResult = document.getElementById('description-result');
+
+            // 显示加载动画
+            generateButton.disabled = true;
+            generateButton.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 生成中...';
+            loading.classList.remove('hidden');
+            descriptionResult.classList.add('hidden');
+
+            // 创建FormData对象
+            const formData = new FormData();
+            formData.append('image', uploadedImage);
+            formData.append('type', descriptionType);
+            formData.append('language', descriptionLanguage);
+
+            // 调用后端API
+            fetch('/api/image/describe', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                renderDescriptionResult(data);
+            })
+            .catch(error => {
+                console.error('生成描述失败:', error);
+                renderDescriptionFailure({
+                    message: '图生文请求失败',
+                    description: '当前无法连接图生文服务，请稍后重试或联系管理员检查模型接入。',
+                    error: error.message
+                });
+            })
+            .finally(() => {
+                // 隐藏加载动画
+                generateButton.disabled = false;
+                generateButton.innerHTML = '<i class="fa fa-magic mr-2"></i> 生成描述';
+                loading.classList.add('hidden');
+            });
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[character] || character));
+        }
+
+        function isReusablePromptSection(sectionName) {
+            return /^(可复用提示词|Reusable prompt)$/i.test(String(sectionName || '').trim());
+        }
+
+        function formatDescriptionText(description) {
+            const rawText = String(description || '').trim();
+            if (!rawText) {
+                return '<p class="description-paragraph">未返回可用描述。</p>';
+            }
+
+            const sectionPattern = '(主描述|细节补充|可复用提示词|Main description|Detail notes|Details|Reusable prompt)';
+            const sectionWithContent = new RegExp(`^(?:#{1,4}\\s*)?(?:\\d+[.、]\\s*)?${sectionPattern}\\s*[：:]\\s*(.*)$`, 'i');
+            const sectionOnly = new RegExp(`^(?:#{1,4}\\s*)?(?:\\d+[.、]\\s*)?${sectionPattern}\\s*$`, 'i');
+            const bulletPattern = /^(?:[-*•]\s+|\d+[.、]\s+)(.+)$/;
+            const lines = rawText.split(/\r?\n/);
+            let currentSection = '';
+            let html = '';
+            let listItems = [];
+
+            const flushList = () => {
+                if (listItems.length === 0) {
+                    return;
+                }
+                html += `<ul class="description-list">${listItems.map(item => `<li>${item}</li>`).join('')}</ul>`;
+                listItems = [];
+            };
+
+            const renderParagraph = (text) => {
+                const className = isReusablePromptSection(currentSection)
+                    ? 'description-copy-block'
+                    : 'description-paragraph';
+                html += `<p class="${className}">${escapeHtml(text)}</p>`;
+            };
+
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) {
+                    flushList();
+                    return;
+                }
+
+                const sectionMatch = trimmedLine.match(sectionWithContent);
+                if (sectionMatch) {
+                    flushList();
+                    currentSection = sectionMatch[1].trim();
+                    html += `<h4 class="description-section-title">${escapeHtml(currentSection)}</h4>`;
+                    const sectionContent = sectionMatch[2].trim();
+                    if (sectionContent) {
+                        renderParagraph(sectionContent);
+                    }
+                    return;
+                }
+
+                const headingMatch = trimmedLine.match(sectionOnly);
+                if (headingMatch) {
+                    flushList();
+                    currentSection = headingMatch[1].trim();
+                    html += `<h4 class="description-section-title">${escapeHtml(currentSection)}</h4>`;
+                    return;
+                }
+
+                const bulletMatch = trimmedLine.match(bulletPattern);
+                if (bulletMatch) {
+                    listItems.push(escapeHtml(bulletMatch[1].trim()));
+                    return;
+                }
+
+                flushList();
+                renderParagraph(trimmedLine);
+            });
+
+            flushList();
+            return html || '<p class="description-paragraph">未返回可用描述。</p>';
+        }
+
+        function normalizeModelAvailability(modelAvailability, attemptedModels = []) {
+            const entries = Array.isArray(modelAvailability) ? modelAvailability : [];
+            const rows = new Map();
+
+            entries.forEach(item => {
+                if (!item || typeof item !== 'object') {
+                    return;
+                }
+
+                const model = String(item.model || '').trim();
+                const provider = String(item.provider || '').trim();
+                if (!model && !provider) {
+                    return;
+                }
+
+                const available = item.available === true
+                    ? true
+                    : item.available === false
+                        ? false
+                        : null;
+                const reason = typeof item.reason === 'string' ? item.reason.trim() : '';
+                const key = `${provider || 'provider'}::${model || 'model'}`;
+                rows.set(key, {
+                    model,
+                    provider,
+                    available,
+                    reason
+                });
+            });
+
+            const hasModel = (targetModel) => {
+                for (const value of rows.values()) {
+                    if (value.model === targetModel) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            if (Array.isArray(attemptedModels)) {
+                attemptedModels.forEach(model => {
+                    const normalizedModel = String(model || '').trim();
+                    if (!normalizedModel) {
+                        return;
+                    }
+                    if (hasModel(normalizedModel)) {
+                        return;
+                    }
+                    rows.set(`unknown::${normalizedModel}`, {
+                        model: normalizedModel,
+                        provider: 'provider',
+                        available: null,
+                        reason: ''
+                    });
+                });
+            }
+
+            return Array.from(rows.values());
+        }
+
+        function renderModelAvailabilitySection(modelAvailability, attemptedModels, title) {
+            const entries = normalizeModelAvailability(modelAvailability, attemptedModels)
+                .sort((first, second) => {
+                    const rank = (item) => {
+                        if (item.available === false) {
+                            return 0;
+                        }
+                        if (item.available === null) {
+                            return 1;
+                        }
+                        return 2;
+                    };
+                    const compare = rank(first) - rank(second);
+                    if (compare !== 0) {
+                        return compare;
+                    }
+                    return (first.model || '').localeCompare(second.model || '');
+                });
+            if (entries.length === 0) {
+                return '';
+            }
+
+            const listHtml = entries.map(entry => {
+                const statusText = entry.available === true
+                    ? '可用'
+                    : entry.available === false
+                        ? '不可用'
+                        : '未判定';
+
+                const statusClass = entry.available === true
+                    ? 'text-green-700 bg-green-50 border-green-200'
+                    : entry.available === false
+                        ? 'text-amber-700 bg-amber-50 border-amber-200'
+                        : 'text-gray-700 bg-gray-100 border-gray-200';
+
+                const reasonText = entry.reason
+                    ? `<p class="text-xs mt-1 text-gray-600">原因：${escapeHtml(entry.reason)}</p>`
+                    : '';
+
+                const modelText = `${entry.model || '未知模型'}${entry.provider ? `（${entry.provider}）` : ''}`;
+
+                return `
+                    <li class="rounded-lg border px-3 py-2 ${statusClass}">
+                        <div class="text-sm font-medium">${escapeHtml(modelText)}</div>
+                        <div class="text-xs">状态：${statusText}</div>
+                        ${reasonText}
+                    </li>
+                `;
+            }).join('');
+
+            return `
+                <div class="rounded-lg border border-gray-200 bg-white/70 p-3 mt-3">
+                    <div class="text-sm font-semibold text-dark">${escapeHtml(title || '模型可用性')}</div>
+                    <ul class="mt-2 space-y-2 text-xs">${listHtml}</ul>
+                </div>
+            `;
+        }
+
+        function renderDescriptionResult(data) {
+            const descriptionResult = document.getElementById('description-result');
+            const descriptionContent = document.getElementById('description-content');
+            const copyButton = document.getElementById('copy-description-button');
+
+            if (data.success && data.fallback !== true) {
+                descriptionContent.className = 'description-content--quality';
+                descriptionContent.dataset.copyText = data.description || '';
+                descriptionContent.innerHTML = formatDescriptionText(data.description || '');
+                copyButton.classList.remove('hidden');
+                descriptionResult.classList.remove('hidden');
+                scrollDescriptionResultIntoView();
+                return;
+            }
+
+            const hasLocalFallback = data.fallback === true;
+            const message = hasLocalFallback
+                ? (data.message || '图片理解模型不可用')
+                : (data.description || data.message || '图片描述生成失败');
+            const fallbackSummary = hasLocalFallback && data.description
+                ? `
+                    <div class="rounded-lg border border-amber-300 bg-white/70 p-3 mt-3">
+                        <div class="text-sm font-semibold text-dark">本地基础摘要</div>
+                        <p class="text-sm text-gray-700 mt-2">${escapeHtml(data.description)}</p>
+                    </div>
+                `
+                : '';
+            const triedModels = Array.isArray(data.visionModelsTried) && data.visionModelsTried.length > 0
+                ? `<p class="text-xs text-gray-500 mt-2">已检查图片理解模型：${escapeHtml(data.visionModelsTried.join('、'))}</p>`
+                : '';
+            const modelAvailabilitySummary = renderModelAvailabilitySection(
+                data.modelAvailability,
+                data.visionModelsTried,
+                '图片理解模型可用性'
+            );
+            const isModelUnavailable = data.modelUnavailable === true;
+            const modelUnavailableHint = isModelUnavailable
+                ? '<p class="text-sm text-gray-700 mt-2">当前选用图片理解模型未返回可用结果，请先确认服务、API Key 与模型配置。</p>'
+                : '';
+            const suggestion = data.actionSuggestion || '请确认图像理解模型可用后再重试。';
+            const detail = [message, data.description, data.error].filter(Boolean).join('\n\n') || '当前没有返回可用描述。';
+
+            descriptionContent.className = 'text-gray-700 whitespace-pre-wrap';
+            delete descriptionContent.dataset.copyText;
+            descriptionContent.innerHTML = `
+                <div class="border border-warning/50 bg-warning/10 p-5">
+                    <div class="flex items-start gap-3">
+                        <i class="fa fa-triangle-exclamation text-warning text-xl mt-1"></i>
+                        <div class="w-full">
+                            <h4 class="font-semibold text-dark">当前图生文通道未就绪</h4>
+                            <p class="text-sm text-gray-700 mt-2">系统已完成请求收集，但当前演示环境没有可用的图片理解链路返回可靠结果。</p>
+                            ${modelUnavailableHint}
+                            ${fallbackSummary}
+                            <div class="rounded-lg border border-warning/30 bg-white/60 p-3 mt-3">
+                                <div class="text-sm font-semibold text-dark">处理建议</div>
+                                <p class="text-sm text-gray-700 mt-2">${escapeHtml(suggestion)}</p>
+                            </div>
+                            ${triedModels}
+                            ${modelAvailabilitySummary}
+                            <button type="button" onclick="toggleDescriptionFailureDetail()" class="mt-3 text-sm text-primary hover:underline">
+                                查看技术详情
+                            </button>
+                            <pre id="description-error-detail" class="hidden mt-3 whitespace-pre-wrap rounded-lg bg-gray-900 text-gray-100 p-3 text-xs">${escapeHtml(detail)}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+            copyButton.classList.add('hidden');
+            descriptionResult.classList.remove('hidden');
+            scrollDescriptionResultIntoView();
+        }
+
+        function scrollDescriptionResultIntoView() {
+            const analysisViewport = document.querySelector('.media-preview-panel');
+            const descriptionResult = document.getElementById('description-result');
+            if (!analysisViewport || !descriptionResult) {
+                return;
+            }
+            window.requestAnimationFrame(() => {
+                analysisViewport.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+                descriptionResult.focus({ preventScroll: true });
+            });
+        }
+
+        // 复制描述
+        function copyDescription() {
+            const descriptionContent = document.getElementById('description-content');
+            const description = descriptionContent.dataset.copyText || descriptionContent.textContent;
+            navigator.clipboard.writeText(description)
+                .then(() => {
+                    alert('描述已复制到剪贴板');
+                })
+                .catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制');
+            });
+        }
+
+        function renderDescriptionFailure(data) {
+            renderDescriptionResult({
+                success: false,
+                description: data.description || '图片描述生成失败',
+                message: data.message,
+                error: data.error,
+                actionSuggestion: data.actionSuggestion,
+                modelAvailability: data.modelAvailability,
+                visionModelsTried: data.visionModelsTried
+            });
+        }
+
+        function toggleDescriptionFailureDetail() {
+            const detail = document.getElementById('description-error-detail');
+            if (detail) {
+                detail.classList.toggle('hidden');
+            }
+        }
+
+        // 重新生成描述
+        function regenerateDescription() {
+            generateDescription();
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

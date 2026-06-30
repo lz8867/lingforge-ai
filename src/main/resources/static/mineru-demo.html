@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MinerU 文档解析 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        success: '#34d399',
+                        warning: '#f59e0b',
+                        danger: '#fb7185'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<header class="bg-slate-950 border-b border-cyan-400/20">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <i class="fa fa-file-text-o text-primary text-xl"></i>
+            <h1 class="text-xl font-bold">MinerU 文档解析</h1>
+        </div>
+        <a href="/index.html#knowledge" class="text-sm text-cyan-100 hover:text-primary">
+            <i class="fa fa-book mr-1"></i> 知识库
+        </a>
+    </div>
+</header>
+
+<main class="container mx-auto px-4 py-6">
+    <section class="mineru-workbench" aria-label="MinerU 文档解析工作台">
+        <div class="mineru-command-strip">
+            <div class="mineru-command-title">
+                <i class="fa fa-bolt"></i>
+                <div>
+                    <span>Document Extraction</span>
+                    <strong>MinerU 文档解析</strong>
+                </div>
+            </div>
+            <div class="mineru-command-actions">
+                <label class="mineru-file-picker" for="mineru-file-input">
+                    <i class="fa fa-upload"></i>
+                    <span id="mineru-file-name">选择文档</span>
+                    <input id="mineru-file-input" type="file" accept=".pdf,.docx,.txt,.md,.markdown,.html,.htm" onchange="handleMineruFileChange()">
+                </label>
+                <button id="mineru-parse-button" type="button" class="mineru-primary-button" onclick="parseMineruDocument()">
+                    <i class="fa fa-magic"></i>
+                    <span>开始解析</span>
+                </button>
+                <button type="button" class="mineru-icon-button" onclick="resetMineruWorkbench()" title="清空解析结果" aria-label="清空解析结果">
+                    <i class="fa fa-refresh"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="mineru-status-strip" aria-label="解析统计">
+            <article>
+                <span>状态</span>
+                <strong id="mineru-state">待上传</strong>
+            </article>
+            <article>
+                <span>页数</span>
+                <strong id="mineru-page-count">--</strong>
+            </article>
+            <article>
+                <span>结构块</span>
+                <strong id="mineru-block-count">--</strong>
+            </article>
+            <article>
+                <span>字词</span>
+                <strong id="mineru-word-count">--</strong>
+            </article>
+            <article>
+                <span>来源</span>
+                <strong id="mineru-source-mode">local</strong>
+            </article>
+        </div>
+
+        <div class="mineru-main-grid">
+            <aside class="mineru-upload-panel" aria-label="文档上传与结构块">
+                <div class="mineru-panel-head">
+                    <div>
+                        <span>Input</span>
+                        <strong>上传与分块</strong>
+                    </div>
+                    <em id="mineru-file-type">PDF / DOCX / MD</em>
+                </div>
+
+                <div id="mineru-drop-zone" class="mineru-drop-zone">
+                    <i class="fa fa-cloud-upload"></i>
+                    <strong>拖拽或选择文件</strong>
+                    <span>acceptedTypes: .pdf .docx .txt .md .html</span>
+                </div>
+
+                <div id="mineru-alert" class="mineru-alert" role="status">
+                    <i class="fa fa-info-circle"></i>
+                    <span>等待文档输入。</span>
+                </div>
+
+                <div class="mineru-block-toolbar">
+                    <strong>结构块</strong>
+                    <span id="mineru-block-summary">0 blocks</span>
+                </div>
+                <div id="mineru-block-list" class="mineru-block-list">
+                    <article class="mineru-empty-row">暂无解析结果</article>
+                </div>
+            </aside>
+
+            <section class="mineru-preview-panel" aria-label="解析结果预览">
+                <div class="mineru-panel-head">
+                    <div>
+                        <span>Output</span>
+                        <strong id="mineru-document-title">解析结果</strong>
+                    </div>
+                    <div class="mineru-download-actions">
+                        <button type="button" onclick="downloadMineruMarkdown()" title="下载 Markdown" aria-label="下载 Markdown">
+                            <i class="fa fa-download"></i><span>Markdown</span>
+                        </button>
+                        <button type="button" onclick="downloadMineruJson()" title="下载 JSON" aria-label="下载 JSON">
+                            <i class="fa fa-code"></i><span>JSON</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mineru-tabs" role="tablist" aria-label="解析结果切换">
+                    <button type="button" class="is-active" data-mineru-tab="markdown" onclick="switchMineruTab('markdown')" role="tab" aria-selected="true">
+                        <i class="fa fa-align-left"></i><span>Markdown</span>
+                    </button>
+                    <button type="button" data-mineru-tab="json" onclick="switchMineruTab('json')" role="tab" aria-selected="false">
+                        <i class="fa fa-code"></i><span>JSON</span>
+                    </button>
+                    <button type="button" data-mineru-tab="warnings" onclick="switchMineruTab('warnings')" role="tab" aria-selected="false">
+                        <i class="fa fa-exclamation-triangle"></i><span>告警</span>
+                    </button>
+                </div>
+
+                <div class="mineru-preview-body">
+                    <pre id="mineru-markdown-preview" class="mineru-tab-panel is-active" data-mineru-panel="markdown">Markdown 结果会显示在这里。</pre>
+                    <pre id="mineru-json-preview" class="mineru-tab-panel" data-mineru-panel="json">JSON 结果会显示在这里。</pre>
+                    <div id="mineru-warning-list" class="mineru-tab-panel mineru-warning-list" data-mineru-panel="warnings">
+                        <article class="mineru-empty-row">暂无告警</article>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+<script>
+    const acceptedTypes = ['.pdf', '.docx', '.txt', '.md', '.markdown', '.html', '.htm'];
+    let mineruResult = null;
+
+    function byId(id) {
+        return document.getElementById(id);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function handleMineruFileChange() {
+        const input = byId('mineru-file-input');
+        const file = input && input.files && input.files[0];
+        byId('mineru-file-name').textContent = file ? file.name : '选择文档';
+        byId('mineru-state').textContent = file ? '已选择' : '待上传';
+        byId('mineru-file-type').textContent = file ? file.name.split('.').pop().toUpperCase() : 'PDF / DOCX / MD';
+        setMineruAlert('info', file ? '文件已就绪。' : '等待文档输入。');
+    }
+
+    async function parseMineruDocument() {
+        const input = byId('mineru-file-input');
+        const file = input && input.files && input.files[0];
+        if (!file) {
+            setMineruAlert('warning', '请选择需要解析的文档。');
+            return;
+        }
+        const extension = '.' + file.name.split('.').pop().toLowerCase();
+        if (!acceptedTypes.includes(extension)) {
+            setMineruAlert('danger', '暂不支持该文件类型。');
+            return;
+        }
+
+        const button = byId('mineru-parse-button');
+        const formData = new FormData();
+        formData.append('file', file);
+        button.disabled = true;
+        button.classList.add('is-loading');
+        byId('mineru-state').textContent = '解析中';
+        setMineruAlert('info', '正在解析文档结构。');
+
+        try {
+            const response = await fetch('/api/mineru/parse', {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            mineruResult = await response.json();
+            renderMineruResult(mineruResult);
+        } catch (error) {
+            mineruResult = null;
+            byId('mineru-state').textContent = '失败';
+            setMineruAlert('danger', '解析失败：' + (error.message || '未知错误'));
+        } finally {
+            button.disabled = false;
+            button.classList.remove('is-loading');
+        }
+    }
+
+    function renderMineruResult(result) {
+        if (!result || !result.success) {
+            byId('mineru-state').textContent = '失败';
+            setMineruAlert('danger', result && result.message ? result.message : '解析失败。');
+            renderMineruBlocks([]);
+            renderMineruWarnings(result && result.warnings ? result.warnings : []);
+            return;
+        }
+
+        byId('mineru-state').textContent = '完成';
+        byId('mineru-page-count').textContent = result.pageCount || 0;
+        byId('mineru-block-count').textContent = result.blockCount || 0;
+        byId('mineru-word-count').textContent = result.wordCount || 0;
+        byId('mineru-source-mode').textContent = result.sourceMode || 'local';
+        byId('mineru-document-title').textContent = result.documentName || '解析结果';
+        byId('mineru-file-type').textContent = (result.fileType || '--').toUpperCase();
+        byId('mineru-markdown-preview').textContent = result.markdown || '';
+        byId('mineru-json-preview').textContent = JSON.stringify(result, null, 2);
+        byId('mineru-block-summary').textContent = (result.blockCount || 0) + ' blocks';
+        setMineruAlert('success', result.message || '解析完成。');
+        renderMineruBlocks(result.blocks || []);
+        renderMineruWarnings(result.warnings || []);
+        switchMineruTab('markdown');
+    }
+
+    function renderMineruBlocks(blocks) {
+        const list = byId('mineru-block-list');
+        if (!blocks.length) {
+            list.innerHTML = '<article class="mineru-empty-row">暂无解析结果</article>';
+            return;
+        }
+        list.innerHTML = blocks.map(function (block) {
+            return [
+                '<article class="mineru-block-item" data-block-type="' + escapeHtml(block.type) + '">',
+                '<div><span>' + escapeHtml(block.id) + '</span><strong>' + escapeHtml(block.title) + '</strong></div>',
+                '<p>' + escapeHtml(block.content).slice(0, 160) + '</p>',
+                '<footer><em>' + escapeHtml(block.type) + '</em><em>p.' + escapeHtml(block.page) + '</em><em>' + Math.round((block.confidence || 0) * 100) + '%</em></footer>',
+                '</article>'
+            ].join('');
+        }).join('');
+    }
+
+    function renderMineruWarnings(warnings) {
+        const list = byId('mineru-warning-list');
+        if (!warnings.length) {
+            list.innerHTML = '<article class="mineru-empty-row">暂无告警</article>';
+            return;
+        }
+        list.innerHTML = warnings.map(function (warning) {
+            return '<article><i class="fa fa-info-circle"></i><span>' + escapeHtml(warning) + '</span></article>';
+        }).join('');
+    }
+
+    function switchMineruTab(tab) {
+        document.querySelectorAll('[data-mineru-tab]').forEach(function (button) {
+            const active = button.getAttribute('data-mineru-tab') === tab;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-selected', String(active));
+        });
+        document.querySelectorAll('[data-mineru-panel]').forEach(function (panel) {
+            panel.classList.toggle('is-active', panel.getAttribute('data-mineru-panel') === tab);
+        });
+    }
+
+    function downloadMineruMarkdown() {
+        if (!mineruResult || !mineruResult.markdown) {
+            setMineruAlert('warning', '暂无 Markdown 可下载。');
+            return;
+        }
+        downloadText((mineruResult.documentName || 'mineru-result') + '.md', mineruResult.markdown, 'text/markdown');
+    }
+
+    function downloadMineruJson() {
+        if (!mineruResult) {
+            setMineruAlert('warning', '暂无 JSON 可下载。');
+            return;
+        }
+        downloadText((mineruResult.documentName || 'mineru-result') + '.json', JSON.stringify(mineruResult, null, 2), 'application/json');
+    }
+
+    function downloadText(filename, content, type) {
+        const blob = new Blob([content], { type: type + ';charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function resetMineruWorkbench() {
+        mineruResult = null;
+        byId('mineru-file-input').value = '';
+        byId('mineru-file-name').textContent = '选择文档';
+        byId('mineru-state').textContent = '待上传';
+        byId('mineru-page-count').textContent = '--';
+        byId('mineru-block-count').textContent = '--';
+        byId('mineru-word-count').textContent = '--';
+        byId('mineru-source-mode').textContent = 'local';
+        byId('mineru-document-title').textContent = '解析结果';
+        byId('mineru-file-type').textContent = 'PDF / DOCX / MD';
+        byId('mineru-markdown-preview').textContent = 'Markdown 结果会显示在这里。';
+        byId('mineru-json-preview').textContent = 'JSON 结果会显示在这里。';
+        byId('mineru-block-summary').textContent = '0 blocks';
+        renderMineruBlocks([]);
+        renderMineruWarnings([]);
+        setMineruAlert('info', '等待文档输入。');
+        switchMineruTab('markdown');
+    }
+
+    function setMineruAlert(type, message) {
+        const alert = byId('mineru-alert');
+        alert.className = 'mineru-alert is-' + type;
+        alert.innerHTML = '<i class="fa fa-info-circle"></i><span>' + escapeHtml(message) + '</span>';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const dropZone = byId('mineru-drop-zone');
+        const input = byId('mineru-file-input');
+        dropZone.addEventListener('click', function () {
+            input.click();
+        });
+        dropZone.addEventListener('dragover', function (event) {
+            event.preventDefault();
+            dropZone.classList.add('is-dragover');
+        });
+        dropZone.addEventListener('dragleave', function () {
+            dropZone.classList.remove('is-dragover');
+        });
+        dropZone.addEventListener('drop', function (event) {
+            event.preventDefault();
+            dropZone.classList.remove('is-dragover');
+            if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+                input.files = event.dataTransfer.files;
+                handleMineruFileChange();
+            }
+        });
+    });
+</script>
+</body>
+</html>

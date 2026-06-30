@@ -1,0 +1,64 @@
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Java and Maven build outputs
+target/
+*.class
+*.jar
+.m2/
+
+# Node and frontend build outputs
+node_modules/
+dist/
+frontend/dist/
+src/main/resources/static/react-dashboard/
+
+# Python and local model runtimes
+__pycache__/
+*.py[cod]
+.venv/
+.venv-*/
+.venv*/
+.external/
+.playwright-cli/
+
+# Logs and runtime files
+logs/
+*.log
+deploy.log
+ollama.log
+
+# Local generated data and media
+data
+output/
+images/
+*.mp4
+*.mov
+*.webm
+
+# Local environment and secret material
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+secrets.*
+application-local.yml
+application-local.yaml
+application-local.properties
+
+# Local AI work logs
+docs/ai-changes-*.md
+!docs/ai-changes-开源脱敏.md
+
+# Generated document artifacts
+*.docx
+*.pdf
+docs/document-quality-evaluation-system/
+docs/document-quality-evaluation-system/rendered/

@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文生视频 - Spring AI Demo</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        success: '#28a745',
+                        danger: '#dc3545',
+                        warning: '#ffc107',
+                        info: '#17a2b8',
+                        light: '#f8f9fa',
+                        dark: '#343a40'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                    }
+                },
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .gradient-bg {
+                @apply bg-gradient-to-r from-primary to-secondary;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <a href="/index.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="/chat.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-comments mr-1"></i> 对话功能
+                </a>
+                <a href="/prompt-demo.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-lightbulb mr-1"></i> 提示词工程
+                </a>
+                <a href="/memory-manager.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-brain mr-1"></i> 记忆管理
+                </a>
+                <a href="/text-to-image.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-image mr-1"></i> 文生图
+                </a>
+                <a href="/text-to-video.html" class="text-primary font-medium border-b-2 border-primary pb-1">
+                    <i class="fa fa-video mr-1"></i> 文生视频
+                </a>
+                <a href="/image-to-text.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-file-alt mr-1"></i> 图生文
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <!-- 顶部通道状态 -->
+                <div id="video-capability-state" class="video-capability-strip" data-state="checking">
+                    <div class="video-capability-main">
+                        <span class="video-capability-dot"></span>
+                        <div>
+                            <div id="video-capability-title" class="video-capability-title">正在检查视频生成通道</div>
+                            <div id="video-capability-detail" class="video-capability-detail">未确认通道前不会提交生成任务。</div>
+                        </div>
+                    </div>
+                    <div class="video-capability-actions">
+                        <span id="video-capability-badge" class="video-capability-badge">检查中</span>
+                        <button type="button" onclick="refreshVideoCapability()" id="video-capability-refresh" class="video-capability-refresh">
+                            <i class="fa fa-refresh"></i>
+                            <span>检查通道</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="media-workbench" data-media-mode="text-to-video">
+                    <section class="media-control-panel video-control-panel">
+                        <div class="media-section-title">
+                            <i class="fa fa-wand-magic-sparkles"></i>
+                            <span>Prompt 与模型设置</span>
+                        </div>
+
+                        <!-- 输入区域 -->
+                        <div class="border rounded-lg overflow-hidden media-prompt-box">
+                            <div class="p-4">
+                                <textarea id="video-prompt" rows="3" class="w-full border-none focus:ring-0 resize-none" placeholder="先写视频画面草稿，例如：奔跑的小兔子，低机位跟拍，清晨草地，5 秒">
+                                </textarea>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 border-t">
+                                <div class="flex items-center space-x-2">
+                                    <button class="text-gray-500 hover:text-primary">
+                                        <i class="fa fa-microphone"></i>
+                                    </button>
+                                </div>
+                                <button onclick="generateVideo()" id="generate-button" data-video-action="generate" disabled class="px-6 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all flex items-center">
+                                    <i class="fa fa-lock mr-2"></i> 通道未就绪
+                                </button>
+                            </div>
+                        </div>
+
+                        <details class="bg-gray-50 rounded-lg p-4 media-settings-card video-settings-drawer">
+                            <summary class="video-settings-summary">
+                                <span>生成参数草稿</span>
+                                <i class="fa fa-chevron-down"></i>
+                            </summary>
+
+                            <!-- 参数配置 -->
+                            <div class="space-y-4">
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">参数配置</h4>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">AI 音效</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="ai-sound" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">生成模式</h4>
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="generate-mode" value="speed" checked class="mr-2">
+                                            <span class="text-sm">速度优先</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="generate-mode" value="quality" class="mr-2">
+                                            <span class="text-sm">质量优先</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">帧率</h4>
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="frame-rate" value="30" checked class="mr-2">
+                                            <span class="text-sm">30帧</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="frame-rate" value="60" class="mr-2">
+                                            <span class="text-sm">60帧</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">分辨率</h4>
+                                    <select id="video-resolution" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary transition-all text-sm">
+                                        <option value="832x480" selected>832x480 · Wan2.1-T2V-1.3B</option>
+                                        <option value="1280x720" disabled>1280x720 · 需自配更大模型</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-medium text-gray-700 mb-2">视频时长</h4>
+                                    <div class="flex space-x-4">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="video-duration" value="5s" checked class="mr-2">
+                                            <span class="text-sm">5s</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="video-duration" value="10s" class="mr-2">
+                                            <span class="text-sm">10s</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    </section>
+
+                    <section class="media-preview-panel video-preview-panel">
+                        <div class="media-section-title">
+                            <i class="fa fa-film"></i>
+                            <span>结果预览</span>
+                        </div>
+
+                        <!-- 视频预览 -->
+                        <div class="bg-gray-50 rounded-lg p-4 media-video-card">
+                            <div class="relative">
+                                <div id="video-empty-state" class="video-empty-state">
+                                    <i class="fa fa-plug-circle-xmark"></i>
+                                    <strong>当前没有可用视频生成通道</strong>
+                                    <p>免费方案使用 Wan2.1-T2V-1.3B 本地服务，默认输出 832x480。接入前这里只展示状态和参数草稿，不显示虚假的视频预览。</p>
+                                </div>
+                                <video id="video-preview" controls class="w-full h-auto rounded-lg hidden">
+                                    您的浏览器不支持视频播放。
+                                </video>
+                                <div id="video-time-badge" class="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded hidden">
+                                    <span id="video-duration-display">00:05</span> / <span id="video-total-duration">00:05</span>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex items-center space-x-2 text-sm text-gray-500">
+                                    <i class="fa fa-clock-o"></i>
+                                    <span id="video-status">本地优先 · 云端兜底 状态: 检查中</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="video-result" class="mt-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-gray-700">
+                            <div class="font-semibold text-dark">等待通道检查</div>
+                            <p class="mt-2">页面会先确认是否显式接入视频模型。未接入时不会提交生成请求。</p>
+                        </div>
+
+                        <div id="video-retrieval-panel" class="mt-4 rounded-lg border border-gray-200 bg-white p-4">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm font-semibold text-dark">RAG 检索诊断</div>
+                                <button id="video-retrieval-toggle" type="button" class="text-xs text-primary underline decoration-dotted hidden" onclick="toggleVideoRetrievalDetails()">
+                                    查看检索轨迹
+                                </button>
+                            </div>
+                            <div id="video-retrieval-content" class="mt-2 text-xs text-gray-600 leading-relaxed">
+                                等待生成后会显示本次提示词检索状态。
+                            </div>
+                            <pre id="video-retrieval-trace" class="hidden mt-3 p-3 border border-gray-100 text-[11px] text-gray-500 bg-gray-50 whitespace-pre-wrap"></pre>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 加载动画 -->
+                <div id="loading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+                    <div class="bg-white rounded-lg p-8 flex flex-col items-center">
+                        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mb-4"></div>
+                        <p class="text-gray-600">AI 正在生成视频，请稍候...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-documentation text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-question-circle text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        let currentVideoTaskId = null;
+        const SKILL_MONITOR_ENDPOINT = '/api/skill-monitor/usage';
+        const VIDEO_SKILL_ID = 'text-to-video';
+        const DEFAULT_VIDEO_MODEL_LABEL = '本地优先 · 云端兜底';
+        let currentVideoModelLabel = DEFAULT_VIDEO_MODEL_LABEL;
+        let videoCapability = {
+            canGenerate: false,
+            status: 'CHECKING',
+            message: '正在检查视频生成通道',
+            description: '未确认通道前不会提交生成任务。'
+        };
+        const maxVideoPollAttempts = 120;
+        let videoTaskUsageContext = null;
+
+        function refreshVideoCapability() {
+            const refreshButton = document.getElementById('video-capability-refresh');
+            if (refreshButton) {
+                refreshButton.disabled = true;
+                refreshButton.innerHTML = '<i class="fa fa-spinner fa-spin"></i><span>检查中</span>';
+            }
+
+            applyVideoCapability({
+                canGenerate: false,
+                status: 'CHECKING',
+                message: '正在检查视频生成通道',
+                description: '页面会先确认是否显式接入视频模型。'
+            }, false);
+
+            fetch('/api/image/generate/video/capability')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => applyVideoCapability(data, true))
+                .catch(error => {
+                    console.error('检查视频生成通道失败:', error);
+                    applyVideoCapability({
+                        canGenerate: false,
+                        status: 'UNCONFIGURED',
+                        message: '视频生成通道未接入',
+                        description: '当前无法确认视频模型通道，页面不会提交生成任务。',
+                        actionSuggestion: '请确认后端服务已启动，并启动 scripts/wan_video_server.py；如使用自定义地址，请配置 FREE_VIDEO_API_URL 或 ZHIPU_API_KEY 后重新检查。',
+                        modelAvailability: []
+                    }, true);
+                });
+        }
+
+        function applyVideoCapability(data, renderGate = true) {
+            videoCapability = {
+                ...data,
+                canGenerate: data && data.canGenerate === true
+            };
+            currentVideoModelLabel = data.modelLabel || DEFAULT_VIDEO_MODEL_LABEL;
+
+            const state = videoCapability.canGenerate
+                ? 'ready'
+                : videoCapability.status === 'CHECKING'
+                    ? 'checking'
+                    : 'blocked';
+            const stateContainer = document.getElementById('video-capability-state');
+            const title = document.getElementById('video-capability-title');
+            const detail = document.getElementById('video-capability-detail');
+            const badge = document.getElementById('video-capability-badge');
+            const refreshButton = document.getElementById('video-capability-refresh');
+
+            if (stateContainer) {
+                stateContainer.dataset.state = state;
+            }
+            if (title) {
+                title.textContent = videoCapability.message || (videoCapability.canGenerate ? '视频生成通道已配置' : '视频生成通道未接入');
+            }
+            if (detail) {
+                detail.textContent = videoCapability.description || '未接入时仅保留 Prompt 和参数草稿。';
+            }
+            if (badge) {
+                badge.textContent = videoCapability.canGenerate ? '可提交' : state === 'checking' ? '检查中' : '未接入';
+            }
+            if (refreshButton) {
+                refreshButton.disabled = false;
+                refreshButton.innerHTML = '<i class="fa fa-refresh"></i><span>检查通道</span>';
+            }
+
+            resetGenerateButton();
+            setVideoStatus(videoCapability.canGenerate ? '可提交' : state === 'checking' ? '检查中' : '未接入');
+
+            if (renderGate && !videoCapability.canGenerate) {
+                renderVideoCapabilityGate(videoCapability);
+            } else if (renderGate) {
+                renderVideoCapabilityReady(videoCapability);
+            }
+        }
+
+        function renderVideoCapabilityReady(data) {
+            clearVideoPreview();
+            const videoResult = document.getElementById('video-result');
+            videoResult.innerHTML = `
+                <div class="rounded-lg border border-success/50 bg-success/10 p-5">
+                    <div class="flex items-start gap-3">
+                        <i class="fa fa-circle-check text-success text-xl mt-1"></i>
+                        <div>
+                            <h4 class="font-semibold text-dark">视频通道已配置</h4>
+                            <p class="text-sm text-gray-700 mt-2">${escapeHtml(data.description || '可以提交生成任务，实际成片以模型返回为准。')}</p>
+                            ${renderModelAvailabilitySection(data.modelAvailability || data.capabilityChecks, [], '视频通道配置')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderVideoCapabilityGate(data) {
+            clearVideoPreview();
+            const videoResult = document.getElementById('video-result');
+            const suggestion = data.actionSuggestion || '免费方案优先启动 scripts/wan_video_server.py 接入 Wan2.1-T2V-1.3B；如使用自定义地址，请配置 FREE_VIDEO_API_URL，或配置 ZHIPU_API_KEY 走云端。';
+            videoResult.innerHTML = `
+                <div class="rounded-lg border border-warning/50 bg-warning/10 p-5">
+                    <div class="flex items-start gap-3">
+                        <i class="fa fa-plug-circle-xmark text-warning text-xl mt-1"></i>
+                        <div class="w-full">
+                            <h4 class="font-semibold text-dark">当前视频生成通道未就绪</h4>
+                            <p class="text-sm text-gray-700 mt-2">${escapeHtml(data.description || '当前没有显式接入可用视频模型，页面仅保留 Prompt 和参数草稿。')}</p>
+                            <div class="rounded-lg border border-warning/30 bg-white/60 p-3 mt-3">
+                                <div class="text-sm font-semibold text-dark">接入条件</div>
+                                <p class="text-sm text-gray-700 mt-2">${escapeHtml(suggestion)}</p>
+                            </div>
+                            ${renderModelAvailabilitySection(data.modelAvailability || data.capabilityChecks, [], '视频通道配置')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 生成视频
+        function generateVideo() {
+            if (videoCapability.canGenerate !== true) {
+                renderVideoCapabilityGate(videoCapability);
+                setVideoStatus('未接入');
+                reportVideoUsage({
+                    status: 'FAILURE',
+                    durationMs: 0,
+                    note: '未接入视频通道，未提交生成请求'
+                });
+                return;
+            }
+
+            const prompt = document.getElementById('video-prompt').value.trim();
+
+            // 获取视频时长（从radio按钮）
+            const durationRadios = document.getElementsByName('video-duration');
+            let duration = '5s';
+            for (let i = 0; i < durationRadios.length; i++) {
+                if (durationRadios[i].checked) {
+                    duration = durationRadios[i].value;
+                    break;
+                }
+            }
+
+            // 获取视频分辨率
+            const resolution = document.getElementById('video-resolution').value;
+            const mode = document.querySelector('input[name="generate-mode"]:checked')?.value || 'quality';
+            const fps = document.querySelector('input[name="frame-rate"]:checked')?.value || '30';
+            const withAudio = document.getElementById('ai-sound').checked;
+
+            const generateButton = document.getElementById('generate-button');
+            const loading = document.getElementById('loading');
+            const startedAt = performance.now();
+            const startedAtSafe = Math.round(startedAt);
+            if (!prompt) {
+                renderVideoGenerationFailure({
+                    message: '请先输入视频描述',
+                    description: '需要明确的视频画面、主体、动作或时长目标，才能发起生成任务。'
+                });
+                reportVideoUsage({
+                    status: 'FAILURE',
+                    durationMs: Math.max(0, Math.round(performance.now() - startedAtSafe)),
+                    note: '视频生成未发起：提示词为空'
+                });
+                return;
+            }
+
+            // 显示加载动画
+            generateButton.disabled = true;
+            generateButton.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> 生成中...';
+            loading.classList.remove('hidden');
+            setVideoRetrievalPanelPending();
+            setVideoStatus('处理中...');
+            clearVideoGenerationContext();
+
+            // 构建请求参数
+            const requestData = {
+                prompt: prompt,
+                duration: duration,
+                resolution: resolution,
+                mode: mode,
+                fps: fps,
+                withAudio: withAudio
+            };
+
+            // 调用后端API
+            fetch('/api/image/generate/video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('后端返回数据:', data);
+                currentVideoModelLabel = data.model || DEFAULT_VIDEO_MODEL_LABEL;
+                const retrieval = extractVideoRetrievalMetadata(data);
+                renderVideoRetrievalPanel(retrieval);
+
+                const startedContext = buildVideoTaskContext(data, startedAtSafe, retrieval);
+                videoTaskUsageContext = startedContext;
+
+                if (data.success && data.taskId) {
+                    currentVideoTaskId = data.taskId;
+                    reportVideoUsage({
+                        status: 'UNKNOWN',
+                        note: `任务已提交 | 检索: ${retrieval.used ? '已命中' : '未命中'} | 门禁: ${retrieval.gateReason || '未知'} | 任务ID: ${data.taskId}`
+                    });
+                    setVideoStatus(`已提交 (${data.taskId})`);
+                    pollVideoStatus(data.taskId, 0, retrieval);
+                } else if (data.success && data.video) {
+                    renderGeneratedVideo(data.video);
+                    resetGenerateButton();
+                    reportVideoUsage({
+                        status: 'SUCCESS',
+                        durationMs: Math.max(0, Math.round(performance.now() - startedAtSafe)),
+                        note: `视频生成成功 | 检索: ${retrieval.used ? '已命中' : '未命中'} | 门禁: ${retrieval.gateReason || '未知'}`
+                    });
+                } else {
+                    renderVideoGenerationFailure(data);
+                    setVideoStatus('失败');
+                    resetGenerateButton();
+                    reportVideoUsage({
+                        status: 'FAILURE',
+                        durationMs: Math.max(0, Math.round(performance.now() - startedAtSafe)),
+                        note: `视频生成失败 | 检索: ${retrieval.used ? '已命中' : '未命中'} | 门禁: ${retrieval.gateReason || '未知'} | ${composeVideoErrorMessage(data, '后端未返回视频')}`
+                    });
+                    clearVideoGenerationContext();
+                }
+            })
+            .catch(error => {
+                console.error('生成视频失败:', error);
+                const retrieval = videoTaskUsageContext
+                    ? videoTaskUsageContext.retrieval
+                    : extractVideoRetrievalMetadata({}, {used: false, gateReason: '未返回', query: '', trace: []});
+                renderVideoRetrievalPanel(retrieval);
+                renderVideoGenerationFailure({
+                    message: '视频生成请求失败',
+                    description: '当前无法连接视频生成通道，请稍后重试或联系管理员检查模型服务。',
+                    error: error.message
+                });
+                setVideoStatus('失败');
+                resetGenerateButton();
+                reportVideoUsage({
+                    status: 'FAILURE',
+                    durationMs: Math.max(0, Math.round(performance.now() - startedAtSafe)),
+                    note: `视频生成请求失败 | 检索: ${retrieval.used ? '已命中' : '未命中'} | 门禁: ${retrieval.gateReason || '未知'} | ${safeMessage(error)}`
+                });
+                clearVideoGenerationContext();
+            });
+        }
+
+        function pollVideoStatus(taskId, attempt, retrievalFromSubmit) {
+            const videoStatus = document.getElementById('video-status');
+            if (taskId !== currentVideoTaskId) {
+                return;
+            }
+            if (attempt >= maxVideoPollAttempts) {
+                renderVideoGenerationFailure({
+                    message: '视频任务仍在处理中',
+                    description: '本次任务超过了页面等待时间。请稍后重新查询任务状态，或降低分辨率、时长后再试。'
+                });
+                setVideoStatus('超时');
+                resetGenerateButton();
+                reportVideoUsage({
+                    status: 'FAILURE',
+                    durationMs: Math.max(0, Math.round(performance.now() - (videoTaskUsageContext?.startedAt || performance.now()))),
+                    note: `任务超时 | 检索: ${retrievalFromSubmit.used ? '已命中' : '未命中'} | 门禁: ${retrievalFromSubmit.gateReason || '未知'}`
+                });
+                clearVideoGenerationContext();
+                return;
+            }
+
+            setTimeout(() => {
+                fetch(`/api/image/generate/video/status/${encodeURIComponent(taskId)}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('HTTP ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('任务状态:', data);
+                        if (taskId !== currentVideoTaskId) {
+                            return;
+                        }
+                        const retrieval = extractVideoRetrievalMetadata(data, retrievalFromSubmit);
+                        if (retrievalFromSubmit.used === false && retrieval.used === true) {
+                            retrievalFromSubmit = retrieval;
+                            if (videoTaskUsageContext) {
+                                videoTaskUsageContext.retrieval = retrieval;
+                            }
+                        }
+                        renderVideoRetrievalPanel(retrieval);
+                        if (data.success && data.video) {
+                            currentVideoModelLabel = data.model || DEFAULT_VIDEO_MODEL_LABEL;
+                            renderGeneratedVideo(data.video);
+                            resetGenerateButton();
+                            reportVideoUsage({
+                                status: 'SUCCESS',
+                                note: `视频生成成功 | 检索: ${retrieval.used ? '已命中' : '未命中'} | 门禁: ${retrieval.gateReason || '未知'}`
+                            });
+                            clearVideoGenerationContext();
+                            return;
+                        }
+                        if (data.success && data.status !== 'SUCCESS') {
+                            currentVideoModelLabel = data.model || DEFAULT_VIDEO_MODEL_LABEL;
+                            setVideoStatus(`${data.status || '处理中'} (${attempt + 1}/${maxVideoPollAttempts})`);
+                            pollVideoStatus(taskId, attempt + 1, retrievalFromSubmit);
+                            return;
+                        }
+
+                        renderVideoGenerationFailure(data);
+                        setVideoStatus('失败');
+                        resetGenerateButton();
+                        reportVideoUsage({
+                            status: 'FAILURE',
+                            note: `视频任务失败 | 检索: ${retrieval.used ? '已命中' : '未命中'} | 门禁: ${retrieval.gateReason || '未知'} | ${composeVideoErrorMessage(data, '任务返回失败')}`
+                        });
+                        clearVideoGenerationContext();
+                    })
+                    .catch(error => {
+                        console.error('查询视频任务失败:', error);
+                        renderVideoRetrievalPanel(videoTaskUsageContext ? videoTaskUsageContext.retrieval : extractVideoRetrievalMetadata({}));
+                        renderVideoGenerationFailure({
+                            message: '视频任务查询失败',
+                            description: '当前无法获取视频任务状态，请稍后刷新页面后重试。',
+                            error: error.message
+                        });
+                        setVideoStatus('失败');
+                        resetGenerateButton();
+                        reportVideoUsage({
+                            status: 'FAILURE',
+                            note: `视频任务查询失败 | 检索: ${(videoTaskUsageContext?.retrieval?.used ? '已命中' : '未命中')} | 门禁: ${(videoTaskUsageContext?.retrieval?.gateReason || '未知')} | ${safeMessage(error)}`
+                        });
+                        clearVideoGenerationContext();
+                    });
+            }, 5000);
+        }
+
+        function clearVideoGenerationContext() {
+            currentVideoTaskId = null;
+            videoTaskUsageContext = null;
+        }
+
+        function buildVideoTaskContext(response, startedAtSafe, retrieval) {
+            return {
+                taskId: response && response.taskId ? response.taskId : null,
+                startedAt: startedAtSafe,
+                retrieval: retrieval || {used: false, gateReason: '未返回', query: '', trace: []}
+            };
+        }
+
+        function reportVideoUsage(payload) {
+            const context = videoTaskUsageContext || {};
+            const safePayload = {
+                skillId: VIDEO_SKILL_ID,
+                skillName: 'text-to-video',
+                status: payload?.status || 'UNKNOWN',
+                source: 'frontend',
+                durationMs: Math.max(0, Number(payload?.durationMs) || Math.max(0, Math.round(performance.now() - (context.startedAt || performance.now())))),
+                note: String(payload?.note || '')
+            };
+
+            if (!safePayload.skillId) {
+                return;
+            }
+
+            fetch(SKILL_MONITOR_ENDPOINT, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(safePayload)
+            }).catch(error => {
+                console.warn('Skill 上报失败:', error);
+            });
+        }
+
+        function setVideoRetrievalPanelPending() {
+            const retrievalContent = document.getElementById('video-retrieval-content');
+            const retrievalTrace = document.getElementById('video-retrieval-trace');
+            const retrievalToggle = document.getElementById('video-retrieval-toggle');
+            if (retrievalContent) {
+                retrievalContent.textContent = '正在请求检索与模型链路信息，请稍候...';
+            }
+            if (retrievalTrace) {
+                retrievalTrace.textContent = '检索轨迹空';
+                retrievalTrace.classList.add('hidden');
+            }
+            if (retrievalToggle) {
+                retrievalToggle.classList.add('hidden');
+                retrievalToggle.textContent = '查看检索轨迹';
+            }
+        }
+
+        function extractVideoRetrievalMetadata(data, fallback) {
+            const retrieval = data?.retrieval || {};
+            const safeFallback = fallback && typeof fallback === 'object' ? fallback : {};
+            const used = data?.retrievalUsed !== undefined
+                ? Boolean(data.retrievalUsed)
+                : retrieval.used !== undefined
+                    ? Boolean(retrieval.used)
+                    : Boolean(safeFallback.used);
+
+            return {
+                used: used,
+                scene: data?.retrievalScene || retrieval.scene || safeFallback.scene || 'text-to-video',
+                query: data?.retrievalQuery || retrieval.query || safeFallback.query || '',
+                gateReason: data?.retrievalGateReason || retrieval.gateReason || safeFallback.gateReason || (used ? '已命中检索候选' : '未返回检索门禁信息'),
+                trace: Array.isArray(data?.retrievalTrace)
+                    ? data.retrievalTrace
+                    : Array.isArray(retrieval.trace)
+                        ? retrieval.trace
+                        : Array.isArray(safeFallback.trace)
+                            ? safeFallback.trace
+                            : []
+            };
+        }
+
+        function renderVideoRetrievalPanel(retrieval) {
+            const content = document.getElementById('video-retrieval-content');
+            const tracePanel = document.getElementById('video-retrieval-trace');
+            const toggleButton = document.getElementById('video-retrieval-toggle');
+            if (!content || !tracePanel || !toggleButton) {
+                return;
+            }
+            const safeUsed = retrieval.used ? '✅ 已命中检索' : '⚠️ 未命中检索';
+            const safeScene = escapeHtml(retrieval.scene || 'text-to-video');
+            const safeReason = escapeHtml(retrieval.gateReason || '未返回');
+            const safeQuery = escapeHtml(retrieval.query || '—');
+            const listTrace = Array.isArray(retrieval.trace) ? retrieval.trace : [];
+            const traceText = listTrace.length ? listTrace.map(item => escapeHtml(item)).join('\n') : '检索轨迹空';
+
+            content.innerHTML = [
+                `<div class="flex items-center justify-between"><span class="font-semibold text-gray-700">${safeUsed}</span><span>${safeScene}</span></div>`,
+                `<div>命中原因：${safeReason}</div>`,
+                `<div>查询：${safeQuery}</div>`
+            ].join('');
+            tracePanel.textContent = traceText;
+            tracePanel.className = 'hidden mt-3 p-3 border border-gray-100 text-[11px] text-gray-500 bg-gray-50 whitespace-pre-wrap';
+            if (listTrace.length > 0) {
+                toggleButton.classList.remove('hidden');
+                toggleButton.textContent = '查看检索轨迹';
+            } else {
+                toggleButton.classList.add('hidden');
+                toggleButton.textContent = '检索轨迹不可用';
+            }
+        }
+
+        function toggleVideoRetrievalDetails() {
+            const tracePanel = document.getElementById('video-retrieval-trace');
+            const toggle = document.getElementById('video-retrieval-toggle');
+            if (!tracePanel || !toggle) {
+                return;
+            }
+            const hidden = tracePanel.classList.contains('hidden');
+            tracePanel.classList.toggle('hidden', !hidden);
+            toggle.textContent = hidden ? '收起检索轨迹' : '查看检索轨迹';
+        }
+
+        function composeVideoErrorMessage(data, fallback = '任务失败') {
+            if (!data) {
+                return fallback;
+            }
+            return [
+                data.message,
+                data.error,
+                data.description
+            ].filter(Boolean).join(' | ') || fallback;
+        }
+
+        function renderGeneratedVideo(videoUrl) {
+            const videoPreview = document.getElementById('video-preview');
+            const videoResult = document.getElementById('video-result');
+            const emptyState = document.getElementById('video-empty-state');
+            const timeBadge = document.getElementById('video-time-badge');
+            if (emptyState) {
+                emptyState.classList.add('hidden');
+            }
+            if (timeBadge) {
+                timeBadge.classList.remove('hidden');
+            }
+            videoPreview.classList.remove('hidden');
+            videoPreview.src = videoUrl;
+            setVideoStatus('已完成');
+            videoResult.innerHTML = `
+                <div class="font-semibold text-success">视频生成完成</div>
+                <p class="mt-2">已返回可播放视频，可下载或复制链接用于后续演示。</p>
+            `;
+
+            const videoContainer = videoPreview.parentElement.parentElement;
+            let actionsDiv = videoContainer.querySelector('.video-actions');
+            if (actionsDiv === null) {
+                actionsDiv = document.createElement('div');
+                actionsDiv.className = 'video-actions flex justify-center space-x-2 mt-4';
+                videoContainer.appendChild(actionsDiv);
+            }
+            actionsDiv.innerHTML = `
+                <button onclick="downloadVideo('${videoUrl}', 'generated-video.mp4')" class="px-4 py-2 bg-success text-white font-medium rounded-lg hover:bg-success/90 transition-all flex items-center">
+                    <i class="fa fa-download mr-1"></i> 下载
+                </button>
+                <button onclick="copyVideo('${videoUrl}')" class="px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary/90 transition-all flex items-center">
+                    <i class="fa fa-copy mr-1"></i> 复制链接
+                </button>
+            `;
+        }
+
+        function normalizeModelAvailability(modelAvailability, attemptedModels = []) {
+            const entries = Array.isArray(modelAvailability) ? modelAvailability : [];
+            const rows = new Map();
+
+            entries.forEach(item => {
+                if (!item || typeof item !== 'object') {
+                    return;
+                }
+
+                const model = String(item.model || '').trim();
+                const provider = String(item.provider || '').trim();
+                if (!model && !provider) {
+                    return;
+                }
+
+                const available = item.available === true
+                    ? true
+                    : item.available === false
+                        ? false
+                        : null;
+                const reason = typeof item.reason === 'string' ? item.reason.trim() : '';
+                const key = `${provider || 'provider'}::${model || 'model'}`;
+                rows.set(key, {
+                    model,
+                    provider,
+                    available,
+                    reason
+                });
+            });
+
+            const hasModel = (targetModel) => {
+                for (const value of rows.values()) {
+                    if (value.model === targetModel) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            if (Array.isArray(attemptedModels)) {
+                attemptedModels.forEach(model => {
+                    const normalizedModel = String(model || '').trim();
+                    if (!normalizedModel) {
+                        return;
+                    }
+                    if (hasModel(normalizedModel)) {
+                        return;
+                    }
+                    rows.set(`unknown::${normalizedModel}`, {
+                        model: normalizedModel,
+                        provider: 'provider',
+                        available: null,
+                        reason: ''
+                    });
+                });
+            }
+
+            return Array.from(rows.values());
+        }
+
+        function renderModelAvailabilitySection(modelAvailability, attemptedModels, title) {
+            const entries = normalizeModelAvailability(modelAvailability, attemptedModels)
+                .sort((first, second) => {
+                    const rank = (item) => {
+                        if (item.available === false) {
+                            return 0;
+                        }
+                        if (item.available === null) {
+                            return 1;
+                        }
+                        return 2;
+                    };
+                    const compare = rank(first) - rank(second);
+                    if (compare !== 0) {
+                        return compare;
+                    }
+                    return (first.model || '').localeCompare(second.model || '');
+                });
+            if (entries.length === 0) {
+                return '';
+            }
+
+            const listHtml = entries.map(entry => {
+                const statusText = entry.available === true
+                    ? '可用'
+                    : entry.available === false
+                        ? '不可用'
+                        : '未判定';
+
+                const statusClass = entry.available === true
+                    ? 'text-green-700 bg-green-50 border-green-200'
+                    : entry.available === false
+                        ? 'text-amber-700 bg-amber-50 border-amber-200'
+                        : 'text-gray-700 bg-gray-100 border-gray-200';
+
+                const reasonText = entry.reason
+                    ? `<p class="text-xs mt-1 text-gray-600">原因：${escapeHtml(entry.reason)}</p>`
+                    : '';
+
+                const modelText = `${entry.model || '未知模型'}${entry.provider ? `（${entry.provider}）` : ''}`;
+
+                return `
+                    <li class="rounded-lg border px-3 py-2 ${statusClass}">
+                        <div class="text-sm font-medium">${escapeHtml(modelText)}</div>
+                        <div class="text-xs">状态：${statusText}</div>
+                        ${reasonText}
+                    </li>
+                `;
+            }).join('');
+
+            return `
+                <div class="rounded-lg border border-gray-200 bg-white/70 p-3 mt-3">
+                    <div class="text-sm font-semibold text-dark">${escapeHtml(title || '模型可用性')}</div>
+                    <ul class="mt-2 space-y-2 text-xs">${listHtml}</ul>
+                </div>
+            `;
+        }
+
+        function renderVideoGenerationFailure(data) {
+            clearVideoPreview();
+            const videoResult = document.getElementById('video-result');
+            const rawDetail = [
+                data.message,
+                data.description,
+                data.error
+            ].filter(Boolean).join('\n\n') || '当前没有返回可用视频。';
+            const suggestion = data.actionSuggestion || '请确认视频生成服务、模型资源和接口地址已由管理员完成接入，再重新发起生成。';
+            const attemptedModels = Array.isArray(data.videoModelsTried) && data.videoModelsTried.length > 0
+                ? data.videoModelsTried
+                : (data.model ? [data.model] : []);
+            const model = attemptedModels.length > 0
+                ? `<p class="text-xs text-gray-500 mt-2">已检查模型：${escapeHtml(attemptedModels.join('、'))}</p>`
+                : '';
+            const modelAvailabilitySummary = renderModelAvailabilitySection(
+                data.modelAvailability,
+                attemptedModels,
+                '视频模型可用性'
+            );
+            const isModelUnavailable = data.modelUnavailable === true;
+            const modelUnavailableHint = isModelUnavailable
+                ? '<p class="text-sm text-gray-700 mt-2">当前选用模型未返回可用视频结果，请确认本地/云端视频模型服务可达且配置正确。</p>'
+                : '';
+
+            videoResult.innerHTML = `
+                <div class="rounded-lg border border-warning/50 bg-warning/10 p-5">
+                    <div class="flex items-start gap-3">
+                        <i class="fa fa-triangle-exclamation text-warning text-xl mt-1"></i>
+                        <div class="w-full">
+                            <h4 class="font-semibold text-dark">当前视频生成通道未就绪</h4>
+                            <p class="text-sm text-gray-700 mt-2">系统已完成参数校验，但当前演示环境没有可用视频模型返回任务或成片。页面会保留输入内容，便于接入模型后继续验证。</p>
+                            ${modelUnavailableHint}
+                            <div class="rounded-lg border border-warning/30 bg-white/60 p-3 mt-3">
+                                <div class="text-sm font-semibold text-dark">处理建议</div>
+                                <p class="text-sm text-gray-700 mt-2">${escapeHtml(suggestion)}</p>
+                            </div>
+                            ${model}
+                            ${modelAvailabilitySummary}
+                            <button type="button" onclick="toggleVideoFailureDetail()" class="mt-3 text-sm text-primary hover:underline">
+                                查看技术详情
+                            </button>
+                            <pre id="video-error-detail" class="hidden mt-3 whitespace-pre-wrap rounded-lg bg-gray-900 text-gray-100 p-3 text-xs">${escapeHtml(rawDetail)}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function clearVideoPreview() {
+            const videoPreview = document.getElementById('video-preview');
+            const emptyState = document.getElementById('video-empty-state');
+            const timeBadge = document.getElementById('video-time-badge');
+            videoPreview.pause();
+            videoPreview.removeAttribute('src');
+            videoPreview.load();
+            videoPreview.classList.add('hidden');
+            if (emptyState) {
+                emptyState.classList.remove('hidden');
+            }
+            if (timeBadge) {
+                timeBadge.classList.add('hidden');
+            }
+            document.getElementById('video-duration-display').textContent = '00:00';
+            document.getElementById('video-total-duration').textContent = '00:00';
+
+            const videoContainer = videoPreview.parentElement.parentElement;
+            const actionsDiv = videoContainer.querySelector('.video-actions');
+            if (actionsDiv) {
+                actionsDiv.remove();
+            }
+        }
+
+        function toggleVideoFailureDetail() {
+            const detail = document.getElementById('video-error-detail');
+            if (detail) {
+                detail.classList.toggle('hidden');
+            }
+        }
+
+        function setVideoStatus(statusText) {
+            const videoStatus = document.getElementById('video-status');
+            videoStatus.textContent = `${currentVideoModelLabel} 状态: ${statusText}`;
+        }
+
+        function resetGenerateButton() {
+            const generateButton = document.getElementById('generate-button');
+            const loading = document.getElementById('loading');
+            const canGenerate = videoCapability.canGenerate === true;
+            generateButton.disabled = !canGenerate;
+            generateButton.innerHTML = canGenerate
+                ? '<i class="fa fa-paper-plane mr-2"></i> 生成视频'
+                : '<i class="fa fa-lock mr-2"></i> 通道未就绪';
+            loading.classList.add('hidden');
+        }
+
+        // 下载视频
+        function downloadVideo(videoUrl, filename) {
+            const link = document.createElement('a');
+            link.href = videoUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 复制视频链接
+        function copyVideo(videoUrl) {
+            navigator.clipboard.writeText(videoUrl)
+                .then(() => {
+                    alert('链接已复制到剪贴板');
+                })
+                .catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制');
+                });
+        }
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // 视频播放时间更新
+        document.getElementById('video-preview').addEventListener('timeupdate', function() {
+            const currentTime = this.currentTime;
+            const duration = this.duration;
+
+            if (!isNaN(duration)) {
+                const currentMinutes = Math.floor(currentTime / 60);
+                const currentSeconds = Math.floor(currentTime % 60);
+                const totalMinutes = Math.floor(duration / 60);
+                const totalSeconds = Math.floor(duration % 60);
+
+                document.getElementById('video-duration-display').textContent =
+                    `${currentMinutes.toString().padStart(2, '0')}:${currentSeconds.toString().padStart(2, '0')}`;
+                document.getElementById('video-total-duration').textContent =
+                    `${totalMinutes.toString().padStart(2, '0')}:${totalSeconds.toString().padStart(2, '0')}`;
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', refreshVideoCapability);
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

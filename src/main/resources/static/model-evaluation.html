@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模型测评看板 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        success: '#34d399',
+                        warning: '#f59e0b',
+                        danger: '#fb7185'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --me-border: rgba(125, 211, 252, 0.22);
+            --me-panel: rgba(3, 10, 20, 0.82);
+            --me-soft: rgba(8, 19, 36, 0.78);
+            --me-muted: #9fb5c9;
+            --me-text: #e2e8f0;
+            --me-primary: #22d3ee;
+            --me-success: #34d399;
+            --me-warning: #f59e0b;
+            --me-danger: #fb7185;
+        }
+
+        body {
+            color: var(--me-text);
+            background: #020617;
+        }
+
+        body[data-app-page="model-evaluation"] .app-content-shell {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        body[data-app-page="model-evaluation"] .app-workbench-hero {
+            display: none;
+        }
+
+        body[data-app-page="model-evaluation"] main.app-workbench {
+            padding-top: 8px;
+        }
+
+        .model-evaluation-workbench {
+            width: min(100%, 1720px);
+            height: calc(100vh - var(--app-header-height) - 24px);
+            min-height: 0;
+            margin: 0 auto;
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .model-evaluation-command {
+            min-width: 0;
+            display: grid;
+            grid-template-columns: minmax(240px, 1fr) auto;
+            gap: 14px;
+            align-items: center;
+            border: 1px solid var(--me-border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: rgba(3, 12, 24, 0.7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+
+        .model-evaluation-title {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .model-evaluation-title i {
+            width: 34px;
+            height: 34px;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid rgba(34, 211, 238, 0.42);
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        .model-evaluation-title h1 {
+            margin: 0;
+            color: #f8fafc;
+            font-size: 18px;
+            line-height: 1.15;
+            font-weight: 900;
+        }
+
+        .model-evaluation-title span {
+            display: block;
+            margin-top: 2px;
+            color: #93c5fd;
+            font-size: 12px;
+            font-weight: 800;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .model-evaluation-filterbar {
+            min-width: 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .model-evaluation-filterbar select,
+        .model-evaluation-filterbar input {
+            height: 34px;
+            width: 150px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 7px;
+            padding: 0 10px;
+            color: #dbeafe;
+            background: rgba(8, 19, 36, 0.78);
+            font-size: 12px;
+            font-weight: 800;
+            outline: none;
+        }
+
+        .model-evaluation-filterbar input::placeholder {
+            color: #64748b;
+        }
+
+        .model-evaluation-filterbar button {
+            height: 34px;
+            min-width: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            border: 1px solid rgba(34, 211, 238, 0.44);
+            border-radius: 7px;
+            padding: 0 12px;
+            color: #ecfeff;
+            background: rgba(34, 211, 238, 0.16);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .model-evaluation-filterbar button:hover,
+        .model-evaluation-filterbar button:focus {
+            border-color: rgba(103, 232, 249, 0.72);
+            background: rgba(34, 211, 238, 0.24);
+        }
+
+        .model-evaluation-summary-strip {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .model-evaluation-metric {
+            min-width: 0;
+            min-height: 92px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            padding: 12px;
+            background:
+                linear-gradient(135deg, rgba(34, 211, 238, 0.08), transparent 48%),
+                rgba(2, 8, 18, 0.76);
+        }
+
+        .model-evaluation-metric span {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--me-muted);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .model-evaluation-metric strong {
+            display: block;
+            margin-top: 10px;
+            color: #f8fafc;
+            font-size: 24px;
+            line-height: 1;
+            font-weight: 950;
+        }
+
+        .model-evaluation-metric em {
+            display: block;
+            margin-top: 8px;
+            color: #7dd3fc;
+            font-size: 11px;
+            font-style: normal;
+            font-weight: 800;
+        }
+
+        .model-evaluation-main-grid {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1.12fr) minmax(380px, 0.88fr);
+            gap: 12px;
+        }
+
+        .model-evaluation-panel {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--me-border);
+            border-radius: 8px;
+            background: var(--me-panel);
+            box-shadow: 0 18px 52px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .model-evaluation-panel-head {
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(125, 211, 252, 0.16);
+        }
+
+        .model-evaluation-panel-head strong {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #f8fafc;
+            font-size: 14px;
+            font-weight: 950;
+        }
+
+        .model-evaluation-panel-head span {
+            color: var(--me-muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .model-evaluation-chart-panel {
+            min-height: 0;
+        }
+
+        .model-evaluation-chart-stage {
+            position: relative;
+            min-height: 0;
+            flex: 1;
+            padding: 12px;
+        }
+
+        #modelEvaluationTrendCanvas {
+            width: 100%;
+            height: 100%;
+            min-height: 340px;
+            display: block;
+            border: 1px solid rgba(125, 211, 252, 0.16);
+            border-radius: 8px;
+            background:
+                linear-gradient(rgba(125, 211, 252, 0.055) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(125, 211, 252, 0.055) 1px, transparent 1px),
+                rgba(2, 8, 18, 0.82);
+            background-size: 40px 40px;
+        }
+
+        .model-evaluation-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 0 12px 12px;
+        }
+
+        .model-evaluation-legend button {
+            min-height: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            border-radius: 7px;
+            padding: 6px 9px;
+            color: #dbeafe;
+            background: rgba(8, 19, 36, 0.74);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .model-evaluation-legend button[aria-pressed="true"] {
+            border-color: rgba(34, 211, 238, 0.58);
+            background: rgba(34, 211, 238, 0.16);
+        }
+
+        .model-evaluation-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: currentColor;
+        }
+
+        .model-evaluation-side {
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+        }
+
+        .model-evaluation-health-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            padding: 12px;
+        }
+
+        .model-evaluation-health-item {
+            min-height: 88px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            padding: 12px;
+            background: rgba(2, 8, 18, 0.72);
+        }
+
+        .model-evaluation-health-item span {
+            color: var(--me-muted);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .model-evaluation-health-item strong {
+            display: block;
+            margin-top: 10px;
+            color: #f8fafc;
+            font-size: 21px;
+            line-height: 1;
+        }
+
+        .model-evaluation-failure-diagnosis {
+            margin: 10px 14px 14px;
+            border: 1px solid rgba(251, 113, 133, 0.28);
+            border-radius: 8px;
+            padding: 11px 12px;
+            background:
+                linear-gradient(135deg, rgba(251, 113, 133, 0.1), transparent 52%),
+                rgba(2, 8, 18, 0.74);
+        }
+
+        .model-evaluation-failure-diagnosis.hidden {
+            display: none;
+        }
+
+        .model-evaluation-failure-diagnosis span {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: #fecdd3;
+            font-size: 11px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .model-evaluation-failure-diagnosis strong {
+            display: block;
+            margin-top: 7px;
+            color: #f8fafc;
+            font-size: 13px;
+            line-height: 1.35;
+            font-weight: 950;
+        }
+
+        .model-evaluation-failure-diagnosis p {
+            margin: 7px 0 0;
+            color: #9fb5c9;
+            font-size: 12px;
+            line-height: 1.55;
+            font-weight: 750;
+        }
+
+        .model-evaluation-run-error {
+            display: block;
+            max-width: 150px;
+            margin-top: 7px;
+            color: #fecdd3;
+            font-size: 11px;
+            line-height: 1.35;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .model-evaluation-runs-panel {
+            min-height: 0;
+        }
+
+        .model-evaluation-table-wrap {
+            min-height: 0;
+            flex: 1;
+            overflow: auto;
+        }
+
+        .model-evaluation-table {
+            width: 100%;
+            min-width: 760px;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .model-evaluation-table th,
+        .model-evaluation-table td {
+            border-bottom: 1px solid rgba(125, 211, 252, 0.12);
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        .model-evaluation-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            color: #bfdbfe;
+            background: #06101f;
+            font-size: 11px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .model-evaluation-table td {
+            color: #dbeafe;
+            background: rgba(2, 8, 18, 0.32);
+        }
+
+        .model-evaluation-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            padding: 4px 8px;
+            color: #ecfeff;
+            background: rgba(52, 211, 153, 0.18);
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .model-evaluation-status.is-failed {
+            background: rgba(251, 113, 133, 0.2);
+        }
+
+        .model-evaluation-metric-line {
+            display: grid;
+            gap: 5px;
+            min-width: 180px;
+        }
+
+        .model-evaluation-bar {
+            height: 6px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.92);
+        }
+
+        .model-evaluation-bar span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #22d3ee, #34d399);
+        }
+
+        .model-evaluation-state {
+            min-height: 160px;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            color: var(--me-muted);
+            text-align: center;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .model-evaluation-state i {
+            display: block;
+            margin-bottom: 10px;
+            color: #67e8f9;
+            font-size: 28px;
+        }
+
+        .model-evaluation-empty-hint {
+            display: block;
+            margin-top: 8px;
+            color: #8fb5ce;
+            font-size: 12px;
+            line-height: 1.5;
+            font-weight: 700;
+        }
+
+        @media (min-width: 1181px) {
+            body[data-app-page="model-evaluation"] main.model-evaluation-workbench.app-workbench {
+                height: calc(100vh - var(--app-header-height)) !important;
+                max-height: calc(100vh - var(--app-header-height)) !important;
+                grid-template-rows: auto auto minmax(0, 1fr) !important;
+                gap: 10px !important;
+                padding: 12px 18px 14px !important;
+                overflow: hidden !important;
+            }
+
+            body[data-app-page="model-evaluation"] main.model-evaluation-workbench > .app-content-shell {
+                height: auto !important;
+                max-height: none !important;
+            }
+
+            body[data-app-page="model-evaluation"] .model-evaluation-command.app-content-shell,
+            body[data-app-page="model-evaluation"] .model-evaluation-summary-strip.app-content-shell {
+                overflow: visible !important;
+            }
+
+            body[data-app-page="model-evaluation"] .model-evaluation-main-grid.app-content-shell {
+                min-height: 0 !important;
+                overflow: hidden !important;
+            }
+
+            .model-evaluation-command {
+                gap: 10px;
+                padding: 8px 10px;
+            }
+
+            .model-evaluation-title i {
+                width: 30px;
+                height: 30px;
+            }
+
+            .model-evaluation-title h1 {
+                font-size: 16px;
+            }
+
+            .model-evaluation-filterbar {
+                gap: 6px;
+            }
+
+            .model-evaluation-filterbar select,
+            .model-evaluation-filterbar input {
+                width: 126px;
+                height: 30px;
+                padding: 0 8px;
+            }
+
+            .model-evaluation-filterbar button {
+                height: 30px;
+                padding: 0 10px;
+            }
+
+            .model-evaluation-summary-strip {
+                gap: 8px;
+            }
+
+            .model-evaluation-metric {
+                min-height: 64px;
+                padding: 8px 10px;
+            }
+
+            .model-evaluation-metric strong {
+                margin-top: 6px;
+                font-size: 20px;
+            }
+
+            .model-evaluation-metric em {
+                margin-top: 4px;
+            }
+
+            .model-evaluation-main-grid {
+                grid-template-columns: minmax(0, 1.28fr) minmax(520px, 0.9fr);
+            }
+
+            .model-evaluation-panel-head {
+                min-height: 44px;
+                padding: 9px 12px;
+            }
+
+            .model-evaluation-chart-stage {
+                padding: 10px;
+            }
+
+            #modelEvaluationTrendCanvas {
+                min-height: 240px;
+            }
+
+            .model-evaluation-legend {
+                gap: 6px;
+                padding: 0 10px 10px;
+            }
+
+            .model-evaluation-legend button {
+                min-height: 28px;
+                padding: 5px 8px;
+            }
+
+            .model-evaluation-health-grid {
+                gap: 8px;
+                padding: 10px;
+            }
+
+            .model-evaluation-health-item {
+                min-height: 70px;
+                padding: 10px;
+            }
+
+            .model-evaluation-health-item strong {
+                margin-top: 8px;
+                font-size: 20px;
+            }
+
+            .model-evaluation-table {
+                min-width: min(620px, 100%);
+                table-layout: fixed;
+            }
+
+            .model-evaluation-table th,
+            .model-evaluation-table td {
+                padding: 8px 10px;
+                overflow: hidden;
+            }
+
+            .model-evaluation-metric-line {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 5px 8px;
+                min-width: 0;
+            }
+
+            .model-evaluation-table th:nth-child(1),
+            .model-evaluation-table td:nth-child(1) {
+                width: 14%;
+            }
+
+            .model-evaluation-table th:nth-child(2),
+            .model-evaluation-table td:nth-child(2) {
+                width: 15%;
+            }
+
+            .model-evaluation-table th:nth-child(3),
+            .model-evaluation-table td:nth-child(3) {
+                width: 14%;
+            }
+
+            .model-evaluation-table th:nth-child(4),
+            .model-evaluation-table td:nth-child(4) {
+                width: 10%;
+            }
+
+            .model-evaluation-table th:nth-child(5),
+            .model-evaluation-table td:nth-child(5) {
+                width: 32%;
+            }
+
+            .model-evaluation-table th:nth-child(6),
+            .model-evaluation-table td:nth-child(6) {
+                width: 15%;
+                line-height: 1.35;
+                white-space: normal;
+            }
+
+            .model-evaluation-metric-line > div {
+                min-width: 0;
+            }
+
+            .model-evaluation-metric-line span {
+                display: block;
+                overflow: hidden;
+                font-size: 11px;
+                line-height: 1.15;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .model-evaluation-bar {
+                height: 5px;
+                margin-top: 3px;
+            }
+        }
+
+        @media (max-width: 1180px) {
+            .model-evaluation-workbench {
+                height: auto;
+                min-height: calc(100vh - var(--app-header-height) - 24px);
+            }
+
+            .model-evaluation-command,
+            .model-evaluation-main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .model-evaluation-filterbar {
+                justify-content: flex-start;
+            }
+
+            .model-evaluation-summary-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .model-evaluation-side {
+                grid-template-rows: auto auto;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .model-evaluation-workbench {
+                width: calc(100vw - 24px);
+                gap: 10px;
+            }
+
+            .model-evaluation-summary-strip,
+            .model-evaluation-health-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .model-evaluation-filterbar select,
+            .model-evaluation-filterbar input {
+                width: 100%;
+            }
+
+            .model-evaluation-filterbar button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<header></header>
+
+<main class="model-evaluation-workbench mx-auto px-4 py-5">
+    <section class="model-evaluation-command" aria-label="模型测评筛选">
+        <div class="model-evaluation-title">
+            <i class="fa fa-line-chart"></i>
+            <div>
+                <h1>模型测评看板</h1>
+                <span id="modelEvaluationScope">all</span>
+            </div>
+        </div>
+        <form class="model-evaluation-filterbar" onsubmit="event.preventDefault(); loadModelEvaluationData();" aria-label="测评筛选条件">
+            <select id="modelEvaluationSceneFilter" title="场景">
+                <option value="">全部场景</option>
+                <option value="chat">chat</option>
+                <option value="rag">rag</option>
+                <option value="prompt">prompt</option>
+            </select>
+            <input id="modelEvaluationModelFilter" list="modelEvaluationModelOptions" placeholder="全部模型" title="模型" autocomplete="off">
+            <datalist id="modelEvaluationModelOptions"></datalist>
+            <input id="modelEvaluationProviderFilter" list="modelEvaluationProviderOptions" placeholder="Provider" title="Provider" autocomplete="off">
+            <datalist id="modelEvaluationProviderOptions"></datalist>
+            <input id="modelEvaluationSourceFilter" list="modelEvaluationSourceOptions" placeholder="Request Source" title="Request Source" autocomplete="off">
+            <datalist id="modelEvaluationSourceOptions"></datalist>
+            <select id="modelEvaluationGroupByFilter" title="对比维度">
+                <option value="scene">按场景</option>
+                <option value="model">按模型</option>
+                <option value="metric">按指标</option>
+            </select>
+            <select id="modelEvaluationTrendMetricFilter" title="趋势指标">
+                <option value="avgF1">F1</option>
+                <option value="avgRecall">Recall</option>
+                <option value="avgPrecision">Precision</option>
+                <option value="avgTop1">Top1</option>
+                <option value="avgTop3">Top3</option>
+                <option value="avgTop5">Top5</option>
+            </select>
+            <select id="modelEvaluationDaysFilter" title="趋势窗口">
+                <option value="7">7 天</option>
+                <option value="14">14 天</option>
+                <option value="30">30 天</option>
+            </select>
+            <select id="modelEvaluationGranularityFilter" title="趋势粒度">
+                <option value="day">按天</option>
+                <option value="hour">按小时</option>
+            </select>
+            <button type="submit" title="刷新测评数据"><i class="fa fa-refresh"></i><span>刷新</span></button>
+        </form>
+    </section>
+
+    <section class="model-evaluation-summary-strip" aria-label="模型测评关键指标">
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-play-circle"></i>运行次数</span>
+            <strong id="modelEvaluationTotalRuns">--</strong>
+            <em id="modelEvaluationSuccessRate">成功率 --</em>
+        </article>
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-star"></i>总分</span>
+            <strong id="modelEvaluationOverall">--</strong>
+            <em>平均质量分</em>
+        </article>
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-bullseye"></i>Recall</span>
+            <strong id="modelEvaluationRecall">--</strong>
+            <em>召回覆盖</em>
+        </article>
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-crosshairs"></i>Precision</span>
+            <strong id="modelEvaluationPrecision">--</strong>
+            <em>命中精度</em>
+        </article>
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-balance-scale"></i>F1</span>
+            <strong id="modelEvaluationF1">--</strong>
+            <em>综合平衡</em>
+        </article>
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-sort-amount-desc"></i>Top1/3/5</span>
+            <strong id="modelEvaluationTopK">--</strong>
+            <em>排序命中</em>
+        </article>
+        <article class="model-evaluation-metric">
+            <span><i class="fa fa-clock-o"></i>耗时</span>
+            <strong id="modelEvaluationDuration">--</strong>
+            <em>平均响应</em>
+        </article>
+    </section>
+
+    <section class="model-evaluation-main-grid">
+        <section class="model-evaluation-panel model-evaluation-chart-panel">
+            <div class="model-evaluation-panel-head">
+                <strong><i class="fa fa-area-chart text-cyan-300"></i>趋势曲线</strong>
+                <span id="modelEvaluationTrendMeta">等待加载</span>
+            </div>
+            <div class="model-evaluation-chart-stage">
+                <canvas id="modelEvaluationTrendCanvas" aria-label="模型测评趋势图"></canvas>
+            </div>
+            <div id="modelEvaluationLegend" class="model-evaluation-legend" aria-label="趋势图例"></div>
+        </section>
+
+        <aside class="model-evaluation-side">
+            <section class="model-evaluation-panel">
+                <div class="model-evaluation-panel-head">
+                    <strong><i class="fa fa-heartbeat text-emerald-300"></i>运行质量</strong>
+                    <span id="modelEvaluationUpdatedAt">--</span>
+                </div>
+                <div class="model-evaluation-health-grid">
+                    <div class="model-evaluation-health-item">
+                        <span>成功 / 失败</span>
+                        <strong id="modelEvaluationSuccessFail">--</strong>
+                    </div>
+                    <div class="model-evaluation-health-item">
+                        <span>Top1</span>
+                        <strong id="modelEvaluationTop1">--</strong>
+                    </div>
+                    <div class="model-evaluation-health-item">
+                        <span>Top3 / Top5</span>
+                        <strong id="modelEvaluationTop35">--</strong>
+                    </div>
+                </div>
+                <div id="modelEvaluationFailureDiagnosis" class="model-evaluation-failure-diagnosis hidden" aria-live="polite">
+                    <span><i class="fa fa-stethoscope"></i> 最近失败原因</span>
+                    <strong id="modelEvaluationFailureDiagnosisTitle">--</strong>
+                    <p id="modelEvaluationFailureDiagnosisText">--</p>
+                </div>
+            </section>
+
+            <section class="model-evaluation-panel model-evaluation-runs-panel">
+                <div class="model-evaluation-panel-head">
+                    <strong><i class="fa fa-list text-amber-300"></i>运行明细</strong>
+                    <span id="modelEvaluationRunsMeta">--</span>
+                </div>
+                <div id="modelEvaluationRunsState" class="model-evaluation-state"><div><i class="fa fa-spinner fa-spin"></i>读取测评记录</div></div>
+                <div class="model-evaluation-table-wrap hidden" id="modelEvaluationTableWrap">
+                    <table class="model-evaluation-table">
+                        <thead>
+                        <tr>
+                            <th>场景</th>
+                            <th>模型</th>
+                            <th>状态</th>
+                            <th>质量</th>
+                            <th>指标</th>
+                            <th>时间</th>
+                        </tr>
+                        </thead>
+                        <tbody id="modelEvaluationRunsBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </aside>
+    </section>
+</main>
+
+<script>
+    const modelEvaluationState = {
+        summary: null,
+        trend: null,
+        runs: [],
+        activeMetrics: new Set(['avgRecall', 'avgPrecision', 'avgF1']),
+        chartFrame: 0,
+        modelEvaluationScopeInitialized: false
+    };
+
+    const modelEvaluationSeries = {
+        avgRecall: { label: 'Recall', color: '#22d3ee' },
+        avgPrecision: { label: 'Precision', color: '#34d399' },
+        avgF1: { label: 'F1', color: '#f59e0b' },
+        avgTop1: { label: 'Top1', color: '#fb7185' },
+        avgTop3: { label: 'Top3', color: '#a78bfa' },
+        avgTop5: { label: 'Top5', color: '#60a5fa' }
+    };
+
+    const modelEvaluationSeriesColors = ['#22d3ee', '#34d399', '#f59e0b', '#fb7185', '#a78bfa', '#60a5fa', '#f472b6', '#2dd4bf'];
+
+    document.addEventListener('DOMContentLoaded', async function () {
+        await loadModelEvaluationFacets();
+        await initializeModelEvaluationDefaultScope();
+        loadModelEvaluationData();
+        window.addEventListener('resize', renderModelEvaluationTrend);
+    });
+
+    async function loadModelEvaluationFacets() {
+        try {
+            const response = await fetch('/api/model-evaluation/facets');
+            if (!response.ok) {
+                return;
+            }
+            const facets = await response.json();
+            populateModelEvaluationDatalist('modelEvaluationModelOptions', facets.models);
+            populateModelEvaluationDatalist('modelEvaluationProviderOptions', facets.providers);
+            populateModelEvaluationDatalist('modelEvaluationSourceOptions', facets.requestSources);
+        } catch (ignored) {
+            // 维度候选加载失败不影响手工输入筛选。
+        }
+    }
+
+    function populateModelEvaluationDatalist(id, values) {
+        const datalist = document.getElementById(id);
+        if (!datalist) {
+            return;
+        }
+        const uniqueValues = Array.from(new Set((Array.isArray(values) ? values : [])
+            .map(function (value) {
+                return String(value || '').trim();
+            })
+            .filter(Boolean)));
+        datalist.innerHTML = uniqueValues.map(function (value) {
+            return `<option value="${escapeHtml(value)}"></option>`;
+        }).join('');
+    }
+
+    async function initializeModelEvaluationDefaultScope() {
+        if (modelEvaluationState.modelEvaluationScopeInitialized) {
+            return;
+        }
+        modelEvaluationState.modelEvaluationScopeInitialized = true;
+        try {
+            const response = await fetch('/api/model-evaluation/runs?limit=1');
+            if (!response.ok) {
+                return;
+            }
+            const runs = await response.json();
+            const latestRun = Array.isArray(runs) ? runs[0] : null;
+            if (!latestRun) {
+                return;
+            }
+            setModelEvaluationFilterValue('modelEvaluationModelFilter', latestRun.model);
+        } catch (ignored) {
+            // 保持空筛选，后续主查询仍可展示空态或全量数据。
+        }
+    }
+
+    function setModelEvaluationFilterValue(id, value) {
+        const element = document.getElementById(id);
+        const safeValue = String(value || '').trim();
+        if (!element || !safeValue) {
+            return;
+        }
+        if (element.tagName === 'SELECT') {
+            const matchedOption = Array.from(element.options).find(function (option) {
+                return option.value === safeValue;
+            });
+            if (!matchedOption) {
+                return;
+            }
+        }
+        element.value = safeValue;
+    }
+
+    async function loadModelEvaluationData() {
+        setModelEvaluationLoading(true);
+        const params = buildModelEvaluationParams();
+        const trendParams = new URLSearchParams(params);
+        trendParams.set('days', document.getElementById('modelEvaluationDaysFilter').value || '7');
+        trendParams.set('granularity', document.getElementById('modelEvaluationGranularityFilter').value || 'day');
+        trendParams.set('groupBy', document.getElementById('modelEvaluationGroupByFilter').value || 'scene');
+        trendParams.set('metric', document.getElementById('modelEvaluationTrendMetricFilter').value || 'avgF1');
+
+        try {
+            const [summaryResponse, trendResponse, runsResponse] = await Promise.all([
+                fetch('/api/model-evaluation/summary?' + params.toString()),
+                fetch('/api/model-evaluation/trend?' + trendParams.toString()),
+                fetch('/api/model-evaluation/runs?' + params.toString() + '&limit=60')
+            ]);
+            if (!summaryResponse.ok || !trendResponse.ok || !runsResponse.ok) {
+                throw new Error('测评接口返回异常');
+            }
+            modelEvaluationState.summary = await summaryResponse.json();
+            modelEvaluationState.trend = await trendResponse.json();
+            modelEvaluationState.runs = await runsResponse.json();
+            renderModelEvaluationSummary(modelEvaluationState.summary);
+            renderModelEvaluationRuns(modelEvaluationState.runs);
+            renderModelEvaluationFailureDiagnosis(modelEvaluationState.runs, modelEvaluationState.summary);
+            renderModelEvaluationTrend();
+            document.getElementById('modelEvaluationUpdatedAt').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        } catch (error) {
+            renderModelEvaluationError(error.message);
+        } finally {
+            setModelEvaluationLoading(false);
+        }
+    }
+
+    function buildModelEvaluationParams() {
+        const params = new URLSearchParams();
+        addParam(params, 'scene', document.getElementById('modelEvaluationSceneFilter').value);
+        addParam(params, 'model', document.getElementById('modelEvaluationModelFilter').value);
+        addParam(params, 'provider', document.getElementById('modelEvaluationProviderFilter').value);
+        addParam(params, 'requestSource', document.getElementById('modelEvaluationSourceFilter').value);
+        return params;
+    }
+
+    function addParam(params, key, value) {
+        const safeValue = String(value || '').trim();
+        if (safeValue) {
+            params.set(key, safeValue);
+        }
+    }
+
+    function setModelEvaluationLoading(loading) {
+        const state = document.getElementById('modelEvaluationRunsState');
+        if (loading && state && (!modelEvaluationState.runs || modelEvaluationState.runs.length === 0)) {
+            state.classList.remove('hidden');
+            state.innerHTML = '<div><i class="fa fa-spinner fa-spin"></i>读取测评记录</div>';
+        }
+    }
+
+    function renderModelEvaluationSummary(summary) {
+        const safe = summary || {};
+        const topK = `${formatPercent(safe.averageTop1)} / ${formatPercent(safe.averageTop3)} / ${formatPercent(safe.averageTop5)}`;
+        setText('modelEvaluationScope', `范围：${safe.scope || 'all'}`);
+        setText('modelEvaluationTotalRuns', String(safe.totalRuns || 0));
+        setText('modelEvaluationSuccessRate', `成功率 ${formatPercent(safe.successRate)}`);
+        setText('modelEvaluationOverall', formatScore(safe.averageOverallScore));
+        setText('modelEvaluationRecall', formatPercent(safe.averageRecall));
+        setText('modelEvaluationPrecision', formatPercent(safe.averagePrecision));
+        setText('modelEvaluationF1', formatPercent(safe.averageF1));
+        setText('modelEvaluationTopK', topK);
+        setText('modelEvaluationDuration', formatDuration(safe.averageDurationMs));
+        setText('modelEvaluationSuccessFail', `${safe.successRuns || 0} / ${safe.failureRuns || 0}`);
+        setText('modelEvaluationTop1', formatPercent(safe.averageTop1));
+        setText('modelEvaluationTop35', `${formatPercent(safe.averageTop3)} / ${formatPercent(safe.averageTop5)}`);
+    }
+
+    function renderModelEvaluationRuns(runs) {
+        const list = Array.isArray(runs) ? runs : [];
+        const body = document.getElementById('modelEvaluationRunsBody');
+        const state = document.getElementById('modelEvaluationRunsState');
+        const tableWrap = document.getElementById('modelEvaluationTableWrap');
+        setText('modelEvaluationRunsMeta', `${list.length} 条`);
+
+        if (!list.length) {
+            tableWrap.classList.add('hidden');
+            state.classList.remove('hidden');
+            state.innerHTML = '<div><i class="fa fa-inbox"></i>暂无测评记录<span class="model-evaluation-empty-hint">先在 Prompt 优化器、RAG 或聊天页面触发一次运行；若仍无数据，检查 Ollama / 模型服务是否在线。</span></div>';
+            return;
+        }
+
+        body.innerHTML = list.map(function (run) {
+            const errorText = formatModelEvaluationError(run.errorMessage);
+            return `
+                <tr>
+                    <td>${escapeHtml(run.scene || '--')}<br><span class="text-slate-500">${escapeHtml(run.requestSource || '--')}</span></td>
+                    <td>${escapeHtml(run.model || '--')}<br><span class="text-slate-500">${escapeHtml(run.provider || '--')}</span></td>
+                    <td><span class="model-evaluation-status ${run.success ? '' : 'is-failed'}" title="${escapeHtml(errorText)}"><i class="fa ${run.success ? 'fa-check' : 'fa-times'}"></i>${escapeHtml(run.status || '--')}</span>${run.success ? '' : `<span class="model-evaluation-run-error" title="${escapeHtml(errorText)}">${escapeHtml(errorText)}</span>`}</td>
+                    <td><strong>${formatScore(run.overallScore)}</strong><br><span class="text-slate-500">${formatDuration(run.durationMs)}</span></td>
+                    <td>${renderRunMetricBars(run.metrics || {})}</td>
+                    <td>${formatDateTime(run.createdAt)}</td>
+                </tr>
+            `;
+        }).join('');
+        state.classList.add('hidden');
+        tableWrap.classList.remove('hidden');
+    }
+
+    function renderModelEvaluationFailureDiagnosis(runs, summary) {
+        const panel = document.getElementById('modelEvaluationFailureDiagnosis');
+        if (!panel) {
+            return;
+        }
+        const list = Array.isArray(runs) ? runs : [];
+        const latestRun = list[0];
+        if (!latestRun || latestRun.success) {
+            panel.classList.add('hidden');
+            return;
+        }
+
+        const latestFailure = latestRun;
+        const errorText = formatModelEvaluationError(latestFailure.errorMessage);
+        const diagnosis = diagnoseModelEvaluationFailure(errorText, latestFailure, summary || {});
+        setText('modelEvaluationFailureDiagnosisTitle', diagnosis.title);
+        setText('modelEvaluationFailureDiagnosisText', diagnosis.message);
+        panel.classList.remove('hidden');
+    }
+
+    function diagnoseModelEvaluationFailure(errorMessage, run, summary) {
+        const text = String(errorMessage || '').toLowerCase();
+        const model = run && run.model ? run.model : '当前模型';
+        const failureRuns = summary && Number(summary.failureRuns || 0) ? Number(summary.failureRuns || 0) : 1;
+
+        if (text.includes('read timed out') || text.includes('timed out') || text.includes('timeout')) {
+            return {
+                title: 'Ollama 响应超时',
+                message: `${model} 已开始响应但超过等待时间；本机模型冷启动或长 Prompt 评测可能需要 30 秒以上。当前默认 OLLAMA_TIMEOUT_MS=60000，且通过 OLLAMA_NUM_PREDICT=512 限制生成长度，可重启应用后再试。最近失败 ${failureRuns} 次，原始原因：${errorMessage}`
+            };
+        }
+        if (text.includes('connection refused') || text.includes('connect refused') || text.includes('failed to connect')) {
+            return {
+                title: 'Ollama 服务未连通',
+                message: `应用没有连上 Ollama。请确认 ollama serve 正在运行，或检查 OLLAMA_BASE_URL 是否指向可访问的 11434 端口。原始原因：${errorMessage}`
+            };
+        }
+        if (text.includes('404') || text.includes('model') && text.includes('not found')) {
+            return {
+                title: '模型未安装或名称不匹配',
+                message: `当前模型 ${model} 不可用。请执行 ollama pull qwen2.5，或把 spring.ai.ollama.chat.options.model 改成本机已有模型名。原始原因：${errorMessage}`
+            };
+        }
+        return {
+            title: '模型调用失败',
+            message: `最近失败 ${failureRuns} 次。请优先检查 Ollama / 模型服务状态、模型名称和请求耗时。原始原因：${errorMessage}`
+        };
+    }
+
+    function renderRunMetricBars(metrics) {
+        const items = [
+            ['Recall', 'R'],
+            ['Precision', 'P'],
+            ['F1', 'F1'],
+            ['Top1', 'T1'],
+            ['Top3', 'T3'],
+            ['Top5', 'T5']
+        ];
+        return `<div class="model-evaluation-metric-line">${items.map(function ([key, label]) {
+            const value = getModelEvaluationMetric(metrics, key);
+            const ratio = value <= 1 ? value * 100 : value;
+            return `<div><span>${label} ${formatPercent(value)}</span><div class="model-evaluation-bar"><span style="width:${Math.max(0, Math.min(100, ratio))}%"></span></div></div>`;
+        }).join('')}</div>`;
+    }
+
+    function getModelEvaluationMetric(metrics, metricName) {
+        const safeMetrics = metrics || {};
+        const aliases = {
+            Recall: ['Recall', 'recall'],
+            Precision: ['Precision', 'precision'],
+            F1: ['F1', 'f1'],
+            Top1: ['Top1', 'top1'],
+            Top3: ['Top3', 'top3'],
+            Top5: ['Top5', 'top5']
+        };
+        const keys = aliases[metricName] || [metricName];
+        for (const key of keys) {
+            if (Object.prototype.hasOwnProperty.call(safeMetrics, key)) {
+                return Number(safeMetrics[key] || 0);
+            }
+        }
+        return 0;
+    }
+
+    function toggleModelEvaluationMetric(button) {
+        const metric = button.getAttribute('data-metric');
+        if (!metric) {
+            return;
+        }
+        if (modelEvaluationState.activeMetrics.has(metric)) {
+            modelEvaluationState.activeMetrics.delete(metric);
+            button.setAttribute('aria-pressed', 'false');
+        } else {
+            modelEvaluationState.activeMetrics.add(metric);
+            button.setAttribute('aria-pressed', 'true');
+        }
+        renderModelEvaluationTrend();
+    }
+
+    function renderModelEvaluationTrend() {
+        const canvas = document.getElementById('modelEvaluationTrendCanvas');
+        if (!canvas) {
+            return;
+        }
+        const trend = modelEvaluationState.trend;
+        const points = trend && Array.isArray(trend.points) ? trend.points : [];
+        const trendSeries = getModelEvaluationTrendSeries(trend, points);
+        setText('modelEvaluationTrendMeta', trend ? `${trend.scope || 'all'} · ${trend.lookbackDays || 0} 天 · ${formatModelEvaluationGranularity(trend.granularity)} · ${formatModelEvaluationGroupBy(trend.groupBy)}${trend.groupBy === 'metric' ? '' : ' · ' + formatModelEvaluationMetricLabel(trend.metric)}` : '等待加载');
+
+        const rect = canvas.getBoundingClientRect();
+        const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.max(1, Math.floor(rect.width * pixelRatio));
+        canvas.height = Math.max(1, Math.floor(rect.height * pixelRatio));
+        const context = canvas.getContext('2d');
+        context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+        drawTrendBackground(context, rect.width, rect.height);
+
+        if (!points.length) {
+            drawTrendEmpty(context, rect.width, rect.height);
+            renderModelEvaluationLegend([]);
+            return;
+        }
+
+        const padding = { top: 28, right: 24, bottom: 42, left: 44 };
+        const width = rect.width - padding.left - padding.right;
+        const height = rect.height - padding.top - padding.bottom;
+        drawTrendAxes(context, points, padding, width, height);
+        if (hasNoModelEvaluationTrendRuns(trendSeries)) {
+            drawTrendMutedState(
+                context,
+                rect.width,
+                rect.height,
+                '当前筛选下暂无评测运行',
+                '可切换模型、场景或时间窗口查看其它数据。'
+            );
+            renderModelEvaluationLegend(trendSeries);
+            return;
+        }
+        if (hasOnlyZeroModelEvaluationTrend(trendSeries)) {
+            drawTrendMutedState(
+                context,
+                rect.width,
+                rect.height,
+                '当前筛选下评测均失败，暂无有效质量曲线',
+                '请查看右侧失败原因，并确认 Ollama / 模型服务可用。'
+            );
+            renderModelEvaluationLegend(trendSeries);
+            return;
+        }
+        trendSeries.forEach(function (series, index) {
+            drawTrendSeriesLine(context, series, index, points.length, padding, width, height);
+        });
+        renderModelEvaluationLegend(trendSeries);
+    }
+
+    function getModelEvaluationTrendSeries(trend, points) {
+        const list = trend && Array.isArray(trend.series) ? trend.series : [];
+        if (list.length) {
+            return list;
+        }
+        return Array.from(modelEvaluationState.activeMetrics).map(function (metric) {
+            const meta = modelEvaluationSeries[metric] || {};
+            return {
+                name: meta.label || metric,
+                groupValue: metric,
+                metric: metric,
+                totalRuns: (Array.isArray(points) ? points : []).reduce(function (sum, point) {
+                    return sum + Number(point.totalRuns || 0);
+                }, 0),
+                points: points || []
+            };
+        });
+    }
+
+    function hasOnlyZeroModelEvaluationTrend(seriesList) {
+        const dataPoints = flattenModelEvaluationSeriesPoints(seriesList);
+        if (!dataPoints.length) {
+            return false;
+        }
+        const allFailed = dataPoints.every(function (item) {
+            return Number(item.point.successRate || 0) <= 0;
+        });
+        const allMetricsZero = dataPoints.every(function (item) {
+            return getModelEvaluationTrendValue(item.point, item.series.metric) <= 0;
+        });
+        return allFailed && allMetricsZero;
+    }
+
+    function hasNoModelEvaluationTrendRuns(seriesList) {
+        const list = Array.isArray(seriesList) ? seriesList : [];
+        return list.length > 0 && list.every(function (series) {
+            return !Array.isArray(series.points) || series.points.every(function (point) {
+                return Number(point.totalRuns || 0) <= 0;
+            });
+        });
+    }
+
+    function flattenModelEvaluationSeriesPoints(seriesList) {
+        const list = Array.isArray(seriesList) ? seriesList : [];
+        const dataPoints = [];
+        list.forEach(function (series) {
+            (Array.isArray(series.points) ? series.points : []).forEach(function (point) {
+                if (Number(point.totalRuns || 0) > 0) {
+                    dataPoints.push({ series: series, point: point });
+                }
+            });
+        });
+        return dataPoints;
+    }
+
+    function getModelEvaluationTrendValue(point, metric) {
+        const raw = Number(point && point[metric] || 0);
+        const value = raw <= 1 ? raw * 100 : raw;
+        return Math.max(0, Math.min(100, value));
+    }
+
+    function renderModelEvaluationLegend(seriesList) {
+        const legend = document.getElementById('modelEvaluationLegend');
+        if (!legend) {
+            return;
+        }
+        const list = Array.isArray(seriesList) ? seriesList : [];
+        if (!list.length) {
+            legend.innerHTML = '<span class="model-evaluation-legend-empty">暂无图例</span>';
+            return;
+        }
+        legend.innerHTML = list.map(function (series, index) {
+            const color = modelEvaluationSeriesColors[index % modelEvaluationSeriesColors.length];
+            const label = series.name || series.groupValue || formatModelEvaluationMetricLabel(series.metric);
+            return `<button type="button" aria-pressed="true"><span class="model-evaluation-dot" style="color:${color}"></span>${escapeHtml(label)}</button>`;
+        }).join('');
+    }
+
+    function hasOnlyZeroModelEvaluationMetricTrend(points) {
+        const list = Array.isArray(points) ? points : [];
+        const dataPoints = list.filter(function (point) {
+            return Number(point.totalRuns || 0) > 0;
+        });
+        if (!dataPoints.length) {
+            return false;
+        }
+        const allFailed = dataPoints.every(function (point) {
+            return Number(point.successRate || 0) <= 0;
+        });
+        const allMetricsZero = Object.keys(modelEvaluationSeries).every(function (metric) {
+            return dataPoints.every(function (point) {
+                return Number(point[metric] || 0) <= 0;
+            });
+        });
+        return allFailed && allMetricsZero;
+    }
+
+    function hasNoModelEvaluationMetricTrendRuns(points) {
+        const list = Array.isArray(points) ? points : [];
+        return list.length > 0 && list.every(function (point) {
+            return Number(point.totalRuns || 0) <= 0;
+        });
+    }
+
+    function drawTrendBackground(context, width, height) {
+        context.clearRect(0, 0, width, height);
+        context.save();
+        const gradient = context.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, 'rgba(34, 211, 238, 0.08)');
+        gradient.addColorStop(0.48, 'rgba(52, 211, 153, 0.05)');
+        gradient.addColorStop(1, 'rgba(251, 191, 36, 0.06)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, width, height);
+        context.restore();
+    }
+
+    function drawTrendAxes(context, points, padding, width, height) {
+        context.save();
+        context.strokeStyle = 'rgba(125, 211, 252, 0.16)';
+        context.fillStyle = '#8fb5ce';
+        context.lineWidth = 1;
+        context.font = '11px Inter, system-ui, sans-serif';
+        for (let i = 0; i <= 4; i += 1) {
+            const y = padding.top + height - height * (i / 4);
+            context.beginPath();
+            context.moveTo(padding.left, y);
+            context.lineTo(padding.left + width, y);
+            context.stroke();
+            context.fillText(`${i * 25}%`, 8, y + 4);
+        }
+        points.forEach(function (point, index) {
+            if (points.length > 8 && index % Math.ceil(points.length / 6) !== 0 && index !== points.length - 1) {
+                return;
+            }
+            const x = padding.left + (points.length === 1 ? width / 2 : width * (index / (points.length - 1)));
+            context.fillText(formatModelEvaluationTrendLabel(point), x - 14, padding.top + height + 24);
+        });
+        context.restore();
+    }
+
+    function drawTrendSeriesLine(context, series, index, pointCount, padding, width, height) {
+        const points = Array.isArray(series && series.points) ? series.points : [];
+        const metric = series && series.metric ? series.metric : 'avgF1';
+        if (!points.length) {
+            return;
+        }
+        const color = modelEvaluationSeriesColors[index % modelEvaluationSeriesColors.length];
+        context.save();
+        context.strokeStyle = color;
+        context.fillStyle = color;
+        context.lineWidth = 2.4;
+        context.beginPath();
+        let hasPath = false;
+        points.forEach(function (point, pointIndex) {
+            if (Number(point.totalRuns || 0) <= 0) {
+                hasPath = false;
+                return;
+            }
+            const value = getModelEvaluationTrendValue(point, metric);
+            const x = padding.left + (pointCount === 1 ? width / 2 : width * (pointIndex / (pointCount - 1)));
+            const y = padding.top + height - height * (value / 100);
+            if (!hasPath) {
+                context.moveTo(x, y);
+            } else {
+                context.lineTo(x, y);
+            }
+            hasPath = true;
+        });
+        context.stroke();
+        points.forEach(function (point, pointIndex) {
+            if (Number(point.totalRuns || 0) <= 0) {
+                return;
+            }
+            const value = getModelEvaluationTrendValue(point, metric);
+            const x = padding.left + (pointCount === 1 ? width / 2 : width * (pointIndex / (pointCount - 1)));
+            const y = padding.top + height - height * (value / 100);
+            context.beginPath();
+            context.arc(x, y, 3.4, 0, Math.PI * 2);
+            context.fill();
+        });
+        context.restore();
+    }
+
+    function drawTrendEmpty(context, width, height) {
+        context.save();
+        context.fillStyle = '#9fb5c9';
+        context.font = '800 13px Inter, system-ui, sans-serif';
+        context.textAlign = 'center';
+        context.fillText('暂无趋势数据', width / 2, height / 2);
+        context.restore();
+    }
+
+    function drawTrendMutedState(context, width, height, title, description) {
+        context.save();
+        const panelWidth = Math.min(420, Math.max(260, width - 64));
+        const panelHeight = 92;
+        const x = (width - panelWidth) / 2;
+        const y = (height - panelHeight) / 2;
+        context.fillStyle = 'rgba(2, 8, 18, 0.86)';
+        context.strokeStyle = 'rgba(251, 113, 133, 0.38)';
+        context.lineWidth = 1;
+        roundRect(context, x, y, panelWidth, panelHeight, 8);
+        context.fill();
+        context.stroke();
+        context.fillStyle = '#fecdd3';
+        context.font = '900 14px Inter, system-ui, sans-serif';
+        context.textAlign = 'center';
+        context.fillText(title, width / 2, y + 36);
+        context.fillStyle = '#9fb5c9';
+        context.font = '800 12px Inter, system-ui, sans-serif';
+        context.fillText(description, width / 2, y + 60);
+        context.restore();
+    }
+
+    function roundRect(context, x, y, width, height, radius) {
+        const safeRadius = Math.min(radius, width / 2, height / 2);
+        context.beginPath();
+        context.moveTo(x + safeRadius, y);
+        context.lineTo(x + width - safeRadius, y);
+        context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+        context.lineTo(x + width, y + height - safeRadius);
+        context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+        context.lineTo(x + safeRadius, y + height);
+        context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+        context.lineTo(x, y + safeRadius);
+        context.quadraticCurveTo(x, y, x + safeRadius, y);
+        context.closePath();
+    }
+
+    function renderModelEvaluationError(message) {
+        const state = document.getElementById('modelEvaluationRunsState');
+        const tableWrap = document.getElementById('modelEvaluationTableWrap');
+        tableWrap.classList.add('hidden');
+        state.classList.remove('hidden');
+        state.innerHTML = `<div><i class="fa fa-exclamation-triangle"></i>${escapeHtml(message || '测评数据读取失败')}</div>`;
+    }
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    }
+
+    function formatModelEvaluationError(message) {
+        const text = String(message || '').trim();
+        return text || '无错误信息';
+    }
+
+    function formatScore(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) {
+            return '--';
+        }
+        return number.toFixed(number % 1 === 0 ? 0 : 1);
+    }
+
+    function formatPercent(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) {
+            return '--';
+        }
+        const percent = number <= 1 ? number * 100 : number;
+        return `${percent.toFixed(1)}%`;
+    }
+
+    function formatDuration(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number) || number <= 0) {
+            return '--';
+        }
+        return number >= 1000 ? `${(number / 1000).toFixed(1)}s` : `${Math.round(number)}ms`;
+    }
+
+    function formatDateTime(value) {
+        if (!value) {
+            return '--';
+        }
+        try {
+            return new Date(value).toLocaleString('zh-CN', { hour12: false });
+        } catch (ignored) {
+            return String(value);
+        }
+    }
+
+    function formatModelEvaluationGranularity(value) {
+        return value === 'hour' ? '按小时' : '按天';
+    }
+
+    function formatModelEvaluationGroupBy(value) {
+        if (value === 'scene') {
+            return '按场景';
+        }
+        if (value === 'model') {
+            return '按模型';
+        }
+        return '按指标';
+    }
+
+    function formatModelEvaluationMetricLabel(value) {
+        const meta = modelEvaluationSeries[value];
+        return meta ? meta.label : 'F1';
+    }
+
+    function formatModelEvaluationTrendLabel(point) {
+        const label = String((point && point.label) || '').trim();
+        if (label) {
+            return label;
+        }
+        return String((point && point.date) || '').slice(5);
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

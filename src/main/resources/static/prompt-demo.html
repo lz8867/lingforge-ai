@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提示词工程 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#1e293b',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+        }
+    </style>
+    <style>
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+        }
+        .sidebar {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            max-height: 700px;
+            overflow-y: auto;
+        }
+        .sidebar h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .template-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .template-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .template-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        .template-item.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+        .template-item h3 {
+            color: #333;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        .template-item p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .editor-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .editor-header h2 {
+            color: #333;
+            font-size: 1.3em;
+        }
+        .editor-header input {
+            padding: 8px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 300px;
+        }
+        .editor-header input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            line-height: 1.6;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .variables-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .variables-container h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .variables-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .variable-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .variable-item label {
+            display: block;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .variable-item input,
+        .variable-item textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .variable-item textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .variable-item input:focus,
+        .variable-item textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        button {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        button.secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        button.secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        .result-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .result-container h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .result-content {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            line-height: 1.8;
+            color: #333;
+        }
+        .result-content pre {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            border: 1px solid #333;
+        }
+        .result-content code {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #e83e8c;
+        }
+        .result-content pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .result-content p {
+            margin: 12px 0;
+            line-height: 1.8;
+            font-size: 15px;
+            color: #2c3e50;
+        }
+        .result-content h1, .result-content h2, .result-content h3, .result-content h4 {
+            margin: 20px 0 12px 0;
+            color: #1a1a1a;
+            font-weight: 700;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
+        .result-content h1 { font-size: 1.8em; }
+        .result-content h2 { font-size: 1.5em; }
+        .result-content h3 { font-size: 1.3em; }
+        .result-content h4 { font-size: 1.1em; }
+        .result-content strong {
+            color: #667eea;
+            font-weight: 700;
+        }
+        .result-content ul, .result-content ol {
+            margin: 12px 0;
+            padding-left: 25px;
+        }
+        .result-content li {
+            margin: 8px 0;
+            line-height: 1.7;
+            font-size: 15px;
+            color: #2c3e50;
+        }
+        .result-content ul li::marker {
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-size: 1.1em;
+        }
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+        .category-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .category-tab {
+            padding: 8px 16px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .category-tab:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        .category-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+        .template-item {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+        .template-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        .template-item.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+        .template-item h3 {
+            color: #333;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        .template-item p {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        .template-item .template-category {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .template-item .template-category.eq {
+            background: rgba(233, 30, 99, 0.1);
+            color: #e91e63;
+        }
+        .template-item .template-category.work {
+            background: rgba(33, 150, 243, 0.1);
+            color: #2196f3;
+        }
+        .template-item .template-category.creative {
+            background: rgba(156, 39, 176, 0.1);
+            color: #9c27b0;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-robot text-primary text-2xl"></i>
+                <h1 class="text-xl font-bold text-dark">Spring AI Demo</h1>
+            </div>
+            <nav class="flex space-x-4">
+                <a href="/index.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-home mr-1"></i> 首页
+                </a>
+                <a href="/index.html#deploy" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-cogs mr-1"></i> 部署工具
+                </a>
+                <a href="/index.html#logs" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-terminal mr-1"></i> Docker 日志
+                </a>
+                <a href="/prompt-optimizer.html" class="text-gray-600 hover:text-primary transition-all-300">
+                    <i class="fa fa-sliders mr-1"></i> Prompt 优化器
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="max-w-6xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-4 prompt-workbench">
+                <div class="text-center mb-4">
+                    <div class="text-2xl mb-2"><i class="fa fa-flask text-primary"></i></div>
+                    <h2 class="text-2xl font-bold text-dark">提示词工程工具</h2>
+                    <p class="text-gray-600 mt-2">通过预设模板快速创建高质量提示词，支持变量替换和实时预览</p>
+                </div>
+
+                <div class="main-content">
+                    <div class="sidebar prompt-template-panel">
+                        <h2>📋 预设模板</h2>
+
+                        <div class="category-tabs">
+                            <button class="category-tab active" onclick="filterTemplates('all')">全部</button>
+                            <button class="category-tab" onclick="filterTemplates('eq')">💝 高情商</button>
+                            <button class="category-tab" onclick="filterTemplates('work')">💼 工作</button>
+                            <button class="category-tab" onclick="filterTemplates('creative')">✨ 创意</button>
+                        </div>
+
+                        <div class="template-list" id="templateList">
+                            <div class="empty-state">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                                <p>加载中...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editor-section prompt-editor-panel">
+                        <div class="editor-container">
+                            <div class="editor-header">
+                                <h2>✏️ 提示词编辑器</h2>
+                                <input type="text" id="templateName" placeholder="模板名称">
+                            </div>
+                            <textarea id="promptTemplate" placeholder="输入提示词模板，使用 {{变量名}} 作为占位符..."></textarea>
+                            <div class="button-group" style="margin-top: 15px;">
+                                <button class="secondary" onclick="clearTemplate()">清空</button>
+                                <button onclick="testPrompt()" id="testButton">测试提示词</button>
+                            </div>
+                        </div>
+
+                        <div class="variables-container">
+                            <h2>🔧 变量配置</h2>
+                            <div class="variables-grid" id="variablesGrid">
+                                <div class="empty-state" style="grid-column: 1 / -1; padding: 20px;">
+                                    <p>选择模板或添加变量后显示</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="result-container prompt-result-panel">
+                            <h2>📊 测试结果</h2>
+                            <div class="result-content" id="resultContent">
+                                <div class="empty-state">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                    </svg>
+                                    <p>点击"测试提示词"按钮查看结果</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark text-white py-6 mt-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <p class="text-gray-400">&copy; 2026 Spring AI Demo. 保留所有权利。</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-github text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-documentation text-xl"></i>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-all-300">
+                        <i class="fa fa-question-circle text-xl"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        let currentTemplate = null;
+        let templates = {};
+
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        async function loadTemplates() {
+            try {
+                const response = await fetch('/prompt/templates');
+                const data = await response.json();
+                templates = data.templates;
+                renderTemplateList();
+            } catch (error) {
+                console.error('加载模板失败:', error);
+                document.getElementById('templateList').innerHTML = `
+                    <div class="empty-state">
+                        <p>加载模板失败，请刷新页面重试</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderTemplateList(filter = 'all') {
+            const listContainer = document.getElementById('templateList');
+            listContainer.innerHTML = '';
+
+            let filteredTemplates = Object.values(templates);
+            if (filter !== 'all') {
+                filteredTemplates = filteredTemplates.filter(t => t.category === filter);
+            }
+
+            if (filteredTemplates.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>该分类下暂无模板</p>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredTemplates.forEach(template => {
+                const item = document.createElement('div');
+                item.className = 'template-item';
+                const categoryLabel = getCategoryLabel(template.category);
+                item.innerHTML = `
+                    <h3>${template.name}</h3>
+                    <p>${template.description}</p>
+                    <span class="template-category ${template.category}">${categoryLabel}</span>
+                `;
+                item.onclick = () => selectTemplate(template.id);
+                listContainer.appendChild(item);
+            });
+        }
+
+        function getCategoryLabel(category) {
+            const labels = {
+                'eq': '💝 高情商',
+                'work': '💼 工作',
+                'creative': '✨ 创意'
+            };
+            return labels[category] || '📋 其他';
+        }
+
+        function filterTemplates(category) {
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            renderTemplateList(category);
+        }
+
+        function selectTemplate(templateId) {
+            currentTemplate = templates[templateId];
+
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            document.getElementById('templateName').value = currentTemplate.name;
+            document.getElementById('promptTemplate').value = currentTemplate.template;
+
+            renderVariables(currentTemplate.variables);
+        }
+
+        function renderVariables(variables) {
+            const grid = document.getElementById('variablesGrid');
+            grid.innerHTML = '';
+
+            if (!variables || Object.keys(variables).length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1; padding: 20px;">
+                        <p>当前模板没有变量</p>
+                    </div>
+                `;
+                return;
+            }
+
+            Object.entries(variables).forEach(([key, label]) => {
+                const item = document.createElement('div');
+                item.className = 'variable-item';
+                item.innerHTML = `
+                    <label>${label}</label>
+                    <textarea id="var_${key}" placeholder="请输入${label}..."></textarea>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function getVariables() {
+            const variables = {};
+            document.querySelectorAll('.variable-item textarea').forEach(textarea => {
+                const key = textarea.id.replace('var_', '');
+                variables[key] = textarea.value;
+            });
+            return variables;
+        }
+
+        async function testPrompt() {
+            const template = document.getElementById('promptTemplate').value;
+            const variables = getVariables();
+
+            if (!template.trim()) {
+                alert('请输入提示词模板');
+                return;
+            }
+
+            const testButton = document.getElementById('testButton');
+            const resultContent = document.getElementById('resultContent');
+
+            testButton.disabled = true;
+            testButton.innerHTML = '<span class="loading"></span> 测试中...';
+            resultContent.innerHTML = `
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <p>AI 正在思考中...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/prompt/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        template: template,
+                        variables: variables
+                    })
+                });
+
+                const result = await response.text();
+                resultContent.innerHTML = formatResponse(result);
+
+                document.querySelectorAll('.result-content pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            } catch (error) {
+                resultContent.innerHTML = `
+                    <div class="empty-state" style="color: #e74c3c;">
+                        <p>❌ 错误: ${error.message}</p>
+                    </div>
+                `;
+            }
+
+            testButton.disabled = false;
+            testButton.innerHTML = '测试提示词';
+        }
+
+        function formatResponse(text) {
+            try {
+                const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    const jsonStr = jsonMatch[1];
+                    try {
+                        const jsonObj = JSON.parse(jsonStr);
+                        const formattedJson = JSON.stringify(jsonObj, null, 2);
+                        text = text.replace(jsonMatch[0], `\`\`\`json\n${formattedJson}\n\`\`\``);
+                    } catch (e) {
+                        console.log('JSON parse error:', e);
+                    }
+                }
+                return marked.parse(text);
+            } catch (e) {
+                console.error('Markdown parse error:', e);
+                return text.replace(/\n/g, '<br>');
+            }
+        }
+
+        function clearTemplate() {
+            document.getElementById('templateName').value = '';
+            document.getElementById('promptTemplate').value = '';
+            document.getElementById('variablesGrid').innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1; padding: 20px;">
+                    <p>选择模板或添加变量后显示</p>
+                </div>
+            `;
+            currentTemplate = null;
+            document.querySelectorAll('.template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+
+        loadTemplates();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+    <script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+    <script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

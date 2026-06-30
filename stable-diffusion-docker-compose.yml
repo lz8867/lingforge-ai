@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  stable-diffusion:
+    image: sd-webui/stable-diffusion-webui:latest
+    container_name: stable-diffusion
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./stable-diffusion/models:/app/models
+      - ./stable-diffusion/outputs:/app/outputs
+    environment:
+      - ENABLE_OPEN_API=1
+      - API_KEY=local-stable-diffusion
+      - CLI_ARGS=--api
+    restart: unless-stopped

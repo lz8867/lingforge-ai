@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>TripoSplat 3DGS Viewer</title>
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: radial-gradient(ellipse at 50% 60%, #102337 0%, #020817 100%);
+        }
+
+        canvas {
+            display: block;
+            filter: brightness(1.68) contrast(1.1) saturate(1.14);
+        }
+
+        #viewer-root {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+        }
+
+        #hud,
+        #loading,
+        #error {
+            position: fixed;
+            z-index: 2;
+            font-family: Inter, system-ui, sans-serif;
+        }
+
+        #hud {
+            top: 12px;
+            left: 14px;
+            color: #9cc9d8;
+            font-size: 12px;
+            line-height: 1.5;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        #loading,
+        #error {
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a7c7d7;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        #loading {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        #spinner {
+            width: 34px;
+            height: 34px;
+            border: 3px solid rgba(125, 211, 252, 0.22);
+            border-top-color: #22d3ee;
+            border-radius: 999px;
+            animation: spin 0.9s linear infinite;
+        }
+
+        #error {
+            display: none;
+            padding: 28px;
+            color: #fecdd3;
+            white-space: pre-wrap;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="viewer-root"></div>
+<div id="loading">
+    <div id="spinner"></div>
+    <div id="loading-label">正在加载 TripoSplat...</div>
+</div>
+<div id="error"></div>
+<div id="hud">拖拽旋转 · 滚轮缩放 · 右键平移</div>
+
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.180.0/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.180.0/examples/jsm/",
+    "@sparkjsdev/spark": "https://unpkg.com/@sparkjsdev/spark@2.0.0/dist/spark.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+
+const params = new URLSearchParams(location.search);
+const assetURL = params.get("splat") || params.get("ply");
+const loadingEl = document.getElementById("loading");
+const loadLabel = document.getElementById("loading-label");
+const errorEl = document.getElementById("error");
+const viewerRoot = document.getElementById("viewer-root");
+
+function notify(type, detail = {}) {
+    window.parent?.postMessage({ type, source: "spring-ai-triposplat-viewer", ...detail }, "*");
+}
+
+function normalizeErrorMessage(error) {
+    if (!error) {
+        return 'Unknown error';
+    }
+    if (typeof error === 'string') {
+        return error;
+    }
+    if (error.message) {
+        return error.message;
+    }
+    if (error.reason && error.reason.message) {
+        return error.reason.message;
+    }
+    return String(error);
+}
+
+function showError(message) {
+    loadingEl.style.display = "none";
+    errorEl.style.display = "flex";
+    errorEl.textContent = message;
+    notify("triposplat-viewer-error", { message });
+}
+
+if (!assetURL) {
+    showError("缺少 ?splat= 或 ?ply= 参数，无法加载 TripoSplat 产物。");
+} else {
+    init(assetURL);
+}
+
+function init(url) {
+    let errored = false;
+    const notifyError = (error) => {
+        if (errored) {
+            return;
+        }
+        errored = true;
+        showError(normalizeErrorMessage(error));
+    };
+
+    window.addEventListener('error', (event) => {
+        if (errored) {
+            return;
+        }
+        notifyError(event?.error);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+        if (errored) {
+            return;
+        }
+        notifyError(event?.reason);
+    });
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
+    camera.position.set(0, 0.12, 1.55);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.style.filter = "brightness(1.68) contrast(1.1) saturate(1.14)";
+    viewerRoot.appendChild(renderer.domElement);
+
+    const spark = new SparkRenderer({ renderer });
+    scene.add(spark);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.minDistance = 0.2;
+    controls.maxDistance = 50;
+    controls.target.set(0, 0, 0);
+
+    let splat;
+    try {
+        splat = new SplatMesh({ url });
+    } catch (error) {
+        notifyError(error);
+        return;
+    }
+
+    const splatRoot = new THREE.Group();
+    splatRoot.add(splat);
+    splat.rotation.y = Math.PI / 2;
+    splatRoot.rotation.x = Math.PI;
+    scene.add(splatRoot);
+
+    fetch(url, { method: "HEAD" })
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} ${response.statusText}`);
+            }
+            const length = Number(response.headers.get("content-length") || 0);
+            if (length > 0) {
+                loadLabel.textContent = `正在加载 TripoSplat (${(length / 1024 / 1024).toFixed(1)} MB)...`;
+            }
+        })
+        .catch((error) => showError(`加载 TripoSplat 产物失败：${error.message}`));
+
+    let framed = false;
+    function frameSplatScene() {
+        const box = new THREE.Box3().setFromObject(splatRoot);
+        if (box.isEmpty() || !Number.isFinite(box.min.x)) {
+            return false;
+        }
+        const center = new THREE.Vector3();
+        const size = new THREE.Vector3();
+        box.getCenter(center);
+        box.getSize(size);
+        const maxAxis = Math.max(size.x, size.y, size.z);
+        if (!Number.isFinite(maxAxis) || maxAxis <= 0) {
+            return false;
+        }
+        splatRoot.position.sub(center);
+        const fitScale = Math.min(3.8, Math.max(0.35, 2.05 / maxAxis));
+        splatRoot.scale.setScalar(fitScale);
+        const distance = Math.max(1.18, maxAxis * fitScale * 0.98);
+        camera.position.set(0, Math.max(0.08, maxAxis * fitScale * 0.04), distance);
+        camera.near = Math.max(0.001, distance / 1000);
+        camera.far = Math.max(100, distance * 100);
+        camera.updateProjectionMatrix();
+        controls.target.set(0, 0, 0);
+        controls.update();
+        return true;
+    }
+
+    function tryFrame() {
+        if (framed) {
+            return;
+        }
+        if (!frameSplatScene()) {
+            return;
+        }
+        framed = true;
+        loadingEl.style.display = "none";
+        notify("triposplat-viewer-ready");
+    }
+
+    window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    let frameCount = 0;
+    renderer.setAnimationLoop(() => {
+        controls.update();
+        renderer.render(scene, camera);
+        frameCount += 1;
+        if (frameCount > 5) {
+            tryFrame();
+        }
+    });
+
+    window.setTimeout(() => {
+        if (!framed) {
+            frameSplatScene();
+            loadingEl.style.display = "none";
+            notify("triposplat-viewer-ready", { timeoutFallback: true });
+        }
+    }, 4000);
+}
+</script>
+</body>
+</html>

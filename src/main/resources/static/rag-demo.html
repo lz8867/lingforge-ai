@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>向量检索 / RAG - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        secondary: '#34d399',
+                        success: '#10b981',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        dark: '#0f172a',
+                        light: '#f8fafc'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --rag-border: rgba(125, 211, 252, 0.22);
+            --rag-border-strong: rgba(34, 211, 238, 0.42);
+            --rag-panel: rgba(8, 18, 32, 0.78);
+            --rag-panel-soft: rgba(2, 8, 18, 0.72);
+            --rag-text: #f8fafc;
+            --rag-muted: #9fb5c9;
+        }
+
+        body[data-app-page="rag-demo"] main.rag-twin-workbench {
+            width: min(var(--app-shell-wide), calc(100vw - 24px)) !important;
+            max-width: min(var(--app-shell-wide), calc(100vw - 24px)) !important;
+            height: calc(100vh - 56px);
+            max-height: calc(100vh - 56px);
+            display: flex !important;
+            flex-direction: column;
+            align-items: stretch;
+            align-content: start;
+            gap: 8px !important;
+            overflow: hidden;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+            color: var(--rag-text);
+        }
+
+        @media (min-width: 1181px) {
+            body[data-app-page="rag-demo"] main.rag-twin-workbench {
+                width: min(var(--app-shell-wide), calc(100vw - var(--app-sidebar-width) - 32px)) !important;
+                max-width: min(var(--app-shell-wide), calc(100vw - var(--app-sidebar-width) - 32px)) !important;
+            }
+        }
+
+        body[data-app-page="rag-demo"] .app-workbench-hero {
+            display: none !important;
+        }
+
+        .rag-twin-workbench {
+            min-width: 0;
+        }
+
+        .rag-twin-status-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-auto-rows: minmax(72px, auto);
+            gap: 10px;
+        }
+
+        body[data-app-page="rag-demo"] main.rag-twin-workbench > .rag-twin-status-strip,
+        body[data-app-page="rag-demo"] main.rag-twin-workbench > .rag-twin-main-grid,
+        body[data-app-page="rag-demo"] main.rag-twin-workbench > .rag-twin-action-grid {
+            display: grid !important;
+            min-width: 0;
+            overflow: visible !important;
+        }
+
+        body[data-app-page="rag-demo"] main.rag-twin-workbench > .rag-twin-status-strip {
+            min-height: 72px !important;
+            height: auto !important;
+        }
+
+        body[data-app-page="rag-demo"] main.rag-twin-workbench > .rag-twin-main-grid {
+            flex: 0 0 clamp(180px, 24vh, 220px);
+            min-height: 0 !important;
+            height: clamp(180px, 24vh, 220px) !important;
+        }
+
+        .rag-twin-status-item,
+        .rag-twin-panel,
+        .rag-twin-topology-stage {
+            border: 1px solid var(--rag-border);
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(34, 211, 238, 0.07), transparent 44%),
+                var(--rag-panel);
+            box-shadow:
+                0 18px 48px rgba(0, 0, 0, 0.34),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .rag-twin-status-item {
+            min-height: 72px;
+            display: grid;
+            align-content: center;
+            gap: 2px;
+            padding: 8px 10px;
+            overflow: visible;
+        }
+
+        .rag-twin-status-item span,
+        .rag-twin-panel-kicker,
+        .rag-twin-node em {
+            color: var(--rag-muted);
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .rag-twin-status-item strong {
+            overflow: hidden;
+            color: #f8fafc;
+            font-size: 18px;
+            font-weight: 1000;
+            line-height: 1.12;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .rag-twin-status-item p {
+            overflow: hidden;
+            color: var(--rag-muted);
+            font-size: 11px;
+            line-height: 1.25;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .rag-twin-main-grid {
+            display: grid;
+            grid-template-columns: minmax(520px, 1.52fr) minmax(300px, 0.48fr);
+            gap: 10px;
+            min-height: 0;
+        }
+
+        .rag-twin-topology-stage {
+            position: relative;
+            min-height: 0;
+            height: 100% !important;
+            max-height: none;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 50% 48%, rgba(34, 211, 238, 0.18), transparent 28%),
+                radial-gradient(circle at 18% 22%, rgba(52, 211, 153, 0.13), transparent 24%),
+                rgba(2, 8, 18, 0.84);
+        }
+
+        .rag-twin-topology-stage::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(125, 211, 252, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(125, 211, 252, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.86), rgba(0, 0, 0, 0.28));
+        }
+
+        #rag-twin-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .rag-twin-hud {
+            position: absolute;
+            inset: 10px 12px;
+            z-index: 2;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: start;
+            gap: 12px;
+            pointer-events: none;
+        }
+
+        .rag-twin-hud h1 {
+            margin-top: 3px !important;
+            font-size: 18px !important;
+            line-height: 1.1 !important;
+        }
+
+        .rag-twin-hud p {
+            display: none !important;
+        }
+
+        .rag-twin-flow-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 6px;
+        }
+
+        .rag-twin-flow-strip span,
+        .rag-twin-badge {
+            min-height: 22px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 7px;
+            border: 1px solid var(--rag-border);
+            border-radius: 999px;
+            color: #dff8ff;
+            background: rgba(2, 8, 18, 0.76);
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .rag-twin-flow-strip .is-core {
+            color: #bbf7d0;
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+
+        .rag-twin-flow-strip .is-search {
+            color: #bae6fd;
+            border-color: rgba(56, 189, 248, 0.45);
+        }
+
+        .rag-twin-flow-strip .is-answer {
+            color: #fde68a;
+            border-color: rgba(251, 191, 36, 0.45);
+        }
+
+        .rag-twin-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .rag-twin-badge.is-ok {
+            color: #bbf7d0;
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+
+        .rag-twin-badge.is-warning {
+            color: #fef08a;
+            border-color: rgba(250, 204, 21, 0.45);
+        }
+
+        .rag-twin-node-layer {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 14px;
+            z-index: 3;
+            display: none;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 6px;
+            pointer-events: none;
+        }
+
+        .rag-twin-node {
+            min-width: 0;
+            padding: 8px;
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            background: rgba(3, 10, 20, 0.74);
+            backdrop-filter: blur(10px);
+        }
+
+        .rag-twin-node strong {
+            display: block;
+            overflow: hidden;
+            color: #f8fafc;
+            font-size: 12px;
+            font-weight: 1000;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .rag-twin-side-stack,
+        .rag-twin-action-grid {
+            display: grid;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        body[data-app-page="rag-demo"] .rag-twin-side-stack {
+            grid-template-rows: minmax(0, 0.44fr) minmax(0, 0.56fr);
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        .rag-twin-action-grid {
+            flex: 1 1 auto;
+            grid-template-columns: minmax(320px, 0.56fr) minmax(0, 1.44fr);
+            min-height: 0;
+        }
+
+        .rag-twin-panel {
+            min-width: 0;
+            min-height: 0;
+            padding: 12px;
+            overflow: hidden;
+        }
+
+        .rag-twin-side-stack .rag-twin-panel,
+        .rag-twin-action-grid > .rag-twin-panel {
+            display: flex;
+            min-height: 0;
+            flex-direction: column;
+        }
+
+        .rag-twin-panel-head {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            flex: 0 0 auto;
+        }
+
+        .rag-twin-panel-head h2,
+        .rag-twin-panel-head h3 {
+            color: #f8fafc;
+            font-size: 16px;
+            font-weight: 1000;
+            line-height: 1.2;
+        }
+
+        .rag-twin-panel-head p {
+            margin-top: 4px;
+            color: var(--rag-muted);
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        .rag-twin-form-grid {
+            display: grid;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .rag-twin-two-col {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .rag-twin-field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .rag-twin-field label {
+            color: #d8edff;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        body[data-app-page="rag-demo"] input,
+        body[data-app-page="rag-demo"] textarea {
+            width: 100%;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 8px;
+            color: #f8fafc;
+            background: rgba(2, 8, 18, 0.86);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            font-size: 12px;
+        }
+
+        body[data-app-page="rag-demo"] textarea {
+            min-height: 68px;
+            resize: vertical;
+        }
+
+        body[data-app-page="rag-demo"] #knowledge-content {
+            height: 76px;
+        }
+
+        body[data-app-page="rag-demo"] #vector-query,
+        body[data-app-page="rag-demo"] #rag-question {
+            height: 68px;
+        }
+
+        body[data-app-page="rag-demo"] input:focus,
+        body[data-app-page="rag-demo"] textarea:focus {
+            outline: none;
+            border-color: #22d3ee;
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12);
+        }
+
+        .rag-twin-button,
+        .rag-twin-icon-button {
+            min-height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            border: 1px solid rgba(34, 211, 238, 0.36);
+            border-radius: 8px;
+            color: #06121f;
+            background: linear-gradient(90deg, #22d3ee, #34d399);
+            font-size: 12px;
+            font-weight: 1000;
+            transition: transform 160ms ease, filter 160ms ease, border-color 160ms ease;
+        }
+
+        .rag-twin-button:hover,
+        .rag-twin-icon-button:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.08);
+        }
+
+        .rag-twin-button.is-quiet,
+        .rag-twin-icon-button {
+            color: #dff8ff;
+            background: rgba(2, 8, 18, 0.78);
+        }
+
+        .rag-twin-button.is-danger {
+            color: #fecdd3;
+            border-color: rgba(251, 113, 133, 0.45);
+            background: rgba(80, 20, 34, 0.46);
+        }
+
+        .rag-twin-result,
+        .rag-twin-scroll-box,
+        .rag-twin-answer {
+            min-height: 68px;
+            max-height: 170px;
+            overflow: auto;
+            border: 1px dashed rgba(125, 211, 252, 0.22);
+            border-radius: 8px;
+            background: rgba(2, 8, 18, 0.64);
+            padding: 10px;
+            color: #c9d9e8;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .rag-twin-scroll-box {
+            flex: 1 1 0;
+            max-height: none;
+        }
+
+        body[data-app-page="rag-demo"] #knowledge-chunks,
+        body[data-app-page="rag-demo"] #vector-results,
+        body[data-app-page="rag-demo"] #rag-contexts {
+            min-width: 0;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            background: rgba(2, 8, 23, 0.36) !important;
+        }
+
+        .rag-twin-answer {
+            max-height: 112px;
+            white-space: pre-wrap;
+        }
+
+        .rag-twin-qa-grid,
+        .rag-twin-evidence-grid {
+            display: grid;
+            min-height: 0;
+            gap: 10px;
+        }
+
+        .rag-twin-qa-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .rag-twin-evidence-grid {
+            grid-template-columns: minmax(0, 1fr) minmax(240px, 0.68fr);
+            margin-top: 10px;
+        }
+
+        #vector-results,
+        #rag-answer {
+            max-height: 106px;
+        }
+
+        #rag-contexts {
+            max-height: 102px;
+        }
+
+        .rag-match-item {
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            background: rgba(8, 19, 36, 0.72);
+            padding: 10px;
+        }
+
+        .rag-match-item + .rag-match-item {
+            margin-top: 8px;
+        }
+
+        .rag-match-title {
+            display: flex;
+            align-items: start;
+            justify-content: space-between;
+            gap: 8px;
+            color: #f8fafc;
+            font-weight: 900;
+        }
+
+        .rag-match-title strong {
+            display: block;
+            margin-top: 3px;
+            font-size: 13px;
+        }
+
+        .rag-match-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .rag-match-meta span,
+        .rag-score-chip {
+            min-height: 22px;
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid rgba(56, 189, 248, 0.28);
+            border-radius: 999px;
+            padding: 2px 7px;
+            color: #bae6fd;
+            background: rgba(14, 165, 233, 0.08);
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .rag-match-details {
+            margin-top: 8px;
+            border-top: 1px dashed rgba(125, 211, 252, 0.2);
+            padding-top: 8px;
+        }
+
+        .rag-match-details summary {
+            cursor: pointer;
+            color: #67e8f9;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .rag-match-content {
+            display: block;
+            max-height: 86px;
+            overflow: auto;
+            margin-top: 8px;
+            padding: 8px;
+            border-radius: 7px;
+            color: #dbeafe;
+            background: rgba(2, 8, 18, 0.76);
+            white-space: pre-wrap;
+        }
+
+        .rag-empty-state {
+            min-height: 56px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            color: var(--rag-muted);
+        }
+
+        .rag-trace-panel {
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            border-radius: 8px;
+            background: rgba(2, 8, 18, 0.7);
+        }
+
+        .rag-trace-panel summary {
+            padding: 10px;
+            cursor: pointer;
+            color: #dff8ff;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        #rag-prompt {
+            max-height: 102px;
+            overflow: auto;
+            border-top: 1px solid rgba(125, 211, 252, 0.14);
+            padding: 10px;
+            color: #dbeafe;
+            font-size: 12px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+        }
+
+        @media (max-width: 1180px) {
+            body[data-app-page="rag-demo"] main.rag-twin-workbench {
+                height: auto;
+                max-height: none;
+                overflow: visible;
+            }
+
+            .rag-twin-status-strip,
+            .rag-twin-main-grid,
+            .rag-twin-action-grid,
+            .rag-twin-qa-grid,
+            .rag-twin-evidence-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .rag-twin-action-grid {
+                flex: 0 0 auto;
+            }
+
+            .rag-twin-action-grid > .rag-twin-panel {
+                overflow: visible;
+            }
+
+            .rag-twin-topology-stage {
+                min-height: 360px;
+            }
+
+            body[data-app-page="rag-demo"] main.rag-twin-workbench > .rag-twin-main-grid {
+                flex-basis: auto;
+                height: auto !important;
+            }
+
+            body[data-app-page="rag-demo"] .rag-twin-side-stack {
+                max-height: none;
+                overflow: visible;
+            }
+        }
+
+        @media (max-width: 760px) {
+            body[data-app-page="rag-demo"] main.rag-twin-workbench {
+                width: calc(100vw - 24px) !important;
+                gap: 10px !important;
+            }
+
+            .rag-twin-status-strip,
+            .rag-twin-node-layer,
+            .rag-twin-two-col {
+                grid-template-columns: 1fr !important;
+            }
+
+            .rag-twin-hud {
+                grid-template-columns: 1fr;
+                inset: 12px;
+            }
+
+            .rag-twin-badges {
+                justify-content: flex-start;
+            }
+
+            .rag-twin-node-layer {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<header></header>
+
+<main class="rag-twin-workbench rag-workbench mx-auto px-4 py-5">
+    <section class="rag-twin-status-strip" aria-label="RAG 数字孪生状态">
+        <article class="rag-twin-status-item">
+            <span><i class="fa fa-database text-cyan-300"></i> Active Store</span>
+            <strong id="rag-status-store">LOCAL</strong>
+            <p id="rag-status-store-message">等待向量库状态</p>
+        </article>
+        <article class="rag-twin-status-item">
+            <span><i class="fa fa-cubes text-emerald-300"></i> Chunk 总量</span>
+            <strong id="rag-status-chunks">--</strong>
+            <p id="rag-status-imported">导入 Chunk --</p>
+        </article>
+        <article class="rag-twin-status-item">
+            <span><i class="fa fa-magic text-amber-300"></i> Embedding</span>
+            <strong id="rag-status-embedding">--</strong>
+            <p id="rag-status-embedding-message">等待向量化</p>
+        </article>
+        <article class="rag-twin-status-item">
+            <span><i class="fa fa-crosshairs text-sky-300"></i> 最近召回</span>
+            <strong id="rag-status-hits">0</strong>
+            <p id="rag-status-stage">链路待命</p>
+        </article>
+    </section>
+
+    <section class="rag-twin-main-grid">
+        <section class="rag-twin-topology-stage" aria-label="数字孪生检索链路">
+            <canvas id="rag-twin-canvas" aria-label="RAG 数字孪生拓扑">知识入库、分块、向量化、相似度召回、生成回答、证据下钻</canvas>
+            <div class="rag-twin-hud">
+                <div>
+                    <p class="text-xs font-black uppercase text-cyan-300">RAG Twin Canvas</p>
+                    <h1 class="mt-2 text-2xl font-black text-white">数字孪生检索链路</h1>
+                    <p class="mt-2 text-sm text-slate-400">把知识入库、向量化、相似度召回、生成回答和证据下钻放在同一张运行画布里看。</p>
+                    <div class="rag-twin-flow-strip">
+                        <span class="is-core"><i class="fa fa-cloud-upload"></i> 知识入库</span>
+                        <span class="is-core"><i class="fa fa-code-fork"></i> Chunk 分块</span>
+                        <span class="is-search"><i class="fa fa-magic"></i> 向量化</span>
+                        <span class="is-search"><i class="fa fa-crosshairs"></i> 相似度召回</span>
+                        <span class="is-answer"><i class="fa fa-commenting"></i> 生成回答</span>
+                        <span class="is-answer"><i class="fa fa-search-plus"></i> 证据下钻</span>
+                    </div>
+                </div>
+                <div class="rag-twin-badges">
+                    <span id="rag-badge-store" class="rag-twin-badge">向量库 --</span>
+                    <span id="rag-badge-qdrant" class="rag-twin-badge">Qdrant --</span>
+                    <span id="rag-badge-stage" class="rag-twin-badge is-warning">链路待命</span>
+                </div>
+            </div>
+            <div class="rag-twin-node-layer" aria-hidden="true">
+                <div class="rag-twin-node"><em>01</em><strong>知识入库</strong></div>
+                <div class="rag-twin-node"><em>02</em><strong>向量化</strong></div>
+                <div class="rag-twin-node"><em>03</em><strong>相似度召回</strong></div>
+                <div class="rag-twin-node"><em>04</em><strong>生成回答</strong></div>
+                <div class="rag-twin-node"><em>05</em><strong>证据下钻</strong></div>
+            </div>
+        </section>
+
+        <aside class="rag-twin-side-stack">
+            <section class="rag-twin-panel">
+                <div class="rag-twin-panel-head">
+                    <div>
+                        <span class="rag-twin-panel-kicker">Vector Store</span>
+                        <h2>向量库状态</h2>
+                        <p>本地索引可直接演示；配置 Qdrant 后可切真实向量库。</p>
+                    </div>
+                    <button type="button" onclick="loadVectorStoreStatus()" class="rag-twin-icon-button w-9 h-9" title="刷新向量库状态" aria-label="刷新向量库状态">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+                <div id="vector-store-status" class="rag-twin-scroll-box">等待加载状态</div>
+            </section>
+
+            <section class="rag-twin-panel">
+                <div class="rag-twin-panel-head">
+                    <div>
+                        <span class="rag-twin-panel-kicker">Chunks</span>
+                        <h2>Chunk 列表</h2>
+                        <p>检索可召回的知识片段，支持展开查看片段和元数据。</p>
+                    </div>
+                    <button type="button" onclick="loadKnowledgeChunks()" class="rag-twin-icon-button w-9 h-9" title="刷新 Chunk 列表" aria-label="刷新 Chunk 列表">
+                        <i class="fa fa-list"></i>
+                    </button>
+                </div>
+                <div id="knowledge-chunks" class="rag-twin-scroll-box">暂无 Chunk</div>
+            </section>
+        </aside>
+    </section>
+
+    <section class="rag-twin-action-grid">
+        <section class="rag-twin-panel">
+            <div class="rag-twin-panel-head">
+                <div>
+                    <span class="rag-twin-panel-kicker">Ingest</span>
+                    <h2>知识库入库</h2>
+                    <p>导入业务资料后，链路画布会同步更新 Chunk 与向量化状态。</p>
+                </div>
+                <button type="button" onclick="clearKnowledgeBase()" class="rag-twin-button is-danger px-3" title="清空导入知识">
+                    <i class="fa fa-trash"></i> 清空导入
+                </button>
+            </div>
+            <div class="rag-twin-form-grid">
+                <div class="rag-twin-two-col">
+                    <div class="rag-twin-field">
+                        <label for="knowledge-document-name">文档名称</label>
+                        <input id="knowledge-document-name" value="合同质量规则">
+                    </div>
+                    <div class="rag-twin-field">
+                        <label for="knowledge-source">来源</label>
+                        <input id="knowledge-source" value="manual">
+                    </div>
+                </div>
+                <div class="rag-twin-field">
+                    <label for="knowledge-content">文档正文</label>
+                    <textarea id="knowledge-content" rows="5">合同质量评审规则要求付款条款必须写清付款节点、付款条件和验收标准。
+
+如果资料缺少验收标准，RAG 回答必须引用证据，并把缺口标记为 missing_info，不能猜测。</textarea>
+                </div>
+                <button type="button" onclick="runIngestDocument()" id="knowledge-ingest-button" class="rag-twin-button px-4">
+                    <i class="fa fa-cloud-upload"></i> 入库
+                </button>
+            </div>
+        </section>
+
+        <section class="rag-twin-panel rag-query-panel rag-answer-panel">
+            <div class="rag-twin-panel-head">
+                <div>
+                    <span class="rag-twin-panel-kicker">Search / Answer</span>
+                    <h2>检索调试与 RAG 回答</h2>
+                    <p>先看相似度召回，再看检索上下文 / 引用证据和最终 Prompt。</p>
+                </div>
+            </div>
+            <div class="rag-twin-qa-grid">
+                <div class="rag-twin-form-grid">
+                    <div class="rag-twin-field">
+                        <label for="vector-query">检索调试</label>
+                        <textarea id="vector-query" rows="4">RAG 如何减少幻觉</textarea>
+                    </div>
+                    <div class="flex items-end gap-3">
+                        <div class="rag-twin-field w-24">
+                            <label for="vector-topk">TopK</label>
+                            <input id="vector-topk" type="number" min="1" max="8" value="3">
+                        </div>
+                        <button type="button" onclick="runVectorSearch()" id="vector-button" class="rag-twin-button flex-1 px-4">
+                            <i class="fa fa-search"></i> 检索
+                        </button>
+                    </div>
+                    <div id="vector-results" class="rag-twin-result">暂无结果</div>
+                </div>
+
+                <div class="rag-twin-form-grid">
+                    <div class="rag-twin-field">
+                        <label for="rag-question">RAG 回答</label>
+                        <textarea id="rag-question" rows="4">向量检索怎么排序</textarea>
+                    </div>
+                    <div class="flex items-end gap-3">
+                        <div class="rag-twin-field w-24">
+                            <label for="rag-topk">TopK</label>
+                            <input id="rag-topk" type="number" min="1" max="8" value="2">
+                        </div>
+                        <button type="button" onclick="runRagAnswer()" id="rag-button" class="rag-twin-button flex-1 px-4">
+                            <i class="fa fa-comments"></i> 回答
+                        </button>
+                    </div>
+                    <div id="rag-answer" class="rag-twin-answer">暂无回答</div>
+                </div>
+            </div>
+
+            <div class="rag-twin-evidence-grid">
+                <div>
+                    <div class="mb-2 text-sm font-black text-slate-200">检索上下文 / 引用证据</div>
+                    <div id="rag-contexts" class="rag-twin-result">暂无上下文</div>
+                </div>
+                <details class="rag-trace-panel">
+                    <summary>最终 Prompt</summary>
+                    <pre id="rag-prompt">暂无 Prompt</pre>
+                </details>
+            </div>
+        </section>
+    </section>
+</main>
+
+<script>
+    const ragTwinState = {
+        activeStore: 'local',
+        provider: 'local',
+        qdrantAvailable: false,
+        totalChunks: 0,
+        importedChunks: 0,
+        embeddingSource: '--',
+        embeddingMessage: '等待向量化',
+        hitCount: 0,
+        stage: 'idle',
+        stageIndex: 0
+    };
+
+    let ragTwinAnimationFrame = null;
+
+    async function runIngestDocument() {
+        const documentName = document.getElementById('knowledge-document-name').value.trim();
+        const source = document.getElementById('knowledge-source').value.trim() || 'manual';
+        const content = document.getElementById('knowledge-content').value.trim();
+        const button = document.getElementById('knowledge-ingest-button');
+        const chunks = document.getElementById('knowledge-chunks');
+
+        setRagTwinStage('ingest', '知识入库中');
+        setKnowledgeLoading(button, true, '入库中');
+        chunks.innerHTML = '<div class="rag-empty-state">正在切分并写入向量索引...</div>';
+
+        try {
+            const response = await fetch('/api/rag/knowledge/ingest', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({documentName, content, source})
+            });
+            const data = await response.json();
+            if (!data.success) {
+                chunks.innerHTML = renderError(data.message || '知识入库失败');
+                setRagTwinStage('error', '入库失败');
+                return;
+            }
+            updateRagTwinStatus({
+                activeStore: data.vectorStore || 'local',
+                totalChunks: data.totalChunks || 0,
+                importedChunks: data.chunkCount || 0,
+                message: data.message || '知识入库完成'
+            });
+            setRagTwinStage('vectorized', '向量化完成');
+            chunks.innerHTML = renderMatches(data.chunks || []);
+            await loadVectorStoreStatus();
+        } catch (error) {
+            chunks.innerHTML = renderError(error.message);
+            setRagTwinStage('error', '入库异常');
+        } finally {
+            setKnowledgeLoading(button, false, '入库');
+        }
+    }
+
+    async function loadVectorStoreStatus() {
+        const container = document.getElementById('vector-store-status');
+        container.innerHTML = '<div class="rag-empty-state">状态加载中...</div>';
+        try {
+            const response = await fetch('/api/rag/knowledge/status');
+            const data = await response.json();
+            if (!data.success) {
+                container.innerHTML = renderError(data.message || '向量库状态查询失败');
+                return;
+            }
+            updateRagTwinStatus(data.status || {});
+            container.innerHTML = renderStatusLine(data.status || {});
+        } catch (error) {
+            container.innerHTML = renderError(error.message);
+        }
+    }
+
+    async function loadKnowledgeChunks() {
+        const container = document.getElementById('knowledge-chunks');
+        container.innerHTML = '<div class="rag-empty-state">Chunk 加载中...</div>';
+        try {
+            const response = await fetch('/api/rag/knowledge/chunks');
+            const data = await response.json();
+            if (!data.success) {
+                container.innerHTML = renderError(data.message || 'Chunk 列表查询失败');
+                return;
+            }
+            updateRagTwinStatus({
+                totalChunks: data.totalChunks || 0,
+                importedChunks: data.importedChunks || 0
+            });
+            container.innerHTML = renderMatches(data.chunks || []);
+        } catch (error) {
+            container.innerHTML = renderError(error.message);
+        }
+    }
+
+    async function clearKnowledgeBase() {
+        const container = document.getElementById('knowledge-chunks');
+        setRagTwinStage('ingest', '清理导入知识');
+        container.innerHTML = '<div class="rag-empty-state">正在清理导入知识...</div>';
+        try {
+            const response = await fetch('/api/rag/knowledge/clear', { method: 'POST' });
+            const data = await response.json();
+            if (!data.success) {
+                container.innerHTML = renderError(data.message || '知识清理失败');
+                setRagTwinStage('error', '清理失败');
+                return;
+            }
+            setRagTwinStage('idle', '导入知识已清理');
+            await loadVectorStoreStatus();
+            await loadKnowledgeChunks();
+        } catch (error) {
+            container.innerHTML = renderError(error.message);
+            setRagTwinStage('error', '清理异常');
+        }
+    }
+
+    async function runVectorSearch() {
+        const query = document.getElementById('vector-query').value.trim();
+        const topK = Number(document.getElementById('vector-topk').value || 3);
+        const button = document.getElementById('vector-button');
+        const container = document.getElementById('vector-results');
+
+        setRagTwinStage('search', '相似度召回中');
+        setLoading(button, true, '检索中');
+        container.innerHTML = '<div class="rag-empty-state">检索中...</div>';
+
+        try {
+            const response = await fetch('/api/rag/vector-search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({query, topK})
+            });
+            const data = await response.json();
+            if (!data.success) {
+                container.innerHTML = renderError(data.message || '向量检索失败');
+                setRagTwinStage('error', '检索失败');
+                return;
+            }
+            ragTwinState.hitCount = (data.matches || []).length;
+            updateRagTwinStatus({
+                activeStore: data.vectorStore,
+                embeddingSource: data.embeddingSource,
+                message: data.message
+            });
+            setRagTwinStage('evidence', `召回 ${ragTwinState.hitCount} 条证据`);
+            container.innerHTML = renderMatches(data.matches || []);
+        } catch (error) {
+            container.innerHTML = renderError(error.message);
+            setRagTwinStage('error', '检索异常');
+        } finally {
+            setLoading(button, false, '检索');
+        }
+    }
+
+    async function runRagAnswer() {
+        const question = document.getElementById('rag-question').value.trim();
+        const topK = Number(document.getElementById('rag-topk').value || 2);
+        const button = document.getElementById('rag-button');
+        const answer = document.getElementById('rag-answer');
+        const contexts = document.getElementById('rag-contexts');
+        const prompt = document.getElementById('rag-prompt');
+
+        setRagTwinStage('answer', '生成回答中');
+        setLoading(button, true, '回答中');
+        answer.textContent = '回答中...';
+        contexts.innerHTML = '<div class="rag-empty-state">检索上下文中...</div>';
+        prompt.textContent = '生成中...';
+
+        try {
+            const response = await fetch('/api/rag/answer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({question, topK})
+            });
+            const data = await response.json();
+            ragTwinState.hitCount = (data.contexts || []).length;
+            answer.innerHTML = data.success ? escapeHtml(data.answer || '') : renderError(data.answer || data.message || 'RAG 回答失败');
+            contexts.innerHTML = renderMatches(data.contexts || []);
+            prompt.textContent = data.prompt || '暂无 Prompt';
+            setRagTwinStage(data.success ? 'done' : 'error', data.success ? '回答已生成' : '回答失败，保留证据');
+        } catch (error) {
+            answer.innerHTML = renderError(error.message);
+            contexts.innerHTML = '<div class="rag-empty-state">暂无上下文</div>';
+            prompt.textContent = '暂无 Prompt';
+            setRagTwinStage('error', '回答异常');
+        } finally {
+            setLoading(button, false, '回答');
+        }
+    }
+
+    function updateRagTwinStatus(status = {}) {
+        ragTwinState.activeStore = status.activeStore || status.vectorStore || ragTwinState.activeStore || 'local';
+        ragTwinState.provider = status.provider || ragTwinState.provider || ragTwinState.activeStore;
+        ragTwinState.qdrantAvailable = Boolean(status.qdrantAvailable || ragTwinState.qdrantAvailable);
+        ragTwinState.totalChunks = Number(status.totalChunks ?? ragTwinState.totalChunks ?? 0);
+        ragTwinState.importedChunks = Number(status.importedChunks ?? ragTwinState.importedChunks ?? 0);
+        ragTwinState.embeddingSource = status.embeddingSource || ragTwinState.embeddingSource || '--';
+        ragTwinState.embeddingMessage = status.embeddingMessage || status.message || ragTwinState.embeddingMessage || '';
+
+        document.getElementById('rag-status-store').textContent = String(ragTwinState.activeStore || 'local').toUpperCase();
+        document.getElementById('rag-status-store-message').textContent = status.message || `provider ${ragTwinState.provider}`;
+        document.getElementById('rag-status-chunks').textContent = String(ragTwinState.totalChunks);
+        document.getElementById('rag-status-imported').textContent = `导入 Chunk ${ragTwinState.importedChunks}`;
+        document.getElementById('rag-status-embedding').textContent = ragTwinState.embeddingSource || '--';
+        document.getElementById('rag-status-embedding-message').textContent = ragTwinState.embeddingMessage || '等待向量化';
+        document.getElementById('rag-status-hits').textContent = String(ragTwinState.hitCount || 0);
+        document.getElementById('rag-badge-store').textContent = `向量库 ${ragTwinState.activeStore || 'local'}`;
+        document.getElementById('rag-badge-qdrant').textContent = ragTwinState.qdrantAvailable ? 'Qdrant 可用' : 'Qdrant 未接入';
+        document.getElementById('rag-badge-qdrant').className = `rag-twin-badge ${ragTwinState.qdrantAvailable ? 'is-ok' : 'is-warning'}`;
+    }
+
+    function setRagTwinStage(stage, label) {
+        const order = ['idle', 'ingest', 'vectorized', 'search', 'evidence', 'answer', 'done'];
+        ragTwinState.stage = stage;
+        ragTwinState.stageIndex = Math.max(0, order.indexOf(stage));
+        const text = label || stage;
+        document.getElementById('rag-status-stage').textContent = text;
+        document.getElementById('rag-badge-stage').textContent = text;
+        document.getElementById('rag-badge-stage').className = `rag-twin-badge ${stage === 'error' ? 'is-warning' : 'is-ok'}`;
+    }
+
+    function renderMatches(matches) {
+        const sourceTag = match => {
+            const metadata = match.metadata || {};
+            const source = metadata.source || metadata.sourceName || 'unknown';
+            const sourceType = metadata.sourceType || '';
+            return [
+                sourceType ? escapeHtml(sourceType) : '',
+                source ? `源:${escapeHtml(source)}` : ''
+            ].filter(Boolean).join(' / ');
+        };
+        if (!matches.length) {
+            return '<div class="rag-empty-state">暂无结果</div>';
+        }
+        return matches.map((match, index) => `
+            <article class="rag-match-item">
+                <div class="rag-match-title">
+                    <div>
+                        <div class="text-xs font-black uppercase text-slate-500">#${index + 1} ${escapeHtml(match.id || 'unknown')}</div>
+                        <strong>${escapeHtml(match.title || '未命名片段')}</strong>
+                    </div>
+                    <span class="rag-score-chip">相似度 ${Number(match.score || 0).toFixed(4)}</span>
+                </div>
+                <div class="rag-match-meta">
+                    <span>${sourceTag(match)}</span>
+                    <span>TopK #${index + 1}</span>
+                </div>
+                <details class="rag-match-details">
+                    <summary>展开查看片段与元数据</summary>
+                    <div class="rag-match-content">${escapeHtml(match.content || '')}</div>
+                    <div class="mt-2 text-xs text-slate-500">元数据：${escapeHtml(formatMetadata(match.metadata || {}))}</div>
+                </details>
+            </article>
+        `).join('');
+    }
+
+    function renderStatusLine(status) {
+        const activeStore = status.activeStore || status.vectorStore || 'local';
+        const provider = status.provider || activeStore;
+        const qdrantText = status.qdrantAvailable ? 'Qdrant 可用' : 'Qdrant 未启用或不可用';
+        return `
+            <div class="grid gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="rag-twin-badge is-ok">active ${escapeHtml(activeStore)}</span>
+                    <span class="rag-twin-badge">provider ${escapeHtml(provider)}</span>
+                    <span class="rag-twin-badge ${status.qdrantAvailable ? 'is-ok' : 'is-warning'}">${escapeHtml(qdrantText)}</span>
+                </div>
+                <div class="text-sm leading-6 text-slate-300">
+                    总 Chunk：${escapeHtml(status.totalChunks || 0)} · 导入 Chunk：${escapeHtml(status.importedChunks || 0)}
+                </div>
+                <div class="text-xs leading-5 text-slate-500">${escapeHtml(status.message || '')}</div>
+            </div>
+        `;
+    }
+
+    function formatMetadata(metadata) {
+        const entries = Object.entries(metadata || {});
+        if (!entries.length) {
+            return '暂无元数据';
+        }
+        return entries.map(([key, value]) => `${key}=${String(value)}`).join('\n');
+    }
+
+    function renderError(message) {
+        return `<div class="rounded border border-rose-400/40 bg-rose-950/40 p-3 text-sm text-rose-100">${escapeHtml(message)}</div>`;
+    }
+
+    function setLoading(button, loading, text) {
+        button.disabled = loading;
+        button.innerHTML = loading
+            ? `<i class="fa fa-spinner fa-spin"></i>${text}`
+            : button.id === 'vector-button'
+                ? '<i class="fa fa-search"></i>检索'
+                : '<i class="fa fa-comments"></i>回答';
+    }
+
+    function setKnowledgeLoading(button, loading, text) {
+        button.disabled = loading;
+        button.innerHTML = loading
+            ? `<i class="fa fa-spinner fa-spin"></i>${text}`
+            : '<i class="fa fa-cloud-upload"></i>入库';
+    }
+
+    function startRagTwinCanvas() {
+        const canvas = document.getElementById('rag-twin-canvas');
+        if (!canvas) {
+            return;
+        }
+        const context = canvas.getContext('2d');
+        const resizeObserver = new ResizeObserver(function () {
+            resizeRagTwinCanvas(canvas);
+        });
+        resizeObserver.observe(canvas);
+        resizeRagTwinCanvas(canvas);
+
+        function animate(timestamp) {
+            drawRagTwinCanvas(context, canvas, timestamp);
+            ragTwinAnimationFrame = requestAnimationFrame(animate);
+        }
+        ragTwinAnimationFrame = requestAnimationFrame(animate);
+    }
+
+    function resizeRagTwinCanvas(canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.max(Math.floor(rect.width * ratio), 1);
+        const height = Math.max(Math.floor(rect.height * ratio), 1);
+        if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width;
+            canvas.height = height;
+        }
+    }
+
+    function drawRagTwinCanvas(context, canvas, timestamp) {
+        const width = canvas.width;
+        const height = canvas.height;
+        const scale = Math.min(window.devicePixelRatio || 1, 2);
+        const time = timestamp / 1000;
+        context.clearRect(0, 0, width, height);
+        context.save();
+        context.scale(scale, scale);
+        renderRagTwinTopology(context, width / scale, height / scale, time);
+        context.restore();
+    }
+
+    function renderRagTwinTopology(context, width, height, time) {
+        drawRagTwinStarfield(context, width, height, time);
+        const nodes = [
+            { label: '知识入库', sub: `${ragTwinState.importedChunks} imported`, x: width * 0.13, y: height * 0.54, color: '#67e8f9', index: 1 },
+            { label: 'Chunk 分块', sub: `${ragTwinState.totalChunks} chunks`, x: width * 0.29, y: height * 0.42, color: '#34d399', index: 2 },
+            { label: '向量化', sub: ragTwinState.embeddingSource || '--', x: width * 0.46, y: height * 0.54, color: '#22d3ee', index: 3, core: true },
+            { label: '相似度召回', sub: `${ragTwinState.hitCount || 0} hits`, x: width * 0.64, y: height * 0.42, color: '#fbbf24', index: 4 },
+            { label: '生成回答', sub: ragTwinState.stage === 'done' ? 'done' : 'ready', x: width * 0.82, y: height * 0.54, color: '#a78bfa', index: 5 },
+            { label: '证据下钻', sub: 'details', x: width * 0.64, y: height * 0.72, color: '#2dd4bf', index: 6 }
+        ];
+        for (let i = 0; i < nodes.length - 2; i++) {
+            drawRagConnection(context, nodes[i], nodes[i + 1], time + i * 0.35);
+        }
+        drawRagConnection(context, nodes[3], nodes[5], time + 1.2, true);
+        drawRagConnection(context, nodes[5], nodes[4], time + 1.6, true);
+        nodes.forEach(node => drawRagNode(context, node, time));
+    }
+
+    function drawRagTwinStarfield(context, width, height, time) {
+        context.save();
+        for (let i = 0; i < 52; i++) {
+            const x = (Math.sin(i * 14.23) * 0.5 + 0.5) * width;
+            const y = (Math.cos(i * 8.91) * 0.5 + 0.5) * height;
+            const pulse = 0.28 + Math.sin(time * 1.6 + i) * 0.2;
+            context.fillStyle = i % 8 === 0 ? `rgba(251, 191, 36, ${pulse})` : `rgba(34, 211, 238, ${pulse})`;
+            context.beginPath();
+            context.arc(x, y, i % 9 === 0 ? 2.2 : 1.1, 0, Math.PI * 2);
+            context.fill();
+        }
+        context.restore();
+    }
+
+    function drawRagConnection(context, from, to, time, dashed = false) {
+        const active = ragTwinState.stageIndex >= Math.min(from.index, to.index) || ragTwinState.stage === 'done';
+        const color = active ? '34, 211, 238' : '125, 211, 252';
+        context.save();
+        context.strokeStyle = `rgba(${color}, ${active ? 0.34 : 0.13})`;
+        context.lineWidth = active ? 2 : 1.2;
+        if (dashed) {
+            context.setLineDash([7, 7]);
+        }
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.stroke();
+        context.setLineDash([]);
+
+        const progress = (time * 0.34 + (from.x + to.y) * 0.001) % 1;
+        const x = from.x + (to.x - from.x) * progress;
+        const y = from.y + (to.y - from.y) * progress;
+        const gradient = context.createRadialGradient(x, y, 0, x, y, active ? 18 : 10);
+        gradient.addColorStop(0, `rgba(${color}, ${active ? 0.9 : 0.34})`);
+        gradient.addColorStop(1, `rgba(${color}, 0)`);
+        context.fillStyle = gradient;
+        context.beginPath();
+        context.arc(x, y, active ? 18 : 10, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+    }
+
+    function drawRagNode(context, node, time) {
+        const completed = ragTwinState.stageIndex >= node.index || ragTwinState.stage === 'done';
+        const radius = (node.core ? 46 : 30) * (1 + Math.sin(time * 2.1 + node.x * 0.01) * 0.04);
+        context.save();
+        context.globalAlpha = completed ? 0.96 : 0.72;
+        context.shadowColor = completed ? node.color : '#0f172a';
+        context.shadowBlur = completed ? (node.core ? 34 : 24) : 10;
+        context.fillStyle = 'rgba(2, 8, 18, 0.88)';
+        context.strokeStyle = completed ? node.color : 'rgba(125, 211, 252, 0.38)';
+        context.lineWidth = node.core ? 2.4 : 2;
+        context.beginPath();
+        context.arc(node.x, node.y, radius, 0, Math.PI * 2);
+        context.fill();
+        context.stroke();
+
+        if (node.core) {
+            context.shadowBlur = 0;
+            context.strokeStyle = `${node.color}66`;
+            context.lineWidth = 1.2;
+            context.beginPath();
+            context.arc(node.x, node.y, radius * 1.25, -Math.PI * 0.72, Math.PI * 0.72);
+            context.stroke();
+        }
+
+        context.fillStyle = completed ? node.color : '#64748b';
+        context.beginPath();
+        context.arc(node.x, node.y, node.core ? 8 : 6, 0, Math.PI * 2);
+        context.fill();
+        context.shadowBlur = 0;
+        context.fillStyle = '#e6f4ff';
+        context.textAlign = 'center';
+        context.font = node.core ? '900 16px system-ui, sans-serif' : '900 14px system-ui, sans-serif';
+        context.fillText(node.label, node.x, node.y + radius + 26);
+        context.fillStyle = '#9fb5c9';
+        context.font = '700 11px system-ui, sans-serif';
+        context.fillText(String(node.sub || '').slice(0, 22), node.x, node.y + radius + 42);
+        context.restore();
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    updateRagTwinStatus({});
+    setRagTwinStage('idle', '链路待命');
+    startRagTwinCanvas();
+    loadVectorStoreStatus();
+    loadKnowledgeChunks();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>

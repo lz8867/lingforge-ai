@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill 使用监控 - Spring AI Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css">
+    <link rel="stylesheet" href="/css/tech-theme.css?v=20260610-depth">
+    <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#22d3ee',
+                        success: '#34d399',
+                        warning: '#f59e0b',
+                        danger: '#fb7185'
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body[data-app-page="skill-monitor"] .app-content-shell {
+            padding: 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .skill-monitor-workbench {
+            width: min(100%, 1720px);
+            height: calc(100vh - var(--app-header-height) - 24px);
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        .skill-status-strip {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(120px, 1fr)) auto;
+            gap: 10px;
+        }
+
+        .skill-status-cell,
+        .skill-panel {
+            border: 1px solid rgba(125, 211, 252, 0.2);
+            border-radius: 8px;
+            background:
+                linear-gradient(135deg, rgba(34, 211, 238, 0.08), transparent 48%),
+                rgba(3, 10, 20, 0.82);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .skill-status-cell {
+            min-height: 74px;
+            padding: 13px 14px;
+            display: grid;
+            align-content: center;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .skill-status-cell span,
+        .skill-panel-kicker,
+        .skill-detail-label {
+            color: #9fb5c9;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .skill-status-cell strong {
+            color: #f8fafc;
+            font-size: clamp(18px, 1.85vw, 28px);
+            line-height: 1;
+        }
+
+        .skill-status-cell p {
+            overflow: hidden;
+            margin: 0;
+            color: #bfd3e4;
+            font-size: 12px;
+            line-height: 1.3;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skill-refresh-button,
+        .skill-row-button,
+        .skill-form button {
+            border: 1px solid rgba(125, 211, 252, 0.22);
+            border-radius: 8px;
+            color: #dff8ff;
+            background: rgba(8, 19, 36, 0.76);
+            transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+        }
+
+        .skill-refresh-button {
+            min-height: 74px;
+            min-width: 84px;
+            display: grid;
+            place-items: center;
+            font-size: 20px;
+        }
+
+        .skill-refresh-button:hover,
+        .skill-row-button:hover,
+        .skill-row-button.is-active,
+        .skill-form button:hover {
+            border-color: rgba(34, 211, 238, 0.62);
+            background: rgba(34, 211, 238, 0.14);
+            transform: translateY(-1px);
+        }
+
+        .skill-main-grid {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr) minmax(310px, 0.72fr);
+            gap: 12px;
+            overflow: hidden;
+        }
+
+        .skill-panel {
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            overflow: hidden;
+        }
+
+        .skill-panel-head {
+            min-height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(125, 211, 252, 0.16);
+        }
+
+        .skill-panel-head h2,
+        .skill-panel-head h3 {
+            margin: 3px 0 0;
+            color: #f8fafc;
+            font-size: 16px;
+            font-weight: 900;
+            line-height: 1.15;
+        }
+
+        .skill-panel-body {
+            min-height: 0;
+            overflow: auto;
+            padding: 12px;
+        }
+
+        .skill-inventory {
+            display: grid;
+            gap: 8px;
+        }
+
+        .skill-row-button {
+            width: 100%;
+            min-height: 76px;
+            display: grid;
+            grid-template-columns: 38px minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .skill-row-icon {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.13);
+        }
+
+        .skill-row-text {
+            min-width: 0;
+            display: grid;
+            gap: 4px;
+        }
+
+        .skill-row-text strong,
+        .skill-detail-title strong {
+            overflow: hidden;
+            color: #f8fafc;
+            font-size: 14px;
+            line-height: 1.2;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skill-row-text span,
+        .skill-detail-title span {
+            overflow: hidden;
+            color: #9fb5c9;
+            font-size: 12px;
+            line-height: 1.25;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skill-pill {
+            min-width: 76px;
+            padding: 5px 8px;
+            border: 1px solid rgba(125, 211, 252, 0.24);
+            border-radius: 999px;
+            color: #dff8ff;
+            background: rgba(15, 23, 42, 0.72);
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .skill-pill.is-active {
+            color: #bbf7d0;
+            border-color: rgba(52, 211, 153, 0.45);
+        }
+
+        .skill-pill.is-attention {
+            color: #fde68a;
+            border-color: rgba(245, 158, 11, 0.42);
+        }
+
+        .skill-pill.is-unused {
+            color: #dbeafe;
+            border-color: rgba(125, 211, 252, 0.22);
+        }
+
+        .skill-usage-stage {
+            min-height: 270px;
+            height: 34vh;
+            max-height: 390px;
+            overflow: hidden;
+            border: 1px solid rgba(125, 211, 252, 0.16);
+            border-radius: 8px;
+            background:
+                linear-gradient(rgba(125, 211, 252, 0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(125, 211, 252, 0.045) 1px, transparent 1px),
+                rgba(2, 8, 18, 0.72);
+            background-size: 34px 34px;
+        }
+
+        #skill-usage-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .skill-events,
+        .skill-recommendations,
+        .skill-detail {
+            display: grid;
+            gap: 8px;
+        }
+
+        .skill-event,
+        .skill-recommendations li,
+        .skill-detail-card {
+            border: 1px solid rgba(125, 211, 252, 0.14);
+            border-radius: 8px;
+            background: rgba(8, 19, 36, 0.52);
+        }
+
+        .skill-event {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 9px;
+            padding: 10px;
+        }
+
+        .skill-event i {
+            margin-top: 2px;
+            color: #67e8f9;
+        }
+
+        .skill-event strong {
+            display: block;
+            overflow: hidden;
+            color: #f8fafc;
+            font-size: 13px;
+            line-height: 1.25;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .skill-event p {
+            margin: 4px 0 0;
+            color: #9fb5c9;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .skill-detail-title {
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+        }
+
+        .skill-detail-card {
+            min-height: 68px;
+            padding: 10px;
+        }
+
+        .skill-detail-card strong {
+            display: block;
+            margin-top: 7px;
+            color: #f8fafc;
+            font-size: 14px;
+        }
+
+        .skill-detail-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .skill-recommendations {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .skill-recommendations li {
+            padding: 10px 11px;
+            color: #c9d9e8;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .skill-form {
+            display: grid;
+            gap: 8px;
+        }
+
+        .skill-form input,
+        .skill-form select,
+        .skill-form textarea {
+            width: 100%;
+            min-height: 38px;
+            border: 1px solid rgba(125, 211, 252, 0.2);
+            border-radius: 8px;
+            background: rgba(2, 8, 18, 0.68);
+            color: #f8fafc;
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        .skill-form textarea {
+            min-height: 72px;
+            resize: vertical;
+        }
+
+        .skill-form button {
+            min-height: 40px;
+            font-weight: 900;
+        }
+
+        .skill-empty,
+        .skill-error {
+            min-height: 110px;
+            display: grid;
+            place-items: center;
+            padding: 18px;
+            color: #9fb5c9;
+            text-align: center;
+        }
+
+        .skill-error {
+            color: #fecdd3;
+        }
+
+        .skill-spin {
+            animation: skillSpin 900ms linear infinite;
+        }
+
+        @keyframes skillSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 1180px) {
+            .skill-monitor-workbench {
+                height: auto;
+                overflow: visible;
+            }
+
+            .skill-status-strip,
+            .skill-main-grid,
+            .skill-detail-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .skill-panel {
+                max-height: none;
+            }
+
+            .skill-usage-stage {
+                height: 360px;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-950 font-inter text-slate-100">
+<main>
+    <section class="skill-monitor-workbench" aria-label="Skill 使用监控工作台">
+        <div class="skill-status-strip" id="skill-status-strip">
+            <article class="skill-status-cell">
+                <span>本地自定义 Skill</span>
+                <strong id="skill-total-count">--</strong>
+                <p>排除系统与插件内置项</p>
+            </article>
+            <article class="skill-status-cell">
+                <span>已使用</span>
+                <strong id="skill-used-count">--</strong>
+                <p>有事件记录</p>
+            </article>
+            <article class="skill-status-cell">
+                <span>事件数</span>
+                <strong id="skill-event-count">--</strong>
+                <p>当前内存会话</p>
+            </article>
+            <article class="skill-status-cell">
+                <span>成功率</span>
+                <strong id="skill-success-rate">--</strong>
+                <p>SUCCESS / total</p>
+            </article>
+            <article class="skill-status-cell">
+                <span>关注项</span>
+                <strong id="skill-attention-count">--</strong>
+                <p>失败或待排查</p>
+            </article>
+            <button type="button" class="skill-refresh-button" onclick="loadSkillOverview()" aria-label="刷新 Skill 使用概览" title="刷新 Skill 使用概览">
+                <i class="fa fa-refresh" id="skill-refresh-icon"></i>
+            </button>
+        </div>
+
+        <div class="skill-main-grid">
+            <aside class="skill-panel" aria-label="本地自定义 Skill 清单">
+                <div class="skill-panel-head">
+                    <div>
+                        <span class="skill-panel-kicker">Inventory</span>
+                        <h2>本地自定义 Skill 清单</h2>
+                    </div>
+                    <span class="skill-pill is-unused" id="skill-inventory-state">LOADING</span>
+                </div>
+                <div class="skill-panel-body">
+                    <div id="skill-inventory" class="skill-inventory">
+                        <div class="skill-empty"><i class="fa fa-refresh skill-spin"></i> 正在扫描本地自定义 Skill</div>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="skill-panel" aria-label="Skill 使用趋势">
+                <div class="skill-panel-head">
+                    <div>
+                        <span class="skill-panel-kicker">Usage</span>
+                        <h2>使用趋势</h2>
+                    </div>
+                    <span class="skill-pill" id="skill-updated-at">--</span>
+                </div>
+                <div class="skill-panel-body">
+                    <div class="skill-usage-stage">
+                        <canvas id="skill-usage-canvas" aria-label="Skill 使用趋势"></canvas>
+                    </div>
+                    <div class="skill-panel-head px-0 border-0">
+                        <div>
+                            <span class="skill-panel-kicker">Events</span>
+                            <h3>最近使用事件</h3>
+                        </div>
+                    </div>
+                    <div id="skill-events" class="skill-events"></div>
+                </div>
+            </section>
+
+            <aside class="skill-panel" aria-label="Skill 详情与上报">
+                <div class="skill-panel-head">
+                    <div>
+                        <span class="skill-panel-kicker">Inspector</span>
+                        <h2>详情</h2>
+                    </div>
+                    <span class="skill-pill" id="skill-detail-state">--</span>
+                </div>
+                <div class="skill-panel-body">
+                    <div id="skill-detail" class="skill-detail">
+                        <div class="skill-empty">选择一个本地自定义 Skill 查看使用情况</div>
+                    </div>
+
+                    <div class="skill-panel-head px-0 border-0">
+                        <div>
+                            <span class="skill-panel-kicker">Report</span>
+                            <h3>手动上报</h3>
+                        </div>
+                    </div>
+                    <form id="skill-usage-form" class="skill-form" aria-label="上报 Skill 使用事件">
+                        <input id="skill-report-id" placeholder="skillId，例如 open-code-review" autocomplete="off">
+                        <select id="skill-report-status">
+                            <option value="SUCCESS">SUCCESS</option>
+                            <option value="FAILURE">FAILURE</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                            <option value="UNKNOWN">UNKNOWN</option>
+                        </select>
+                        <input id="skill-report-source" placeholder="来源，例如 codex / manual" autocomplete="off">
+                        <input id="skill-report-duration" type="number" min="0" placeholder="耗时 ms，可选">
+                        <textarea id="skill-report-note" placeholder="备注，可选"></textarea>
+                        <button type="submit"><i class="fa fa-upload"></i> 上报使用事件</button>
+                    </form>
+
+                    <div class="skill-panel-head px-0 border-0">
+                        <div>
+                            <span class="skill-panel-kicker">Advice</span>
+                            <h3>接入建议</h3>
+                        </div>
+                    </div>
+                    <ol id="skill-recommendations" class="skill-recommendations"></ol>
+                </div>
+            </aside>
+        </div>
+    </section>
+</main>
+
+<script>
+    const skillState = {
+        overview: null,
+        selectedSkillId: null,
+        loading: false
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function statusLabel(status) {
+        const labels = {
+            ACTIVE: '活跃',
+            ATTENTION: '关注',
+            UNUSED: '未使用'
+        };
+        return labels[status] || status || '--';
+    }
+
+    function statusClass(status) {
+        return 'is-' + String(status || 'unused').toLowerCase();
+    }
+
+    function shortTime(value) {
+        if (!value) {
+            return '--';
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return String(value).slice(11, 19) || String(value);
+        }
+        return date.toLocaleTimeString('zh-CN', { hour12: false });
+    }
+
+    function currentSkill() {
+        const skills = skillState.overview?.skills || [];
+        if (skills.length === 0) {
+            return null;
+        }
+        return skills.find(skill => skill.skillId === skillState.selectedSkillId) || skills[0];
+    }
+
+    function loadSkillOverview() {
+        if (skillState.loading) {
+            return;
+        }
+        skillState.loading = true;
+        document.getElementById('skill-refresh-icon')?.classList.add('skill-spin');
+
+        fetch('/api/skill-monitor/overview')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
+            .then(overview => {
+                skillState.overview = overview;
+                if (!skillState.selectedSkillId || !overview.skills.some(skill => skill.skillId === skillState.selectedSkillId)) {
+                    skillState.selectedSkillId = overview.skills[0]?.skillId || null;
+                }
+                renderSkillWorkbench();
+            })
+            .catch(error => renderSkillError(error.message))
+            .finally(() => {
+                skillState.loading = false;
+                document.getElementById('skill-refresh-icon')?.classList.remove('skill-spin');
+            });
+    }
+
+    function reportSkillUsage(event) {
+        event.preventDefault();
+        const payload = {
+            skillId: document.getElementById('skill-report-id').value.trim(),
+            skillName: '',
+            status: document.getElementById('skill-report-status').value,
+            source: document.getElementById('skill-report-source').value.trim() || 'manual',
+            durationMs: Number(document.getElementById('skill-report-duration').value || 0),
+            note: document.getElementById('skill-report-note').value.trim()
+        };
+        if (!payload.skillId) {
+            renderSkillError('skillId 不能为空');
+            return;
+        }
+        fetch('/api/skill-monitor/usage', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+                return response.json();
+            })
+            .then(() => {
+                document.getElementById('skill-report-note').value = '';
+                loadSkillOverview();
+            })
+            .catch(error => renderSkillError(error.message));
+    }
+
+    function renderSkillWorkbench() {
+        renderSkillStatus();
+        renderSkillInventory();
+        renderSkillDetail();
+        renderSkillEvents();
+        renderSkillRecommendations();
+        renderSkillUsageCanvas();
+    }
+
+    function renderSkillError(message) {
+        document.getElementById('skill-inventory').innerHTML = '<div class="skill-error"><i class="fa fa-exclamation-triangle"></i> Skill 使用监控读取失败：' + escapeHtml(message) + '</div>';
+    }
+
+    function renderSkillStatus() {
+        const overview = skillState.overview;
+        if (!overview) {
+            return;
+        }
+        document.getElementById('skill-total-count').textContent = overview.totalSkills;
+        document.getElementById('skill-used-count').textContent = overview.usedSkills;
+        document.getElementById('skill-event-count').textContent = overview.totalEvents;
+        document.getElementById('skill-success-rate').textContent = overview.totalEvents === 0 ? '--' : overview.successRate + '%';
+        document.getElementById('skill-attention-count').textContent = overview.attentionSkills;
+        document.getElementById('skill-updated-at').textContent = shortTime(overview.checkedAt);
+        const state = overview.attentionSkills > 0 ? 'ATTENTION' : overview.totalEvents > 0 ? 'ACTIVE' : 'UNUSED';
+        const badge = document.getElementById('skill-inventory-state');
+        badge.textContent = statusLabel(state);
+        badge.className = 'skill-pill ' + statusClass(state);
+    }
+
+    function renderSkillInventory() {
+        const list = document.getElementById('skill-inventory');
+        const skills = skillState.overview?.skills || [];
+        if (skills.length === 0) {
+            list.innerHTML = '<div class="skill-empty">暂无本地自定义 Skill 清单</div>';
+            return;
+        }
+        list.innerHTML = skills.map(skill => {
+            const active = skill.skillId === skillState.selectedSkillId ? ' is-active' : '';
+            return [
+                '<button type="button" class="skill-row-button' + active + '" data-skill-id="' + escapeHtml(skill.skillId) + '" title="' + escapeHtml(skill.skillName) + '">',
+                '<span class="skill-row-icon"><i class="fa fa-puzzle-piece"></i></span>',
+                '<span class="skill-row-text"><strong>' + escapeHtml(skill.skillName) + '</strong><span>' + escapeHtml(skill.description || skill.sourcePath) + '</span></span>',
+                '<span class="skill-pill ' + statusClass(skill.usageStatus) + '">' + statusLabel(skill.usageStatus) + '</span>',
+                '</button>'
+            ].join('');
+        }).join('');
+    }
+
+    function selectSkill(skillId) {
+        skillState.selectedSkillId = skillId;
+        const skill = currentSkill();
+        if (skill) {
+            document.getElementById('skill-report-id').value = skill.skillId;
+        }
+        renderSkillInventory();
+        renderSkillDetail();
+        renderSkillUsageCanvas();
+    }
+
+    function renderSkillDetail() {
+        const skill = currentSkill();
+        const detail = document.getElementById('skill-detail');
+        const state = document.getElementById('skill-detail-state');
+        if (!skill) {
+            state.textContent = '--';
+            detail.innerHTML = '<div class="skill-empty">暂无本地自定义 Skill 详情</div>';
+            return;
+        }
+        state.textContent = statusLabel(skill.usageStatus);
+        state.className = 'skill-pill ' + statusClass(skill.usageStatus);
+        document.getElementById('skill-report-id').value = skill.skillId;
+        detail.innerHTML = [
+            '<div class="skill-detail-title">',
+            '<span class="skill-row-icon"><i class="fa fa-puzzle-piece"></i></span>',
+            '<div><strong>' + escapeHtml(skill.skillName) + '</strong><span>' + escapeHtml(skill.sourcePath) + '</span></div>',
+            '</div>',
+            '<div class="skill-detail-metrics">',
+            metricCard('总次数', skill.totalCount),
+            metricCard('成功率', skill.totalCount === 0 ? '--' : skill.successRate + '%'),
+            metricCard('失败', skill.failureCount),
+            metricCard('平均耗时', skill.averageDurationMs ? skill.averageDurationMs + 'ms' : '--'),
+            '</div>'
+        ].join('');
+    }
+
+    function metricCard(label, value) {
+        return '<div class="skill-detail-card"><span class="skill-detail-label">' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong></div>';
+    }
+
+    function renderSkillEvents() {
+        const events = skillState.overview?.recentEvents || [];
+        const list = document.getElementById('skill-events');
+        if (events.length === 0) {
+            list.innerHTML = '<div class="skill-empty">暂无本地自定义 Skill 使用事件</div>';
+            return;
+        }
+        list.innerHTML = events.slice(0, 8).map(event => [
+            '<article class="skill-event">',
+            '<i class="fa ' + eventIcon(event.status) + '"></i>',
+            '<div><strong>' + escapeHtml(event.skillName || event.skillId) + ' · ' + escapeHtml(event.status) + '</strong>',
+            '<p>' + escapeHtml(shortTime(event.occurredAt)) + ' · ' + escapeHtml(event.source) + ' · ' + escapeHtml(event.note || '无备注') + '</p></div>',
+            '</article>'
+        ].join('')).join('');
+    }
+
+    function renderSkillRecommendations() {
+        const recommendations = skillState.overview?.recommendations || [];
+        const list = document.getElementById('skill-recommendations');
+        list.innerHTML = recommendations.length === 0
+            ? '<li>暂无建议</li>'
+            : recommendations.slice(0, 5).map(item => '<li>' + escapeHtml(item) + '</li>').join('');
+    }
+
+    function renderSkillUsageCanvas() {
+        const canvas = document.getElementById('skill-usage-canvas');
+        const skills = skillState.overview?.skills || [];
+        if (!canvas) {
+            return;
+        }
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(320, rect.width);
+        const height = Math.max(220, rect.height);
+        const ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(width * ratio);
+        canvas.height = Math.floor(height * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        drawSkillGrid(ctx, width, height);
+
+        const topSkills = skills.slice(0, 8);
+        if (topSkills.length === 0) {
+            ctx.fillStyle = '#9fb5c9';
+            ctx.font = '700 14px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('暂无本地自定义 Skill 数据', width / 2, height / 2);
+            return;
+        }
+
+        const maxCount = Math.max(1, ...topSkills.map(skill => skill.totalCount));
+        const barWidth = Math.max(18, (width - 58) / topSkills.length - 12);
+        topSkills.forEach((skill, index) => {
+            const x = 32 + index * (barWidth + 12);
+            const barHeight = Math.max(8, (height - 86) * (skill.totalCount / maxCount));
+            const y = height - 48 - barHeight;
+            const selected = skill.skillId === skillState.selectedSkillId;
+            const gradient = ctx.createLinearGradient(0, y, 0, height - 48);
+            gradient.addColorStop(0, selected ? '#34d399' : skill.failureCount > 0 ? '#f59e0b' : '#22d3ee');
+            gradient.addColorStop(1, 'rgba(34, 211, 238, 0.18)');
+            ctx.fillStyle = gradient;
+            ctx.shadowBlur = selected ? 18 : 8;
+            ctx.shadowColor = selected ? '#34d399' : '#22d3ee';
+            roundRect(ctx, x, y, barWidth, barHeight, 8);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#dbeafe';
+            ctx.font = '700 11px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(String(skill.totalCount), x + barWidth / 2, y - 8);
+            const label = skill.skillName.length > 8 ? skill.skillName.slice(0, 8) : skill.skillName;
+            ctx.fillText(label, x + barWidth / 2, height - 26);
+        });
+    }
+
+    function drawSkillGrid(ctx, width, height) {
+        ctx.fillStyle = 'rgba(2, 8, 18, 0.56)';
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.08)';
+        ctx.lineWidth = 1;
+        for (let x = 0; x < width; x += 36) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+        for (let y = 0; y < height; y += 36) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.arcTo(x + width, y, x + width, y + height, radius);
+        ctx.arcTo(x + width, y + height, x, y + height, radius);
+        ctx.arcTo(x, y + height, x, y, radius);
+        ctx.arcTo(x, y, x + width, y, radius);
+        ctx.closePath();
+    }
+
+    function eventIcon(status) {
+        if (status === 'FAILURE') {
+            return 'fa-exclamation-triangle text-amber-300';
+        }
+        if (status === 'CANCELLED') {
+            return 'fa-ban text-rose-300';
+        }
+        return 'fa-check-circle text-emerald-300';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('skill-inventory')?.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-skill-id]');
+            if (button) {
+                selectSkill(button.getAttribute('data-skill-id'));
+            }
+        });
+        document.getElementById('skill-usage-form')?.addEventListener('submit', reportSkillUsage);
+        window.addEventListener('resize', renderSkillUsageCanvas);
+        loadSkillOverview();
+        setInterval(loadSkillOverview, 8000);
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js" defer></script>
+<script src="/js/tech-theme.js?v=20260610-depth" defer></script>
+<script src="/js/app-layout.js?v=20260616-mineru1" defer></script>
+</body>
+</html>
