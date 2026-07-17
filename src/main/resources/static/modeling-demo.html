@@ -2594,7 +2594,7 @@
     }
 
     function fitModelPreviewBounds(targetAxis = 2.72) {
-        const box = new THREE.Box3().setFromObject(modelGroup);
+        const box = calculateModelPreviewBounds(modelGroup);
         if (box.isEmpty()) {
             return;
         }
@@ -2613,6 +2613,26 @@
             controls.target.set(0, 0.04, 0);
             controls.update();
         }
+    }
+
+    function calculateModelPreviewBounds(root) {
+        const bounds = new THREE.Box3();
+        const objectBounds = new THREE.Box3();
+        root.updateWorldMatrix(true, true);
+        root.traverse((object) => {
+            if (!object.visible || object.userData.skipFitBounds || !object.geometry) {
+                return;
+            }
+            if (!object.geometry.boundingBox) {
+                object.geometry.computeBoundingBox();
+            }
+            if (!object.geometry.boundingBox) {
+                return;
+            }
+            objectBounds.copy(object.geometry.boundingBox).applyMatrix4(object.matrixWorld);
+            bounds.union(objectBounds);
+        });
+        return bounds;
     }
 
     function focusGeneratedAssetView(options = {}) {
@@ -2737,8 +2757,10 @@
             contextPlane.position.z = -0.24;
             contextPlane.renderOrder = 1;
             contextPlane.userData.skipExport = true;
+            contextPlane.userData.skipFitBounds = true;
             relief.add(contextPlane);
         }
+        addCharacterAmbientHalo(relief, width, height, completed);
 
         const frontGeometry = createCharacterReliefGeometry(width, height, textureResult, completed);
         const frontMaterial = new THREE.MeshStandardMaterial({
@@ -3149,6 +3171,7 @@
         shadow.scale.set(1.18, 0.38, 1);
         shadow.renderOrder = 0;
         shadow.userData.skipExport = true;
+        shadow.userData.skipFitBounds = true;
         targetGroup.add(shadow);
     }
 
@@ -3241,7 +3264,7 @@
     }
 
     function createCharacterContextTexture(crop, textureResult, completed) {
-        if (!textureResult.contextPreserved) {
+        if (!textureResult.contextPreserved || completed) {
             return null;
         }
         const preview = document.getElementById('model-source-preview');
@@ -3250,7 +3273,7 @@
         canvas.height = Math.max(320, Math.round(canvas.width / textureResult.aspect));
         const context = canvas.getContext('2d', { willReadFrequently: true });
         context.clearRect(0, 0, canvas.width, canvas.height);
-        context.filter = 'blur(2px) saturate(.58) brightness(.62)';
+        context.filter = 'blur(8px) saturate(.42) brightness(.38)';
         context.drawImage(preview, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
         context.filter = 'none';
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -3266,7 +3289,7 @@
                 const maskY = textureMaskCoordinate(y, canvas.height, currentImageMaskSize, crop.maskBounds, 'y');
                 const subjectSuppression = subjectAlpha[maskY * currentImageMaskSize + maskX] > 0.2 ? 0.06 : 1;
                 const offset = (y * canvas.width + x) * 4;
-                const opacity = completed ? 0.32 : 0.14;
+                const opacity = 0.08;
                 data[offset + 3] = Math.round(data[offset + 3] * vignette * subjectSuppression * opacity);
             }
         }
@@ -3276,6 +3299,43 @@
         texture.anisotropy = renderer ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 1;
         texture.needsUpdate = true;
         return texture;
+    }
+
+    function createCharacterAmbientHaloTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 256;
+        const context = canvas.getContext('2d');
+        const gradient = context.createRadialGradient(128, 132, 8, 128, 132, 124);
+        gradient.addColorStop(0, 'rgba(103, 232, 249, 0.18)');
+        gradient.addColorStop(0.34, 'rgba(34, 211, 238, 0.1)');
+        gradient.addColorStop(0.68, 'rgba(16, 185, 129, 0.035)');
+        gradient.addColorStop(1, 'rgba(2, 6, 23, 0)');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function addCharacterAmbientHalo(targetGroup, width, height, completed) {
+        const material = new THREE.SpriteMaterial({
+            map: createCharacterAmbientHaloTexture(),
+            color: 0xffffff,
+            transparent: true,
+            opacity: completed ? 0.72 : 0.3,
+            depthWrite: false,
+            depthTest: true
+        });
+        const halo = new THREE.Sprite(material);
+        halo.name = '人物无边界环境光晕';
+        halo.position.set(0, 0.08, -0.46);
+        halo.scale.set(width * 1.62, height * 1.34, 1);
+        halo.renderOrder = 0;
+        halo.userData.skipExport = true;
+        halo.userData.skipFitBounds = true;
+        targetGroup.add(halo);
     }
 
     function shouldPreserveCharacterReferenceContext() {

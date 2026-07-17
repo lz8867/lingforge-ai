@@ -334,6 +334,27 @@ class MediaGenerationPageTest {
     }
 
     @Test
+    void modelingDemoGeneratedCharacterShouldUseSeamlessAmbientHaloInsteadOfReferencePlane() throws Exception {
+        String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
+
+        assertTrue(page.contains("if (!textureResult.contextPreserved || completed)"));
+        assertTrue(page.contains("function createCharacterAmbientHaloTexture()"));
+        assertTrue(page.contains("function addCharacterAmbientHalo(targetGroup, width, height, completed)"));
+        assertTrue(page.contains("context.createRadialGradient("));
+        assertTrue(page.contains("halo.name = '人物无边界环境光晕';"));
+        assertTrue(page.contains("halo.userData.skipExport = true;"));
+        assertTrue(page.contains("halo.userData.skipFitBounds = true;"));
+        assertTrue(page.contains("addCharacterAmbientHalo(relief, width, height, completed);"));
+        assertTrue(page.contains("function calculateModelPreviewBounds(root)"));
+        assertTrue(page.contains("const box = calculateModelPreviewBounds(modelGroup);"));
+        assertTrue(page.contains("object.userData.skipFitBounds"));
+        assertTrue(page.contains("opacity: completed ? 0.72 : 0.3,"));
+        assertTrue(page.contains("context.filter = 'blur(8px) saturate(.42) brightness(.38)';"));
+        assertFalse(page.contains("const opacity = completed ? 0.32 : 0.14;"));
+        assertFalse(page.contains("context.filter = 'blur(2px) saturate(.58) brightness(.62)';"));
+    }
+
+    @Test
     void modelingDemoCharacterReliefShouldRenderAsCleanLayeredAsset() throws Exception {
         String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
 
