@@ -63,8 +63,10 @@ const pageContracts = {
     'applyRemoteModelingPollingState',
     'tripoSplatViewerBootTimeout',
     'toggleGeneratedComparison',
-    'addGeneratedReliefLayers',
-    'modeling-contour-layer',
+    'createCharacterSubjectTexture',
+    'addCharacterDepthLayers',
+    '人物轮廓深度层',
+    '人物接触阴影',
     '轮廓浮雕资产',
     '当前仅展示本地预览',
     '生成完成'

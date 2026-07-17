@@ -250,9 +250,10 @@ class MediaGenerationPageTest {
         assertTrue(page.contains("预览轮廓增强"));
         assertTrue(page.contains("preserveDrawingBuffer: true"));
         assertTrue(page.contains("buildCharacterReliefPreview"));
-        assertTrue(page.contains("createCharacterReliefTexture"));
+        assertTrue(page.contains("createCharacterSubjectTexture"));
+        assertTrue(page.contains("createCharacterContextTexture"));
         assertTrue(page.contains("人物纹理浮雕预览"));
-        assertTrue(page.contains("alphaTest: completed ? 0.06 : 0.08"));
+        assertTrue(page.contains("alphaTest: completed ? 0.025 : 0.045"));
         assertFalse(page.contains("inactiveAlpha = completed ? 0.03 : 0.14"));
         assertTrue(page.contains("refineForegroundMaskForComplexBackground"));
         assertTrue(page.contains("coverage > 0.86"));
@@ -262,7 +263,9 @@ class MediaGenerationPageTest {
         assertTrue(page.contains("isolateCenteredForegroundComponent"));
         assertTrue(page.contains("findMaskBounds"));
         assertTrue(page.contains("drawImage(preview, crop.x, crop.y, crop.width, crop.height"));
-        assertTrue(page.contains("inactiveAlpha = completed ? 0 : 0.14"));
+        assertTrue(page.contains("buildCharacterSubjectAlpha"));
+        assertTrue(page.contains("const subjectSuppression"));
+        assertFalse(page.contains("inactiveAlpha = completed ? 0 : 0.14"));
         assertTrue(page.contains("中心连通主体"));
         assertTrue(page.contains("上传图轮廓"));
         assertTrue(page.contains("modelingGeneratedAssets"));
@@ -286,8 +289,8 @@ class MediaGenerationPageTest {
         assertTrue(page.contains("生成资产正面已锁定"));
         assertTrue(page.contains("autoRotate = false"));
         assertTrue(page.contains("modelGroup.rotation.set(0, 0, 0)"));
-        assertTrue(page.contains("addGeneratedReliefLayers"));
-        assertTrue(page.contains("modeling-contour-layer"));
+        assertFalse(page.contains("addGeneratedReliefLayers"));
+        assertFalse(page.contains("modeling-contour-layer"));
         assertTrue(page.contains("轮廓浮雕资产"));
         assertFalse(page.contains("addGeneratedDepthShell"));
         assertFalse(page.contains("new THREE.BoxGeometry(railThickness"));
@@ -312,6 +315,68 @@ class MediaGenerationPageTest {
         assertTrue(css.contains("body[data-app-page=\"modeling-demo\"] .modeling-viewer-frame"));
         assertTrue(css.contains("body[data-app-page=\"modeling-demo\"] #modeling-canvas"));
         assertTrue(css.contains("@media (max-width: 768px)"));
+    }
+
+    @Test
+    void modelingDemoCharacterReliefShouldPreserveComplexReferenceContext() throws Exception {
+        String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
+
+        assertTrue(page.contains("function shouldPreserveCharacterReferenceContext()"));
+        assertTrue(page.contains("function characterReferenceCrop(imageWidth, imageHeight, maskSize)"));
+        assertTrue(page.contains("function buildCharacterSubjectAlpha(mask, size)"));
+        assertTrue(page.contains("function createCharacterContextTexture(crop, textureResult, completed)"));
+        assertTrue(page.contains("const contextPreserved = shouldPreserveCharacterReferenceContext();"));
+        assertTrue(page.contains("const subjectSuppression"));
+        assertTrue(page.contains("const vignette"));
+        assertTrue(page.contains("alphaTest: completed ? 0.025 : 0.045"));
+        assertTrue(page.contains("复杂人物图已启用上下文保真纹理"));
+        assertTrue(page.contains("referenceContextPreserved: shouldPreserveCharacterReferenceContext()"));
+    }
+
+    @Test
+    void modelingDemoCharacterReliefShouldRenderAsCleanLayeredAsset() throws Exception {
+        String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
+
+        assertTrue(page.contains("function createCharacterSubjectTexture(completed)"));
+        assertTrue(page.contains("function createCharacterSubjectMaskCanvas(mask, size, crop, width, height)"));
+        assertTrue(page.contains("function createCharacterDepthTexture(subjectCanvas, completed)"));
+        assertTrue(page.contains("function addCharacterDepthLayers(targetGroup, textureResult, width, height, completed)"));
+        assertTrue(page.contains("function addCharacterContactShadow(targetGroup)"));
+        assertTrue(page.contains("addCharacterDepthLayers(relief, textureResult, width, height, completed);"));
+        assertTrue(page.contains("addCharacterContactShadow(relief);"));
+        assertTrue(page.contains("relief.rotation.y = completed ? -0.065 : -0.025;"));
+        assertTrue(page.contains("fitModelPreviewBounds(3.12);"));
+        assertTrue(page.contains("const size = 192;"));
+        assertTrue(page.contains("const maxHorizontalGap = Math.max(10, Math.round(size * 0.1));"));
+        assertTrue(page.contains("const featherRadius = Math.max(2, Math.round(size / 48));"));
+        assertTrue(page.contains("context.imageSmoothingQuality = 'high';"));
+        assertTrue(page.contains("context.filter = 'blur(1.2px)';"));
+        assertFalse(page.contains("const plateGeometry = new THREE.ExtrudeGeometry(createImageDrivenShape(),"));
+        assertFalse(page.contains("function addCleanCharacterReliefEdge"));
+        assertFalse(page.contains("人物浅浮雕体"));
+        assertFalse(page.contains("addGeneratedReliefLayers"));
+        assertFalse(page.contains("modeling-contour-layer"));
+        assertFalse(page.contains("const count = completed ? 680 : 72;"));
+        assertFalse(page.contains("context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);"));
+    }
+
+    @Test
+    void modelingDemoShouldUseFocusedProfessionalWorkspaceHierarchy() throws Exception {
+        String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
+
+        assertTrue(page.contains("--modeling-surface:"));
+        assertTrue(page.contains("class=\"modeling-control-section modeling-control-section--source\""));
+        assertTrue(page.contains("class=\"modeling-control-section modeling-control-section--intent\""));
+        assertTrue(page.contains("class=\"modeling-control-section modeling-control-section--quality\""));
+        assertTrue(page.contains("class=\"modeling-stage-index\""));
+        assertTrue(page.contains("class=\"modeling-viewer-toolbar\""));
+        assertTrue(page.contains("class=\"modeling-inspector-header\""));
+        assertTrue(page.contains("class=\"modeling-log-drawer\""));
+        assertTrue(page.contains("<summary><span><i class=\"fa fa-terminal\"></i> 任务日志</span>"));
+        assertTrue(page.contains("@media (prefers-reduced-motion: reduce)"));
+        assertTrue(page.contains(":focus-visible"));
+        assertTrue(page.contains("@media (max-width: 1180px)"));
+        assertFalse(page.contains("transform: translateY(-1px)"));
     }
 
     @Test

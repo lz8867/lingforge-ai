@@ -29,6 +29,15 @@
     <link rel="stylesheet" href="/css/app-layout.css?v=20260616-mineru1">
     <style>
         body[data-app-page="modeling-demo"] {
+            --modeling-bg: #020617;
+            --modeling-surface: #07111f;
+            --modeling-surface-raised: #0b1727;
+            --modeling-border: rgba(148, 163, 184, 0.18);
+            --modeling-border-strong: rgba(103, 232, 249, 0.34);
+            --modeling-text: #f8fafc;
+            --modeling-muted: #94a3b8;
+            --modeling-primary: #22d3ee;
+            --modeling-success: #22c55e;
             color: #dff8ff;
         }
 
@@ -237,7 +246,6 @@
         body[data-app-page="modeling-demo"] .modeling-sample:hover,
         body[data-app-page="modeling-demo"] .modeling-sample.is-active {
             border-color: rgba(34, 211, 238, 0.72);
-            transform: translateY(-1px);
         }
 
         body[data-app-page="modeling-demo"] .modeling-sample strong,
@@ -1135,6 +1143,945 @@
                 max-height: 88px;
             }
         }
+
+        /* Focused workstation refinement: one preview focal point, quiet controls, compact inspector. */
+        body[data-app-page="modeling-demo"] .modeling-demo-shell {
+            gap: 8px;
+            padding-bottom: 12px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage-grid {
+            position: relative;
+            gap: 0;
+            border: 1px solid var(--modeling-border);
+            border-radius: 10px;
+            background: rgba(7, 17, 31, 0.78);
+            overflow: hidden;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage {
+            position: relative;
+            min-height: 48px;
+            grid-template-columns: 28px minmax(0, 1fr);
+            gap: 9px;
+            padding: 8px 12px;
+            border: 0;
+            border-right: 1px solid var(--modeling-border);
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage:last-child {
+            border-right: 0;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 2px;
+            background: transparent;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage.is-active {
+            border-color: var(--modeling-border);
+            background: rgba(34, 211, 238, 0.055);
+            box-shadow: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage.is-active::after {
+            background: var(--modeling-primary);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage > i {
+            display: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage > .modeling-stage-index {
+            width: 24px;
+            height: 24px;
+            display: inline-grid;
+            place-items: center;
+            border: 1px solid var(--modeling-border);
+            border-radius: 6px;
+            color: var(--modeling-muted);
+            background: rgba(2, 6, 23, 0.52);
+            font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage > .modeling-stage-index {
+            display: inline-grid;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage.is-active .modeling-stage-index {
+            color: #03131a;
+            border-color: var(--modeling-primary);
+            background: var(--modeling-primary);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage strong {
+            color: var(--modeling-text);
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-stage span:not(.modeling-stage-index) {
+            color: var(--modeling-muted);
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-workbench {
+            grid-template-columns: minmax(286px, 306px) minmax(520px, 1fr) minmax(284px, 306px);
+            gap: 12px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-panel {
+            gap: 0;
+            padding: 0;
+            border-color: var(--modeling-border);
+            border-radius: 12px;
+            background: rgba(7, 17, 31, 0.9);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-panel-title {
+            color: var(--modeling-text);
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-panel {
+            grid-template-rows: auto minmax(0, 1fr) auto;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-panel > .modeling-panel-title,
+        body[data-app-page="modeling-demo"] .modeling-inspector-header {
+            min-height: 52px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--modeling-border);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-scroll {
+            gap: 0;
+            padding: 0 14px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-section {
+            display: grid;
+            gap: 10px;
+            padding: 14px 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-control-section:last-child {
+            border-bottom: 0;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-section-heading > span:first-child {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #dbeafe;
+            font-size: 11px;
+            font-weight: 650;
+            letter-spacing: 0.02em;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-section-heading > span:first-child > b {
+            color: #64748b;
+            font: 600 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-section-heading small {
+            color: #64748b;
+            font-size: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-zone {
+            min-height: 146px;
+            border-color: rgba(103, 232, 249, 0.24);
+            border-radius: 9px;
+            background: #020817;
+            cursor: pointer;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-zone:hover {
+            border-color: rgba(103, 232, 249, 0.54);
+            background: #04101d;
+        }
+
+        body[data-app-page="modeling-demo"] #model-source-preview {
+            min-height: 146px;
+            max-height: 170px;
+            object-fit: cover;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-empty {
+            gap: 6px;
+            color: var(--modeling-muted);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-empty i {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-empty strong {
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-empty small {
+            max-width: 230px;
+            font-size: 10px;
+            line-height: 1.45;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-replace {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            z-index: 2;
+            padding: 5px 8px;
+            border: 1px solid rgba(226, 232, 240, 0.2);
+            border-radius: 6px;
+            color: #e2e8f0;
+            background: rgba(2, 6, 23, 0.76);
+            font-size: 10px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 180ms ease;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-upload-zone:hover .modeling-upload-replace {
+            opacity: 1;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample-grid {
+            gap: 6px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample {
+            min-height: 58px;
+            padding: 7px;
+            border-color: var(--modeling-border);
+            border-radius: 8px;
+            box-shadow: inset 0 -42px 48px rgba(0, 0, 0, 0.62);
+            cursor: pointer;
+            transition: border-color 180ms ease, background-color 180ms ease;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample strong {
+            font-size: 10px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-sample span {
+            display: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-field-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        body[data-app-page="modeling-demo"] textarea,
+        body[data-app-page="modeling-demo"] select {
+            border-color: var(--modeling-border);
+            border-radius: 8px;
+            color: #e2e8f0;
+            background: #030b18;
+            font-weight: 500;
+        }
+
+        body[data-app-page="modeling-demo"] #model-prompt {
+            min-height: 72px;
+            max-height: 88px;
+            resize: vertical;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-quality-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row {
+            gap: 5px;
+            padding: 3px;
+            border: 1px solid var(--modeling-border);
+            border-radius: 9px;
+            background: rgba(2, 6, 23, 0.48);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button,
+        body[data-app-page="modeling-demo"] .modeling-action,
+        body[data-app-page="modeling-demo"] .modeling-icon-button {
+            border-color: transparent;
+            border-radius: 7px;
+            color: #94a3b8;
+            background: transparent;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button:hover,
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button.is-active,
+        body[data-app-page="modeling-demo"] .modeling-action:hover,
+        body[data-app-page="modeling-demo"] .modeling-icon-button:hover {
+            border-color: transparent;
+            color: #ecfeff;
+            background: rgba(34, 211, 238, 0.12);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-toggle-row button.is-active {
+            color: #cffafe;
+            background: rgba(8, 145, 178, 0.22);
+            box-shadow: inset 0 0 0 1px rgba(103, 232, 249, 0.22);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-range-stack {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-range-row {
+            gap: 5px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-range-row label {
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 550;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-range-row label strong {
+            color: #e2e8f0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-weight: 600;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-submit-bar {
+            gap: 7px;
+            padding: 12px 14px 14px;
+            border-top-color: var(--modeling-border);
+            background: rgba(7, 17, 31, 0.96);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-action.is-primary {
+            min-height: 40px;
+            color: #022c22;
+            border: 0;
+            background: linear-gradient(100deg, #67e8f9, #34d399);
+            box-shadow: none;
+            font-weight: 700;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-action.is-primary:hover {
+            color: #022c22;
+            background: linear-gradient(100deg, #a5f3fc, #6ee7b7);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-submit-meta {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-panel {
+            grid-template-rows: auto minmax(0, 1fr) 3px auto;
+            overflow: hidden;
+            background: #020817;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-toolbar {
+            min-height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--modeling-border);
+            background: rgba(7, 17, 31, 0.94);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-title {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-title > i {
+            width: 32px;
+            height: 32px;
+            display: grid;
+            place-items: center;
+            border: 1px solid rgba(103, 232, 249, 0.2);
+            border-radius: 8px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.08);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-title strong,
+        body[data-app-page="modeling-demo"] .modeling-viewer-title span {
+            display: block;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-title strong {
+            color: var(--modeling-text);
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-title span {
+            margin-top: 2px;
+            color: #64748b;
+            font-size: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-live-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--modeling-primary);
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.55);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-pill {
+            min-height: 26px;
+            padding: 4px 8px;
+            border-color: var(--modeling-border);
+            border-radius: 7px;
+            color: #cbd5e1;
+            background: rgba(2, 6, 23, 0.58);
+            font-size: 10px;
+            font-weight: 600;
+            backdrop-filter: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame {
+            min-height: 520px;
+            border: 0;
+            border-radius: 0;
+            background:
+                radial-gradient(circle at 50% 42%, rgba(14, 116, 144, 0.14), transparent 34%),
+                linear-gradient(180deg, #020617, #030b18);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-frame.is-generated {
+            border-color: transparent;
+            box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.16);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-overlay {
+            left: 14px;
+            top: 14px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-completion-badge {
+            display: none !important;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-compare-toggle {
+            top: 14px;
+            right: 14px;
+            border-color: var(--modeling-border);
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(10px);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state {
+            left: 14px;
+            bottom: 14px;
+            max-width: min(420px, calc(100% - 130px));
+            padding: 8px 10px;
+            border-color: var(--modeling-border);
+            border-radius: 8px;
+            background: rgba(2, 6, 23, 0.78);
+            backdrop-filter: blur(10px);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-generation-state[data-state="generated"] {
+            border-color: rgba(34, 197, 94, 0.4);
+            background: rgba(5, 46, 22, 0.78);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-viewer-tools {
+            right: 14px;
+            bottom: 14px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-icon-button {
+            width: 34px;
+            min-height: 34px;
+            padding: 0 !important;
+            border: 1px solid var(--modeling-border);
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(10px);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-progress-track {
+            height: 3px;
+            border-radius: 0;
+            background: rgba(148, 163, 184, 0.1);
+        }
+
+        body[data-app-page="modeling-demo"] #modeling-progress {
+            border-radius: 0;
+            background: linear-gradient(90deg, #22d3ee, #22c55e);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-log-drawer {
+            border-top: 1px solid var(--modeling-border);
+            background: rgba(7, 17, 31, 0.94);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-log-drawer summary {
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 12px;
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-log-drawer summary::-webkit-details-marker {
+            display: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-log-drawer summary > span {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-log {
+            min-height: 84px;
+            max-height: 116px;
+            margin: 0 10px 10px;
+            padding: 9px;
+            border-color: var(--modeling-border);
+            border-radius: 7px;
+            color: #94a3b8;
+            background: #020617;
+            font-size: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset-panel {
+            grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+            overflow: hidden;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-title {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-title > i {
+            color: #67e8f9;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-title strong,
+        body[data-app-page="modeling-demo"] .modeling-inspector-title span {
+            display: block;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-title strong {
+            color: var(--modeling-text);
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-title span {
+            margin-top: 2px;
+            color: #64748b;
+            font-size: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-summary {
+            min-height: 74px;
+            margin: 12px 12px 0;
+            padding: 10px;
+            border-color: var(--modeling-border);
+            border-radius: 9px;
+            background: rgba(2, 6, 23, 0.48);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-summary[data-state="generated"],
+        body[data-app-page="modeling-demo"] .modeling-result-summary[data-state="local"] {
+            border-color: rgba(34, 197, 94, 0.28);
+            background: rgba(5, 46, 22, 0.22);
+            box-shadow: none;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-copy strong {
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-copy span {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 500;
+            white-space: normal;
+            line-height: 1.35;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-result-source {
+            min-height: 26px;
+            padding: 4px 7px;
+            border-color: var(--modeling-border);
+            border-radius: 7px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-section {
+            display: grid;
+            gap: 8px;
+            padding: 14px 12px 0;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-inspector-section .modeling-panel-title {
+            color: #cbd5e1;
+            font-size: 11px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric-grid {
+            gap: 0;
+            border: 1px solid var(--modeling-border);
+            border-radius: 9px;
+            overflow: hidden;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric {
+            min-height: 64px;
+            padding: 9px;
+            border: 0;
+            border-right: 1px solid var(--modeling-border);
+            border-bottom: 1px solid var(--modeling-border);
+            border-radius: 0;
+            background: rgba(2, 6, 23, 0.34);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric:nth-child(2n) {
+            border-right: 0;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric:nth-last-child(-n + 2) {
+            border-bottom: 0;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric span {
+            color: #64748b;
+            font-size: 9px;
+            font-weight: 550;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-metric strong {
+            font-size: 18px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset-list {
+            gap: 0;
+            border: 1px solid var(--modeling-border);
+            border-radius: 9px;
+            overflow: hidden;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset {
+            min-height: 50px;
+            padding: 8px;
+            border: 0;
+            border-bottom: 1px solid var(--modeling-border);
+            border-radius: 0;
+            background: rgba(2, 6, 23, 0.34);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset:last-child {
+            border-bottom: 0;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset i {
+            border-radius: 7px;
+            color: #67e8f9;
+            background: rgba(34, 211, 238, 0.08);
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset strong {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset span {
+            color: #64748b;
+            font-size: 9px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-asset .modeling-action {
+            min-height: 28px;
+            padding: 4px 8px !important;
+            border: 1px solid var(--modeling-border);
+            color: #cbd5e1;
+            background: rgba(15, 23, 42, 0.62);
+            font-size: 10px;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state {
+            min-height: 58px;
+            margin: 12px;
+            padding: 9px;
+            border-color: var(--modeling-border);
+            border-radius: 8px;
+            color: #cbd5e1;
+            background: rgba(2, 6, 23, 0.4);
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state strong {
+            font-size: 10px;
+            font-weight: 650;
+        }
+
+        body[data-app-page="modeling-demo"] .modeling-service-state span {
+            color: #64748b;
+            font-size: 9px;
+        }
+
+        body[data-app-page="modeling-demo"] :is(button, select, textarea, input, summary, label):focus-visible {
+            outline: 2px solid rgba(103, 232, 249, 0.9);
+            outline-offset: 2px;
+        }
+
+        @media (min-width: 1440px) {
+            body[data-app-layout="active"][data-app-page="modeling-demo"] main.modeling-demo-shell.app-workbench {
+                grid-template-rows: auto 48px minmax(0, 1fr);
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage-grid.app-content-shell {
+                height: 48px !important;
+                max-height: 48px !important;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage {
+                grid-template-columns: 28px minmax(0, 1fr);
+                padding: 7px 12px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-stage span:not(.modeling-stage-index) {
+                display: block;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-workbench.app-content-shell {
+                grid-template-columns: minmax(286px, 306px) minmax(520px, 1fr) minmax(284px, 306px);
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-panel {
+                gap: 0;
+                padding: 0;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-viewer-panel {
+                grid-template-rows: auto minmax(0, 1fr) 3px auto;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-log {
+                max-height: 116px;
+            }
+        }
+
+        @media (min-width: 1181px) and (max-width: 1439px) {
+            body[data-app-layout="active"][data-app-page="modeling-demo"] main.modeling-demo-shell.app-workbench {
+                grid-template-rows: auto 44px minmax(0, 1fr);
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-workbench.app-content-shell {
+                grid-template-columns: minmax(286px, 306px) minmax(0, 1fr);
+                grid-template-rows: minmax(0, 1fr) 148px;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-panel {
+                gap: 0;
+                padding: 0;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-asset-panel {
+                grid-template-columns: minmax(220px, 0.9fr) minmax(220px, 1fr) minmax(300px, 1.35fr) minmax(230px, 0.9fr);
+                grid-template-rows: minmax(0, 1fr);
+                align-items: stretch;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-inspector-header,
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-result-summary,
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-inspector-section,
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-service-state {
+                height: auto;
+                margin: 0;
+                padding: 10px;
+                border-top: 0;
+                border-bottom: 0;
+                border-left: 0;
+                border-radius: 0;
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-inspector-header,
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-result-summary,
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-inspector-section {
+                border-right: 1px solid var(--modeling-border);
+            }
+
+            body[data-app-layout="active"][data-app-page="modeling-demo"] .modeling-inspector-section--metrics {
+                display: none;
+            }
+        }
+
+        @media (max-width: 1180px) {
+            body[data-app-page="modeling-demo"] .modeling-demo-shell {
+                height: auto;
+                max-height: none;
+                overflow: visible;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-workbench,
+            body[data-app-page="modeling-demo"] .modeling-asset-panel {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-control-panel,
+            body[data-app-page="modeling-demo"] .modeling-viewer-panel,
+            body[data-app-page="modeling-demo"] .modeling-asset-panel {
+                height: auto;
+                max-height: none;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-control-scroll {
+                overflow: visible;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-viewer-frame,
+            body[data-app-page="modeling-demo"] #modeling-canvas {
+                min-height: min(64vw, 620px);
+            }
+        }
+
+        @media (max-width: 768px) {
+            body[data-app-page="modeling-demo"] .modeling-stage-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage:nth-child(2) {
+                border-right: 0;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage:nth-child(-n + 2) {
+                border-bottom: 1px solid var(--modeling-border);
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-stage span:not(.modeling-stage-index) {
+                display: none;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-panel {
+                border-radius: 10px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-submit-bar {
+                order: 2;
+                position: sticky;
+                bottom: 0;
+                top: auto;
+                z-index: 6;
+                border-top: 1px solid var(--modeling-border);
+                border-bottom: 0;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-control-scroll {
+                order: 1;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-range-stack {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-viewer-toolbar {
+                align-items: flex-start;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-viewer-title span,
+            body[data-app-page="modeling-demo"] #modeling-preview-label {
+                display: none;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-viewer-frame,
+            body[data-app-page="modeling-demo"] #modeling-canvas {
+                min-height: 380px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-generation-state {
+                max-width: calc(100% - 28px);
+                right: 14px;
+                bottom: 58px;
+            }
+
+            body[data-app-page="modeling-demo"] .modeling-inspector-section {
+                padding-top: 12px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            body[data-app-page="modeling-demo"] *,
+            body[data-app-page="modeling-demo"] *::before,
+            body[data-app-page="modeling-demo"] *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-inter" data-app-page="modeling-demo">
@@ -1156,19 +2103,19 @@
 <main class="modeling-demo-shell app-workbench mx-auto py-4">
     <section class="modeling-stage-grid" aria-label="图像建模流水线">
         <article class="modeling-stage is-active" data-modeling-stage="input">
-            <i class="fa fa-picture-o"></i>
+            <span class="modeling-stage-index">01</span>
             <div><strong>图像预处理</strong><span>去背景 / 视角归一</span></div>
         </article>
         <article class="modeling-stage" data-modeling-stage="splat">
-            <i class="fa fa-crosshairs"></i>
+            <span class="modeling-stage-index">02</span>
             <div><strong>Splat 草模</strong><span>深度估计 / 点云补全</span></div>
         </article>
         <article class="modeling-stage" data-modeling-stage="mesh">
-            <i class="fa fa-cubes"></i>
+            <span class="modeling-stage-index">03</span>
             <div><strong>网格重建</strong><span>ExtrudeGeometry 预览</span></div>
         </article>
         <article class="modeling-stage" data-modeling-stage="export">
-            <i class="fa fa-download"></i>
+            <span class="modeling-stage-index">04</span>
             <div><strong>资产导出</strong><span>GLB 资产包 / Manifest</span></div>
         </article>
     </section>
@@ -1176,65 +2123,81 @@
     <section class="modeling-workbench" aria-label="图像到 3D 建模工作台">
         <aside class="modeling-panel modeling-control-panel">
             <div class="modeling-panel-title">
-                <span><i class="fa fa-sliders"></i> 输入与参数</span>
+                <span><i class="fa fa-sliders"></i> 建模设置</span>
                 <span class="modeling-pill" id="modeling-mode-badge">Speed</span>
             </div>
 
             <div class="modeling-control-scroll" aria-label="建模输入参数">
-            <label class="modeling-upload-zone" for="model-source-image" aria-label="上传参考图">
-                <input id="model-source-image" type="file" accept="image/*">
-                <img id="model-source-preview" alt="建模参考图预览" hidden>
-                <span id="model-source-empty" class="modeling-upload-empty">
-                    <i class="fa fa-cloud-upload"></i>
-                    <strong>上传单张参考图</strong>
-                    <small>支持产品、角色、建筑小物件；本地 Demo 会用图像颜色生成材质。</small>
-                </span>
-            </label>
-
-            <div>
-                <div class="modeling-panel-title mb-2"><span><i class="fa fa-th-large"></i> 示例素材</span></div>
-                <div class="modeling-sample-grid" id="modeling-samples" aria-label="示例参考图">
-                    <button type="button" class="modeling-sample" data-sample="sneaker" onclick="selectModelingSample('sneaker')">
-                        <strong>潮流运动鞋</strong><span>Product asset</span>
-                    </button>
-                    <button type="button" class="modeling-sample" data-sample="mascot" onclick="selectModelingSample('mascot')">
-                        <strong>IP 公仔</strong><span>Character prop</span>
-                    </button>
-                    <button type="button" class="modeling-sample" data-sample="chair" onclick="selectModelingSample('chair')">
-                        <strong>模块椅子</strong><span>Furniture mesh</span>
-                    </button>
+                <div class="modeling-control-section modeling-control-section--source">
+                    <div class="modeling-section-heading">
+                        <span><b>01</b> 参考素材</span>
+                        <small>PNG / JPG</small>
+                    </div>
+                    <label class="modeling-upload-zone" for="model-source-image" aria-label="上传参考图">
+                        <input id="model-source-image" type="file" accept="image/*">
+                        <img id="model-source-preview" alt="建模参考图预览" hidden>
+                        <span id="model-source-empty" class="modeling-upload-empty">
+                            <i class="fa fa-cloud-upload"></i>
+                            <strong>拖入或选择参考图</strong>
+                            <small>主体居中、轮廓完整的单视角图片效果更稳定</small>
+                        </span>
+                        <span class="modeling-upload-replace"><i class="fa fa-refresh"></i> 更换图片</span>
+                    </label>
+                    <div class="modeling-sample-grid" id="modeling-samples" aria-label="示例参考图">
+                        <button type="button" class="modeling-sample" data-sample="sneaker" onclick="selectModelingSample('sneaker')">
+                            <strong>潮流运动鞋</strong><span>Product asset</span>
+                        </button>
+                        <button type="button" class="modeling-sample" data-sample="mascot" onclick="selectModelingSample('mascot')">
+                            <strong>IP 公仔</strong><span>Character prop</span>
+                        </button>
+                        <button type="button" class="modeling-sample" data-sample="chair" onclick="selectModelingSample('chair')">
+                            <strong>模块椅子</strong><span>Furniture mesh</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div>
-                <label for="model-prompt" class="block text-xs font-black text-slate-300 mb-2">建模描述</label>
-                <textarea id="model-prompt" rows="4" class="p-3 text-sm" placeholder="描述物体材质、用途和想要保留的细节，例如：半透明亚克力外壳，保留鞋底纹理，适合电商 3D 展示。"></textarea>
-            </div>
+                <div class="modeling-control-section modeling-control-section--intent">
+                    <div class="modeling-section-heading">
+                        <span><b>02</b> 建模意图</span>
+                        <small>可选</small>
+                    </div>
+                    <div>
+                        <label for="model-prompt" class="modeling-field-label"><span>描述材质与用途</span><span>Prompt</span></label>
+                        <textarea id="model-prompt" rows="3" class="p-3 text-sm" placeholder="例如：半透明亚克力外壳，保留鞋底纹理，用于电商 3D 展示。"></textarea>
+                    </div>
+                    <div class="modeling-toggle-row" role="group" aria-label="资产类型">
+                        <button type="button" class="is-active" data-model-kind="product" onclick="setModelKind('product')">产品</button>
+                        <button type="button" data-model-kind="character" onclick="setModelKind('character')">角色</button>
+                        <button type="button" data-model-kind="space" onclick="setModelKind('space')">空间</button>
+                    </div>
+                </div>
 
-            <div>
-                <label for="modeling-quality" class="block text-xs font-black text-slate-300 mb-2">生成策略</label>
-                <select id="modeling-quality" class="p-2 text-sm" onchange="syncModelingMode()">
-                    <option value="speed" selected>快速草模 · 4步</option>
-                    <option value="balanced">平衡预览 · 10步</option>
-                    <option value="quality">细节优先 · 20步</option>
-                </select>
-            </div>
-
-            <div class="modeling-toggle-row" role="group" aria-label="资产类型">
-                <button type="button" class="is-active" data-model-kind="product" onclick="setModelKind('product')">产品</button>
-                <button type="button" data-model-kind="character" onclick="setModelKind('character')">角色</button>
-                <button type="button" data-model-kind="space" onclick="setModelKind('space')">空间</button>
-            </div>
-
-            <div class="modeling-range-row">
-                <label for="view-count"><span>合成视角</span><strong id="view-count-value">8</strong></label>
-                <input id="view-count" type="range" min="4" max="16" value="8">
-            </div>
-
-            <div class="modeling-range-row">
-                <label for="face-budget"><span>面数预算</span><strong id="face-budget-value">42k</strong></label>
-                <input id="face-budget" type="range" min="12" max="96" step="2" value="42">
-            </div>
+                <div class="modeling-control-section modeling-control-section--quality">
+                    <div class="modeling-section-heading">
+                        <span><b>03</b> 输出质量</span>
+                        <small>性能可控</small>
+                    </div>
+                    <div class="modeling-quality-grid">
+                        <div>
+                            <label for="modeling-quality" class="modeling-field-label"><span>生成策略</span><span>Steps</span></label>
+                            <select id="modeling-quality" class="p-2 text-sm" onchange="syncModelingMode()">
+                                <option value="speed" selected>快速草模 · 4步</option>
+                                <option value="balanced">平衡预览 · 10步</option>
+                                <option value="quality">细节优先 · 20步</option>
+                            </select>
+                        </div>
+                        <div class="modeling-range-stack">
+                            <div class="modeling-range-row">
+                                <label for="view-count"><span>合成视角</span><strong id="view-count-value">8</strong></label>
+                                <input id="view-count" type="range" min="4" max="16" value="8">
+                            </div>
+                            <div class="modeling-range-row">
+                                <label for="face-budget"><span>面数预算</span><strong id="face-budget-value">42k</strong></label>
+                                <input id="face-budget" type="range" min="12" max="96" step="2" value="42">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="modeling-submit-bar">
@@ -1246,9 +2209,17 @@
         </aside>
 
         <section class="modeling-panel modeling-viewer-panel">
-            <div class="modeling-panel-title">
-                <span><i class="fa fa-cube"></i> 3D 预览</span>
-                <span class="modeling-pill" id="modeling-status">等待输入</span>
+            <div class="modeling-viewer-toolbar">
+                <div class="modeling-viewer-title">
+                    <i class="fa fa-cube"></i>
+                    <div>
+                        <strong>资产预览</strong>
+                        <span>拖拽旋转 · 滚轮缩放 · 双击聚焦</span>
+                    </div>
+                </div>
+                <div class="modeling-viewer-meta">
+                    <span class="modeling-pill"><span class="modeling-live-dot"></span><span id="modeling-status">等待输入</span></span>
+                </div>
             </div>
 
             <div class="modeling-viewer-frame">
@@ -1287,10 +2258,21 @@
                 <div id="modeling-progress"></div>
             </div>
 
-            <pre id="modeling-log" class="modeling-log">等待参考图。页面会先检测 TripoSplat 服务；未配置时当前仅展示本地预览和联调资产。</pre>
+            <details class="modeling-log-drawer">
+                <summary><span><i class="fa fa-terminal"></i> 任务日志</span><span>展开查看 <i class="fa fa-angle-down"></i></span></summary>
+                <pre id="modeling-log" class="modeling-log">等待参考图。页面会先检测 TripoSplat 服务；未配置时当前仅展示本地预览和联调资产。</pre>
+            </details>
         </section>
 
         <aside class="modeling-panel modeling-asset-panel">
+            <div class="modeling-inspector-header">
+                <div class="modeling-inspector-title">
+                    <i class="fa fa-cubes"></i>
+                    <div><strong>资产检查器</strong><span>结果、指标与导出</span></div>
+                </div>
+                <span class="modeling-pill" id="modeling-source-badge">检测中</span>
+            </div>
+
             <div class="modeling-result-summary" id="modeling-result-summary" data-state="idle">
                 <div class="modeling-result-copy">
                     <strong id="modeling-result-title">等待建模任务</strong>
@@ -1299,11 +2281,8 @@
                 <span class="modeling-result-source" id="modeling-result-source"><i class="fa fa-clock-o" aria-hidden="true"></i> 待生成</span>
             </div>
 
-            <div>
-                <div class="modeling-panel-title mb-2">
-                    <span><i class="fa fa-bar-chart"></i> 资产指标</span>
-                    <span class="modeling-pill" id="modeling-source-badge">检测中</span>
-                </div>
+            <div class="modeling-inspector-section modeling-inspector-section--metrics">
+                <div class="modeling-panel-title"><span><i class="fa fa-bar-chart"></i> 资产指标</span></div>
                 <div class="modeling-metric-grid">
                     <div class="modeling-metric"><span>几何复杂度</span><strong id="metric-geometry">--</strong></div>
                     <div class="modeling-metric"><span>贴图分辨率</span><strong id="metric-texture">--</strong></div>
@@ -1312,8 +2291,8 @@
                 </div>
             </div>
 
-            <div>
-                <div class="modeling-panel-title mb-2"><span><i class="fa fa-folder-open"></i> 输出资产</span></div>
+            <div class="modeling-inspector-section modeling-inspector-section--assets">
+                <div class="modeling-panel-title"><span><i class="fa fa-folder-open"></i> 输出资产</span></div>
                 <div class="modeling-asset-list">
                     <div class="modeling-asset">
                         <i class="fa fa-cube"></i>
@@ -1536,8 +2515,7 @@
         const imageDriven = Array.isArray(currentImageShapePoints) && currentImageShapePoints.length >= 8;
         if (imageDriven && currentKind === 'character') {
             buildCharacterReliefPreview(completed);
-            addSplatPointCloud(completed);
-            fitModelPreviewBounds();
+            fitModelPreviewBounds(3.12);
             updateAssetLabel();
             return;
         }
@@ -1604,7 +2582,7 @@
         modelGroup.add(outline);
     }
 
-    function fitModelPreviewBounds() {
+    function fitModelPreviewBounds(targetAxis = 2.72) {
         const box = new THREE.Box3().setFromObject(modelGroup);
         if (box.isEmpty()) {
             return;
@@ -1617,7 +2595,7 @@
         if (!Number.isFinite(maxAxis) || maxAxis <= 0) {
             return;
         }
-        const scale = Math.min(1.28, Math.max(0.56, 2.72 / maxAxis));
+        const scale = Math.min(1.28, Math.max(0.56, targetAxis / maxAxis));
         modelGroup.scale.setScalar(scale);
         modelGroup.position.set(-center.x * scale, -center.y * scale + 0.04, -center.z * scale);
         if (controls) {
@@ -1726,106 +2704,130 @@
     }
 
     function buildCharacterReliefPreview(completed) {
-        const textureResult = createCharacterReliefTexture(completed);
-        const height = 3.06;
-        const width = Math.min(2.54, height * textureResult.aspect);
+        const textureResult = createCharacterSubjectTexture(completed);
+        const height = 3.14;
+        const width = Math.min(2.56, height * textureResult.aspect);
+        const relief = new THREE.Group();
+        relief.name = completed ? '轮廓浮雕资产' : '人物纹理浮雕预览';
+
+        const contextTexture = createCharacterContextTexture(textureResult.crop, textureResult, completed);
+        if (contextTexture) {
+            const contextGeometry = new THREE.PlaneGeometry(width * 1.08, height * 1.04, 1, 1);
+            const contextMaterial = new THREE.MeshBasicMaterial({
+                map: contextTexture,
+                color: 0xffffff,
+                transparent: true,
+                alphaTest: 0.01,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const contextPlane = new THREE.Mesh(contextGeometry, contextMaterial);
+            contextPlane.name = '人物环境柔光层';
+            contextPlane.position.z = -0.24;
+            contextPlane.renderOrder = 1;
+            relief.add(contextPlane);
+        }
+
         const frontGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
         const frontMaterial = new THREE.MeshBasicMaterial({
             map: textureResult.texture,
             color: 0xffffff,
             transparent: true,
-            alphaTest: completed ? 0.06 : 0.08,
-            opacity: completed ? 0.98 : 0.68,
+            alphaTest: completed ? 0.025 : 0.045,
+            opacity: completed ? 1 : 0.72,
+            depthWrite: completed,
             side: THREE.DoubleSide,
             wireframe: wireframeEnabled
         });
         const front = new THREE.Mesh(frontGeometry, frontMaterial);
-        front.position.z = completed ? 0.2 : 0.04;
+        front.name = '人物主体纹理层';
+        front.position.z = completed ? 0.035 : 0.012;
         front.renderOrder = 6;
-
-        const plateGeometry = new THREE.ExtrudeGeometry(createImageDrivenShape(), {
-            depth: completed ? 0.24 : 0.06,
-            bevelEnabled: true,
-            bevelSize: completed ? 0.04 : 0.018,
-            bevelThickness: completed ? 0.038 : 0.016,
-            bevelSegments: completed ? 4 : 2,
-            curveSegments: 28
-        });
-        plateGeometry.center();
-        const plateMaterial = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(currentColors[0]).lerp(new THREE.Color('#e5faff'), 0.28),
-            roughness: 0.38,
-            metalness: 0.08,
-            emissive: currentColors[1],
-            emissiveIntensity: completed ? 0.3 : 0.06,
-            transparent: true,
-            opacity: completed ? 0.38 : 0.16,
-            side: THREE.DoubleSide,
-            wireframe: wireframeEnabled
-        });
-        const plate = new THREE.Mesh(plateGeometry, plateMaterial);
-        plate.position.z = -0.08;
-
-        const relief = new THREE.Group();
-        relief.name = completed ? '轮廓浮雕资产' : '人物纹理浮雕预览';
-        relief.add(plate);
+        addCharacterDepthLayers(relief, textureResult, width, height, completed);
         relief.add(front);
-        if (completed) {
-            addGeneratedReliefLayers(relief);
-        }
+        addCharacterContactShadow(relief);
+        relief.rotation.y = completed ? -0.065 : -0.025;
         modelGroup.add(relief);
-        addPreviewOutline(plate, completed);
-        addImageContourRim(completed);
     }
 
-    function addGeneratedReliefLayers(targetGroup) {
-        if (!currentImageShapePoints || currentImageShapePoints.length < 8) {
-            return;
+    function createCharacterDepthTexture(subjectCanvas, completed) {
+        const canvas = document.createElement('canvas');
+        canvas.width = subjectCanvas.width;
+        canvas.height = subjectCanvas.height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.drawImage(subjectCanvas, 0, 0);
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const depthColor = new THREE.Color(currentColors[2] || '#111827')
+            .lerp(new THREE.Color('#155e75'), completed ? 0.24 : 0.12);
+        const red = Math.round(depthColor.r * 255);
+        const green = Math.round(depthColor.g * 255);
+        const blue = Math.round(depthColor.b * 255);
+        for (let offset = 0; offset < data.length; offset += 4) {
+            data[offset] = red;
+            data[offset + 1] = green;
+            data[offset + 2] = blue;
+            data[offset + 3] = Math.round(data[offset + 3] * (completed ? 0.96 : 0.72));
         }
-        const layerDepths = [-0.32, -0.24, -0.16, -0.08, 0];
-        const contourColor = new THREE.Color(currentColors[1]).lerp(new THREE.Color('#ecfeff'), 0.28);
-        layerDepths.forEach((z, index) => {
-            const backIndex = layerDepths.length - index - 1;
-            const layerGeometry = new THREE.ShapeGeometry(createImageDrivenShape());
-            const layerMaterial = new THREE.MeshStandardMaterial({
-                color: contourColor,
-                roughness: 0.28,
-                metalness: 0.16,
-                emissive: currentColors[1],
-                emissiveIntensity: 0.22 + backIndex * 0.025,
+        context.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = renderer ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 1;
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function addCharacterDepthLayers(targetGroup, textureResult, width, height, completed) {
+        const depthTexture = createCharacterDepthTexture(textureResult.canvas, completed);
+        const depths = completed ? [-0.18, -0.135, -0.09, -0.045] : [-0.055, -0.025];
+        depths.forEach((z, index) => {
+            const backIndex = depths.length - index;
+            const layerGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
+            const layerMaterial = new THREE.MeshBasicMaterial({
+                map: depthTexture,
+                color: 0xffffff,
                 transparent: true,
-                opacity: 0.08 + backIndex * 0.034,
+                alphaTest: 0.025,
+                opacity: completed ? 0.96 : 0.68,
                 depthWrite: false,
                 side: THREE.DoubleSide,
                 wireframe: wireframeEnabled
             });
             const layer = new THREE.Mesh(layerGeometry, layerMaterial);
-            layer.name = 'modeling-contour-layer';
-            layer.position.z = z;
-            layer.scale.setScalar(1 + backIndex * 0.008);
+            layer.name = '人物轮廓深度层';
+            layer.position.set(backIndex * 0.006, -backIndex * 0.004, z);
+            layer.scale.setScalar(1 + backIndex * 0.0015);
             layer.renderOrder = 2 + index;
             targetGroup.add(layer);
-
-            const contourPoints = currentImageShapePoints.map((point) => new THREE.Vector3(point.x, point.y, z + 0.012));
-            const contourGeometry = new THREE.BufferGeometry().setFromPoints(contourPoints);
-            const contour = new THREE.LineLoop(contourGeometry, new THREE.LineBasicMaterial({
-                color: 0xecfeff,
-                transparent: true,
-                opacity: 0.18 + backIndex * 0.06,
-                depthTest: false
-            }));
-            contour.name = 'modeling-contour-layer';
-            contour.scale.copy(layer.scale);
-            contour.renderOrder = 5 + index;
-            targetGroup.add(contour);
         });
     }
 
-    function createCharacterReliefTexture(completed) {
+    function addCharacterContactShadow(targetGroup) {
+        const shadowGeometry = new THREE.CircleGeometry(1, 48);
+        const shadowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x020617,
+            transparent: true,
+            opacity: 0.34,
+            depthWrite: false,
+            side: THREE.DoubleSide
+        });
+        const shadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
+        shadow.name = '人物接触阴影';
+        shadow.position.set(0, -1.42, -0.16);
+        shadow.rotation.x = -Math.PI / 2;
+        shadow.scale.set(1.18, 0.38, 1);
+        shadow.renderOrder = 0;
+        targetGroup.add(shadow);
+    }
+
+    function createCharacterSubjectTexture(completed) {
         const preview = document.getElementById('model-source-preview');
         const imageWidth = Math.max(1, preview?.naturalWidth || 512);
         const imageHeight = Math.max(1, preview?.naturalHeight || 512);
-        const crop = completed && currentImageMaskBounds
+        const contextPreserved = shouldPreserveCharacterReferenceContext();
+        const crop = contextPreserved
+            ? characterReferenceCrop(imageWidth, imageHeight, currentImageMaskSize)
+            : completed && currentImageMaskBounds
             ? maskBoundsToImageCrop(currentImageMaskBounds, currentImageMaskSize, imageWidth, imageHeight)
             : { x: 0, y: 0, width: imageWidth, height: imageHeight, maskBounds: null };
         const aspect = crop.width / crop.height;
@@ -1842,30 +2844,194 @@
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(preview, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
         if (currentImageMask && currentImageMaskSize > 0) {
+            const maskCanvas = createCharacterSubjectMaskCanvas(
+                currentImageMask,
+                currentImageMaskSize,
+                crop,
+                canvas.width,
+                canvas.height
+            );
+            const maskData = maskCanvas.getContext('2d', { willReadFrequently: true })
+                .getImageData(0, 0, canvas.width, canvas.height).data;
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
             const data = imageData.data;
-            const inactiveAlpha = completed ? 0 : 0.14;
-            for (let y = 0; y < canvas.height; y += 1) {
-                for (let x = 0; x < canvas.width; x += 1) {
-                    const maskX = textureMaskCoordinate(x, canvas.width, currentImageMaskSize, crop.maskBounds, 'x');
-                    const maskY = textureMaskCoordinate(y, canvas.height, currentImageMaskSize, crop.maskBounds, 'y');
-                    const maskActive = currentImageMask[maskY * currentImageMaskSize + maskX] === 1;
-                    const offset = (y * canvas.width + x) * 4;
-                    data[offset + 3] = maskActive ? data[offset + 3] : Math.round(data[offset + 3] * inactiveAlpha);
-                }
+            for (let offset = 0; offset < data.length; offset += 4) {
+                data[offset + 3] = Math.round(data[offset + 3] * maskData[offset + 3] / 255);
             }
             context.putImageData(imageData, 0, 0);
-        }
-        if (!completed) {
-            context.strokeStyle = 'rgba(236, 254, 255, .42)';
-            context.lineWidth = 4;
-            context.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
         }
         const texture = new THREE.CanvasTexture(canvas);
         texture.colorSpace = THREE.SRGBColorSpace;
         texture.anisotropy = renderer ? Math.min(8, renderer.capabilities.getMaxAnisotropy()) : 1;
         texture.needsUpdate = true;
-        return { texture, aspect };
+        return { texture, canvas, aspect, contextPreserved, crop, width: canvas.width, height: canvas.height };
+    }
+
+    function createCharacterSubjectMaskCanvas(mask, size, crop, width, height) {
+        const sourceCanvas = document.createElement('canvas');
+        sourceCanvas.width = size;
+        sourceCanvas.height = size;
+        const sourceContext = sourceCanvas.getContext('2d', { willReadFrequently: true });
+        const sourceImageData = sourceContext.createImageData(size, size);
+        const subjectAlpha = buildCharacterSubjectAlpha(mask, size);
+        for (let index = 0; index < subjectAlpha.length; index += 1) {
+            const offset = index * 4;
+            sourceImageData.data[offset] = 255;
+            sourceImageData.data[offset + 1] = 255;
+            sourceImageData.data[offset + 2] = 255;
+            sourceImageData.data[offset + 3] = Math.round(subjectAlpha[index] * 255);
+        }
+        sourceContext.putImageData(sourceImageData, 0, 0);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        const bounds = crop.maskBounds || { left: 0, top: 0, right: size - 1, bottom: size - 1 };
+        const sourceWidth = Math.max(1, bounds.right - bounds.left + 1);
+        const sourceHeight = Math.max(1, bounds.bottom - bounds.top + 1);
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = 'high';
+        context.filter = 'blur(1.2px)';
+        context.drawImage(
+            sourceCanvas,
+            bounds.left,
+            bounds.top,
+            sourceWidth,
+            sourceHeight,
+            0,
+            0,
+            width,
+            height
+        );
+        context.filter = 'none';
+        return canvas;
+    }
+
+    function createCharacterContextTexture(crop, textureResult, completed) {
+        if (!textureResult.contextPreserved) {
+            return null;
+        }
+        const preview = document.getElementById('model-source-preview');
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(512, textureResult.width);
+        canvas.height = Math.max(320, Math.round(canvas.width / textureResult.aspect));
+        const context = canvas.getContext('2d', { willReadFrequently: true });
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.filter = 'blur(2px) saturate(.58) brightness(.62)';
+        context.drawImage(preview, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
+        context.filter = 'none';
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        const subjectAlpha = buildCharacterSubjectAlpha(currentImageMask, currentImageMaskSize);
+        for (let y = 0; y < canvas.height; y += 1) {
+            for (let x = 0; x < canvas.width; x += 1) {
+                const normalizedX = (x / Math.max(1, canvas.width - 1) - 0.5) / 0.5;
+                const normalizedY = (y / Math.max(1, canvas.height - 1) - 0.5) / 0.5;
+                const radius = Math.hypot(normalizedX / 0.96, normalizedY / 1.02);
+                const vignette = Math.max(0, Math.min(1, (1.04 - radius) / 0.3));
+                const maskX = textureMaskCoordinate(x, canvas.width, currentImageMaskSize, crop.maskBounds, 'x');
+                const maskY = textureMaskCoordinate(y, canvas.height, currentImageMaskSize, crop.maskBounds, 'y');
+                const subjectSuppression = subjectAlpha[maskY * currentImageMaskSize + maskX] > 0.2 ? 0.06 : 1;
+                const offset = (y * canvas.width + x) * 4;
+                const opacity = completed ? 0.32 : 0.14;
+                data[offset + 3] = Math.round(data[offset + 3] * vignette * subjectSuppression * opacity);
+            }
+        }
+        context.putImageData(imageData, 0, 0);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = renderer ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 1;
+        texture.needsUpdate = true;
+        return texture;
+    }
+
+    function shouldPreserveCharacterReferenceContext() {
+        return currentSample === 'uploaded'
+            && currentKind === 'character'
+            && currentImageMask instanceof Uint8Array
+            && currentImageMaskSize > 0;
+    }
+
+    function characterReferenceCrop(imageWidth, imageHeight, maskSize) {
+        const horizontalInset = imageWidth * 0.025;
+        const safeMaskSize = Math.max(1, maskSize || 1);
+        const maskInset = Math.max(0, Math.round(safeMaskSize * 0.025));
+        return {
+            x: horizontalInset,
+            y: 0,
+            width: Math.max(1, imageWidth - horizontalInset * 2),
+            height: imageHeight,
+            maskBounds: {
+                left: maskInset,
+                top: 0,
+                right: Math.max(maskInset, safeMaskSize - maskInset - 1),
+                bottom: safeMaskSize - 1
+            }
+        };
+    }
+
+    function buildCharacterSubjectAlpha(mask, size) {
+        const alpha = new Float32Array(mask.length);
+        const maxHorizontalGap = Math.max(10, Math.round(size * 0.1));
+        const maxVerticalGap = Math.max(8, Math.round(size * 0.08));
+        const featherRadius = Math.max(2, Math.round(size / 48));
+        mask.forEach((value, index) => {
+            alpha[index] = value ? 1 : 0;
+        });
+
+        for (let y = 0; y < size; y += 1) {
+            let previousActive = -1;
+            for (let x = 0; x < size; x += 1) {
+                if (!mask[y * size + x]) {
+                    continue;
+                }
+                if (previousActive >= 0 && x - previousActive - 1 <= maxHorizontalGap) {
+                    for (let fillX = previousActive + 1; fillX < x; fillX += 1) {
+                        alpha[y * size + fillX] = Math.max(alpha[y * size + fillX], 0.92);
+                    }
+                }
+                previousActive = x;
+            }
+        }
+        for (let x = 0; x < size; x += 1) {
+            let previousActive = -1;
+            for (let y = 0; y < size; y += 1) {
+                if (!mask[y * size + x]) {
+                    continue;
+                }
+                if (previousActive >= 0 && y - previousActive - 1 <= maxVerticalGap) {
+                    for (let fillY = previousActive + 1; fillY < y; fillY += 1) {
+                        alpha[fillY * size + x] = Math.max(alpha[fillY * size + x], 0.88);
+                    }
+                }
+                previousActive = y;
+            }
+        }
+
+        const closed = new Float32Array(alpha);
+        for (let y = 0; y < size; y += 1) {
+            for (let x = 0; x < size; x += 1) {
+                const index = y * size + x;
+                if (closed[index] > 0) {
+                    continue;
+                }
+                let feather = 0;
+                for (let offsetY = -featherRadius; offsetY <= featherRadius; offsetY += 1) {
+                    for (let offsetX = -featherRadius; offsetX <= featherRadius; offsetX += 1) {
+                        const nextX = x + offsetX;
+                        const nextY = y + offsetY;
+                        if (nextX < 0 || nextX >= size || nextY < 0 || nextY >= size || !mask[nextY * size + nextX]) {
+                            continue;
+                        }
+                        const distance = Math.hypot(offsetX, offsetY);
+                        feather = Math.max(feather, distance <= featherRadius * 0.5 ? 0.7 : 0.38);
+                    }
+                }
+                alpha[index] = feather;
+            }
+        }
+        return alpha;
     }
 
     function maskBoundsToImageCrop(bounds, maskSize, imageWidth, imageHeight) {
@@ -1985,7 +3151,7 @@
     }
 
     function addSplatPointCloud(completed) {
-        const count = completed ? 680 : 72;
+        const count = completed ? 180 : 48;
         const positions = new Float32Array(count * 3);
         for (let index = 0; index < count; index += 1) {
             const radius = 1.25 + Math.random() * 0.45;
@@ -1999,9 +3165,9 @@
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         const material = new THREE.PointsMaterial({
             color: currentColors[1],
-            size: completed ? 0.024 : 0.018,
+            size: completed ? 0.018 : 0.014,
             transparent: true,
-            opacity: completed ? 0.68 : 0.14
+            opacity: completed ? 0.28 : 0.08
         });
         pointCloud = new THREE.Points(geometry, material);
         scene.add(pointCloud);
@@ -2101,6 +3267,9 @@
                 if (silhouette.centerForeground) {
                     appendModelingLog('中心连通主体已提取：已剔除左右边框、装饰背景和离散噪点。');
                 }
+                if (shouldPreserveCharacterReferenceContext()) {
+                    appendModelingLog('复杂人物图已启用上下文保真纹理：主体保持高显著度，同时保留法杖、光斑和场景关系。');
+                }
                 appendModelingLog('人物纹理浮雕预览已启用：保留原图服饰、脸部和姿态纹理。');
                 appendModelingLog(`上传图轮廓已提取：${currentImageShapePoints.length} 个轮廓点，主体覆盖 ${Math.round(silhouette.coverage * 100)}%。`);
                 resetModelingResultState('已载入参考图，当前是生成前草图态。');
@@ -2113,7 +3282,7 @@
     }
 
     function extractUploadedImageSilhouette(image) {
-        const size = 96;
+        const size = 192;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -2233,7 +3402,7 @@
             }
         }
         scores.sort((a, b) => b.score - a.score);
-        const keepCount = Math.max(620, Math.min(3400, Math.round(size * size * 0.34)));
+        const keepCount = Math.max(2480, Math.round(size * size * 0.34));
         const threshold = scores[Math.min(scores.length - 1, keepCount - 1)]?.score || 0;
         const mask = new Uint8Array(size * size);
         let activeCount = 0;
@@ -3410,6 +4579,7 @@
             viewCount: Number(document.getElementById('view-count').value || 8),
             faceBudgetK: Number(document.getElementById('face-budget').value || 42),
             colors: currentColors,
+            referenceContextPreserved: shouldPreserveCharacterReferenceContext(),
             metrics: {
                 geometry: document.getElementById('metric-geometry').textContent,
                 texture: document.getElementById('metric-texture').textContent,
