@@ -361,6 +361,40 @@ class MediaGenerationPageTest {
     }
 
     @Test
+    void modelingDemoCharacterReliefShouldUseDisplacedSurfaceAndExportEmbeddedTexture() throws Exception {
+        String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
+
+        assertTrue(page.contains("<link rel=\"icon\" href=\"data:,\">"));
+        assertTrue(page.contains("function getCharacterReliefProfile(completed)"));
+        assertTrue(page.contains("function createCharacterReliefGeometry(width, height, textureResult, completed)"));
+        assertTrue(page.contains("function applyCharacterSurfaceDepth(geometry, subjectCanvas, profile)"));
+        assertTrue(page.contains("function smoothCharacterReliefDepth(geometry, segmentsX, segmentsY, passes)"));
+        assertTrue(page.contains("new THREE.PlaneGeometry(width, height, profile.segmentsX, profile.segmentsY)"));
+        assertTrue(page.contains("smoothCharacterReliefDepth(geometry, profile.segmentsX, profile.segmentsY, profile.smoothingPasses);"));
+        assertTrue(page.contains("geometry.computeVertexNormals();"));
+        assertTrue(page.contains("const frontMaterial = new THREE.MeshStandardMaterial({"));
+        assertTrue(page.contains("emissive: 0xffffff,"));
+        assertTrue(page.contains("emissiveIntensity: completed ? 0.28 : 0.12"));
+        assertTrue(page.contains("metalness: 0,"));
+        assertTrue(page.contains("new THREE.AmbientLight(0xffffff, 0.86)"));
+        assertTrue(page.contains("new THREE.DirectionalLight(0xffffff, 1.35)"));
+        assertTrue(page.contains("new THREE.PointLight(0x22d3ee, 1.1, 12)"));
+        assertTrue(page.contains("id=\"modeling-mode-badge\">Balanced</span>"));
+        assertTrue(page.contains("<option value=\"balanced\" selected>平衡预览 · 10步</option>"));
+        assertFalse(page.contains("<option value=\"speed\" selected>"));
+        assertTrue(page.contains("front.userData.exportTextureCanvas = textureResult.canvas;"));
+        assertTrue(page.contains("front.userData.isCharacterReliefSurface = true;"));
+        assertTrue(page.contains("function canvasToPngBytes(canvas)"));
+        assertTrue(page.contains("attributes.TEXCOORD_0 = uvAccessor;"));
+        assertTrue(page.contains("baseColorTexture: { index: baseColorTextureIndex }"));
+        assertTrue(page.contains("mimeType: 'image/png'"));
+        assertTrue(page.contains("function appendCharacterReliefSplatRows(rows)"));
+        assertTrue(page.contains("结构化点采样 · 本地生成"));
+        assertTrue(page.contains("reliefSurface: currentKind === 'character'"));
+        assertFalse(page.contains("const frontGeometry = new THREE.PlaneGeometry(width, height, 1, 1);"));
+    }
+
+    @Test
     void modelingDemoShouldUseFocusedProfessionalWorkspaceHierarchy() throws Exception {
         String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
 

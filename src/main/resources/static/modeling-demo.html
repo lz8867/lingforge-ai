@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图像建模 Demo - Spring AI Demo</title>
+    <link rel="icon" href="data:,">
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -2124,7 +2125,7 @@
         <aside class="modeling-panel modeling-control-panel">
             <div class="modeling-panel-title">
                 <span><i class="fa fa-sliders"></i> 建模设置</span>
-                <span class="modeling-pill" id="modeling-mode-badge">Speed</span>
+                <span class="modeling-pill" id="modeling-mode-badge">Balanced</span>
             </div>
 
             <div class="modeling-control-scroll" aria-label="建模输入参数">
@@ -2181,8 +2182,8 @@
                         <div>
                             <label for="modeling-quality" class="modeling-field-label"><span>生成策略</span><span>Steps</span></label>
                             <select id="modeling-quality" class="p-2 text-sm" onchange="syncModelingMode()">
-                                <option value="speed" selected>快速草模 · 4步</option>
-                                <option value="balanced">平衡预览 · 10步</option>
+                                <option value="speed">快速草模 · 4步</option>
+                                <option value="balanced" selected>平衡预览 · 10步</option>
                                 <option value="quality">细节优先 · 20步</option>
                             </select>
                         </div>
@@ -2301,7 +2302,7 @@
                     </div>
                     <div class="modeling-asset">
                         <i class="fa fa-dot-circle-o"></i>
-                        <div><strong id="asset-splat-name">point-cloud.splat</strong><span id="asset-splat-desc">Gaussian Splat 轨迹 · 本地生成</span></div>
+                        <div><strong id="asset-splat-name">point-cloud.splat</strong><span id="asset-splat-desc">结构化点采样 · 本地生成</span></div>
                         <button type="button" id="asset-splat-download" class="modeling-action px-3" onclick="downloadModelingSplat()" disabled>下载</button>
                     </div>
                     <div class="modeling-asset">
@@ -2385,6 +2386,7 @@
     let controls;
     let modelGroup;
     let pointCloud;
+    let characterReliefMesh = null;
     let currentKind = 'product';
     let currentSample = 'sneaker';
     let currentColors = modelingSamples.sneaker.colors;
@@ -2439,6 +2441,8 @@
         renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
         renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.06;
 
         controls = new OrbitControls(camera, canvas);
         controls.enableDamping = true;
@@ -2446,14 +2450,14 @@
         controls.minDistance = 2.8;
         controls.maxDistance = 9.5;
 
-        const ambient = new THREE.AmbientLight(0xdff8ff, 0.62);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.86);
         scene.add(ambient);
 
-        const keyLight = new THREE.DirectionalLight(0x67e8f9, 1.6);
+        const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
         keyLight.position.set(3, 5, 4);
         scene.add(keyLight);
 
-        const rimLight = new THREE.PointLight(0x34d399, 2.2, 12);
+        const rimLight = new THREE.PointLight(0x22d3ee, 1.1, 12);
         rimLight.position.set(-3.2, 2.4, -2.6);
         scene.add(rimLight);
 
@@ -2503,6 +2507,7 @@
         modelGroup.position.set(0, 0, 0);
         modelGroup.rotation.set(0, 0, 0);
         modelGroup.scale.set(1, 1, 1);
+        characterReliefMesh = null;
         if (pointCloud) {
             scene.remove(pointCloud);
             pointCloud.geometry.dispose();
@@ -2725,29 +2730,145 @@
             contextPlane.name = '人物环境柔光层';
             contextPlane.position.z = -0.24;
             contextPlane.renderOrder = 1;
+            contextPlane.userData.skipExport = true;
             relief.add(contextPlane);
         }
 
-        const frontGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
-        const frontMaterial = new THREE.MeshBasicMaterial({
+        const frontGeometry = createCharacterReliefGeometry(width, height, textureResult, completed);
+        const frontMaterial = new THREE.MeshStandardMaterial({
             map: textureResult.texture,
             color: 0xffffff,
             transparent: true,
             alphaTest: completed ? 0.025 : 0.045,
             opacity: completed ? 1 : 0.72,
             depthWrite: completed,
+            roughness: completed ? 0.66 : 0.78,
+            metalness: 0,
+            emissive: 0xffffff,
+            emissiveMap: textureResult.texture,
+            emissiveIntensity: completed ? 0.28 : 0.12,
             side: THREE.DoubleSide,
             wireframe: wireframeEnabled
         });
+        frontMaterial.name = '人物高精度浮雕材质';
         const front = new THREE.Mesh(frontGeometry, frontMaterial);
-        front.name = '人物主体纹理层';
+        front.name = '人物主体高精度浮雕';
         front.position.z = completed ? 0.035 : 0.012;
         front.renderOrder = 6;
+        front.userData.exportTextureCanvas = textureResult.canvas;
+        front.userData.isCharacterReliefSurface = true;
+        characterReliefMesh = front;
         addCharacterDepthLayers(relief, textureResult, width, height, completed);
         relief.add(front);
         addCharacterContactShadow(relief);
         relief.rotation.y = completed ? -0.065 : -0.025;
         modelGroup.add(relief);
+    }
+
+    function getCharacterReliefProfile(completed) {
+        const quality = document.getElementById('modeling-quality')?.value || 'balanced';
+        const profiles = {
+            speed: { segmentsX: 48, segmentsY: 68, baseDepth: 0.02, luminanceDepth: 0.038, detailDepth: 0.018, centerDepth: 0.015, smoothingPasses: 2 },
+            balanced: { segmentsX: 72, segmentsY: 102, baseDepth: 0.026, luminanceDepth: 0.05, detailDepth: 0.026, centerDepth: 0.02, smoothingPasses: 2 },
+            quality: { segmentsX: 96, segmentsY: 136, baseDepth: 0.03, luminanceDepth: 0.06, detailDepth: 0.034, centerDepth: 0.024, smoothingPasses: 3 }
+        };
+        const profile = { ...(profiles[quality] || profiles.balanced) };
+        if (!completed) {
+            profile.baseDepth *= 0.35;
+            profile.luminanceDepth *= 0.28;
+            profile.detailDepth *= 0.22;
+            profile.centerDepth *= 0.3;
+        }
+        return profile;
+    }
+
+    function createCharacterReliefGeometry(width, height, textureResult, completed) {
+        const profile = getCharacterReliefProfile(completed);
+        const geometry = new THREE.PlaneGeometry(width, height, profile.segmentsX, profile.segmentsY);
+        applyCharacterSurfaceDepth(geometry, textureResult.canvas, profile);
+        smoothCharacterReliefDepth(geometry, profile.segmentsX, profile.segmentsY, profile.smoothingPasses);
+        geometry.computeVertexNormals();
+        geometry.userData.reliefProfile = profile;
+        return geometry;
+    }
+
+    function applyCharacterSurfaceDepth(geometry, subjectCanvas, profile) {
+        const position = geometry.getAttribute('position');
+        const uv = geometry.getAttribute('uv');
+        const context = subjectCanvas.getContext('2d', { willReadFrequently: true });
+        const pixels = context.getImageData(0, 0, subjectCanvas.width, subjectCanvas.height).data;
+        const sampleStep = Math.max(2, Math.round(Math.min(
+            subjectCanvas.width / profile.segmentsX,
+            subjectCanvas.height / profile.segmentsY
+        ) * 0.7));
+        for (let index = 0; index < position.count; index += 1) {
+            const u = uv.getX(index);
+            const v = uv.getY(index);
+            const x = Math.max(0, Math.min(subjectCanvas.width - 1, Math.round(u * (subjectCanvas.width - 1))));
+            const y = Math.max(0, Math.min(subjectCanvas.height - 1, Math.round((1 - v) * (subjectCanvas.height - 1))));
+            const pixelOffset = (y * subjectCanvas.width + x) * 4;
+            const alpha = pixels[pixelOffset + 3] / 255;
+            if (alpha <= 0.025) {
+                position.setZ(index, 0);
+                continue;
+            }
+            const luminance = (pixels[pixelOffset] * 0.299
+                + pixels[pixelOffset + 1] * 0.587
+                + pixels[pixelOffset + 2] * 0.114) / 255;
+            const detail = sampleCharacterTextureDetail(pixels, subjectCanvas.width, subjectCanvas.height, x, y, sampleStep);
+            const centerWeight = Math.max(0, 1 - Math.hypot((u - 0.5) / 0.52, (v - 0.5) / 0.64));
+            const depth = alpha * (
+                profile.baseDepth
+                + luminance * profile.luminanceDepth
+                + detail * profile.detailDepth
+                + centerWeight * profile.centerDepth
+            );
+            position.setZ(index, depth);
+        }
+        position.needsUpdate = true;
+    }
+
+    function smoothCharacterReliefDepth(geometry, segmentsX, segmentsY, passes) {
+        const position = geometry.getAttribute('position');
+        const columns = segmentsX + 1;
+        const rows = segmentsY + 1;
+        const passCount = Math.max(1, passes || 1);
+        for (let pass = 0; pass < passCount; pass += 1) {
+            const snapshot = new Float32Array(position.count);
+            for (let index = 0; index < position.count; index += 1) {
+                snapshot[index] = position.getZ(index);
+            }
+            for (let y = 1; y < rows - 1; y += 1) {
+                for (let x = 1; x < columns - 1; x += 1) {
+                    const index = y * columns + x;
+                    const center = snapshot[index];
+                    const average = (
+                        center * 2
+                        + snapshot[index - 1]
+                        + snapshot[index + 1]
+                        + snapshot[index - columns]
+                        + snapshot[index + columns]
+                    ) / 6;
+                    position.setZ(index, center * 0.48 + average * 0.52);
+                }
+            }
+        }
+        position.needsUpdate = true;
+    }
+
+    function sampleCharacterTextureDetail(pixels, width, height, x, y, step) {
+        const lumaAt = (sampleX, sampleY) => {
+            const safeX = Math.max(0, Math.min(width - 1, sampleX));
+            const safeY = Math.max(0, Math.min(height - 1, sampleY));
+            const offset = (safeY * width + safeX) * 4;
+            return pixels[offset] * 0.299 + pixels[offset + 1] * 0.587 + pixels[offset + 2] * 0.114;
+        };
+        const center = lumaAt(x, y);
+        const contrast = Math.abs(center - lumaAt(x - step, y))
+            + Math.abs(center - lumaAt(x + step, y))
+            + Math.abs(center - lumaAt(x, y - step))
+            + Math.abs(center - lumaAt(x, y + step));
+        return Math.max(0, Math.min(1, contrast / 420));
     }
 
     function createCharacterDepthTexture(subjectCanvas, completed) {
@@ -2817,6 +2938,7 @@
         shadow.rotation.x = -Math.PI / 2;
         shadow.scale.set(1.18, 0.38, 1);
         shadow.renderOrder = 0;
+        shadow.userData.skipExport = true;
         targetGroup.add(shadow);
     }
 
@@ -4550,7 +4672,7 @@
         document.getElementById('asset-primary-name').textContent = 'preview.glb';
         document.getElementById('asset-primary-desc').textContent = 'GLB 资产包 · 本地预览';
         document.getElementById('asset-splat-name').textContent = 'point-cloud.splat';
-        document.getElementById('asset-splat-desc').textContent = 'Gaussian Splat 轨迹 · 本地生成';
+        document.getElementById('asset-splat-desc').textContent = '结构化点采样 · 本地生成';
         document.getElementById('modeling-source-badge').textContent = modelingCapability?.configured ? '真实服务' : '本地预览';
     }
 
@@ -4580,6 +4702,12 @@
             faceBudgetK: Number(document.getElementById('face-budget').value || 42),
             colors: currentColors,
             referenceContextPreserved: shouldPreserveCharacterReferenceContext(),
+            reliefSurface: currentKind === 'character' && characterReliefMesh ? {
+                mode: 'displaced-texture-relief',
+                embeddedTexture: true,
+                maskResolution: currentImageMaskSize,
+                segments: characterReliefMesh.geometry.userData.reliefProfile || null
+            } : null,
             metrics: {
                 geometry: document.getElementById('metric-geometry').textContent,
                 texture: document.getElementById('metric-texture').textContent,
@@ -4604,6 +4732,9 @@
         const meshes = [];
         const nodes = [{ name: 'Generated image model', children: [] }];
         const materials = [];
+        const images = [];
+        const textures = [];
+        const samplers = [];
 
         function alignBinary() {
             const padding = (4 - (binaryLength % 4)) % 4;
@@ -4638,20 +4769,42 @@
         meshEntries.forEach((entry, index) => {
             const positionAttribute = entry.geometry.getAttribute('position');
             const normalAttribute = entry.geometry.getAttribute('normal');
+            const uvAttribute = entry.geometry.getAttribute('uv');
             const positions = new Float32Array(positionAttribute.array);
             const normals = new Float32Array(normalAttribute.array);
             const bounds = positionBounds(positions);
             const positionAccessor = addAccessor(positions, 34962, 5126, 'VEC3', positionAttribute.count, bounds.min, bounds.max);
             const normalAccessor = addAccessor(normals, 34962, 5126, 'VEC3', normalAttribute.count);
-            const material = materialToGltf(entry.material);
+            const attributes = {
+                POSITION: positionAccessor,
+                NORMAL: normalAccessor
+            };
+            if (uvAttribute) {
+                const uvs = new Float32Array(uvAttribute.array);
+                const uvAccessor = addAccessor(uvs, 34962, 5126, 'VEC2', uvAttribute.count);
+                attributes.TEXCOORD_0 = uvAccessor;
+            }
+            let baseColorTextureIndex = null;
+            if (entry.textureCanvas) {
+                const pngBytes = canvasToPngBytes(entry.textureCanvas);
+                const imageBufferView = appendTypedArray(pngBytes);
+                images.push({
+                    name: `${entry.name}-texture`,
+                    bufferView: imageBufferView,
+                    mimeType: 'image/png'
+                });
+                if (samplers.length === 0) {
+                    samplers.push({ magFilter: 9729, minFilter: 9987, wrapS: 33071, wrapT: 33071 });
+                }
+                textures.push({ sampler: 0, source: images.length - 1 });
+                baseColorTextureIndex = textures.length - 1;
+            }
+            const material = materialToGltf(entry.material, baseColorTextureIndex);
             materials.push(material);
             meshes.push({
                 name: entry.name,
                 primitives: [{
-                    attributes: {
-                        POSITION: positionAccessor,
-                        NORMAL: normalAccessor
-                    },
+                    attributes,
                     material: materials.length - 1,
                     mode: 4
                 }]
@@ -4688,15 +4841,31 @@
                 source: manifestData.source
             }
         };
+        if (images.length > 0) {
+            gltf.images = images;
+            gltf.textures = textures;
+            gltf.samplers = samplers;
+        }
 
         return createGlbBlob(gltf, binary);
+    }
+
+    function canvasToPngBytes(canvas) {
+        const dataUrl = canvas.toDataURL('image/png');
+        const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+        const decoded = atob(base64);
+        const bytes = new Uint8Array(decoded.length);
+        for (let index = 0; index < decoded.length; index += 1) {
+            bytes[index] = decoded.charCodeAt(index);
+        }
+        return bytes;
     }
 
     function collectExportMeshes() {
         const entries = [];
         modelGroup.updateWorldMatrix(true, true);
         modelGroup.traverse((object) => {
-            if (!object.isMesh || !object.geometry) {
+            if (!object.isMesh || !object.geometry || object.userData.skipExport) {
                 return;
             }
             const geometry = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
@@ -4706,7 +4875,8 @@
             entries.push({
                 name: object.name || `mesh-${entries.length + 1}`,
                 geometry,
-                material: Array.isArray(object.material) ? object.material[0] : object.material
+                material: Array.isArray(object.material) ? object.material[0] : object.material,
+                textureCanvas: object.userData.exportTextureCanvas || null
             });
         });
         return entries;
@@ -4726,18 +4896,29 @@
         return { min, max };
     }
 
-    function materialToGltf(material) {
+    function materialToGltf(material, baseColorTextureIndex = null) {
         const color = material && material.color ? material.color : new THREE.Color(currentColors[0]);
         const emissive = material && material.emissive ? material.emissive : new THREE.Color(currentColors[1]);
-        return {
-            name: material && material.name ? material.name : 'local-material',
-            pbrMetallicRoughness: {
-                baseColorFactor: [color.r, color.g, color.b, 1],
-                metallicFactor: material && typeof material.metalness === 'number' ? material.metalness : 0.12,
-                roughnessFactor: material && typeof material.roughness === 'number' ? material.roughness : 0.48
-            },
-            emissiveFactor: [emissive.r * 0.18, emissive.g * 0.18, emissive.b * 0.18]
+        const pbrMetallicRoughness = {
+            baseColorFactor: [color.r, color.g, color.b, 1],
+            metallicFactor: material && typeof material.metalness === 'number' ? material.metalness : 0.12,
+            roughnessFactor: material && typeof material.roughness === 'number' ? material.roughness : 0.48
         };
+        if (baseColorTextureIndex !== null) {
+            Object.assign(pbrMetallicRoughness, {
+                baseColorTexture: { index: baseColorTextureIndex }
+            });
+        }
+        const gltfMaterial = {
+            name: material && material.name ? material.name : 'local-material',
+            pbrMetallicRoughness,
+            emissiveFactor: [emissive.r * 0.18, emissive.g * 0.18, emissive.b * 0.18],
+            doubleSided: true
+        };
+        if (baseColorTextureIndex !== null) {
+            gltfMaterial.alphaMode = 'BLEND';
+        }
+        return gltfMaterial;
     }
 
     function createGlbBlob(gltf, binary) {
@@ -4776,7 +4957,7 @@
     }
 
     function buildGeneratedSplat(manifestData) {
-        const rows = ['# spring-ai local gaussian-splat approximation', `# source=${manifestData.source}`, 'x,y,z,r,g,b,opacity,scale'];
+        const rows = ['# spring-ai local structured-splat approximation', `# source=${manifestData.source}`, 'x,y,z,r,g,b,opacity,scale'];
         const color = new THREE.Color(currentColors[1]);
         if (pointCloud && pointCloud.geometry) {
             const positions = pointCloud.geometry.getAttribute('position').array;
@@ -4792,8 +4973,50 @@
                     '0.022'
                 ].join(','));
             }
+        } else {
+            appendCharacterReliefSplatRows(rows);
         }
         return new Blob([rows.join('\n')], { type: 'application/x-gaussian-splat;charset=utf-8' });
+    }
+
+    function appendCharacterReliefSplatRows(rows) {
+        if (!characterReliefMesh?.geometry || !characterReliefMesh.userData.exportTextureCanvas) {
+            return 0;
+        }
+        characterReliefMesh.updateWorldMatrix(true, false);
+        const position = characterReliefMesh.geometry.getAttribute('position');
+        const uv = characterReliefMesh.geometry.getAttribute('uv');
+        const canvas = characterReliefMesh.userData.exportTextureCanvas;
+        const pixels = canvas.getContext('2d', { willReadFrequently: true })
+            .getImageData(0, 0, canvas.width, canvas.height).data;
+        const targetSamples = 1400;
+        const sampleStep = Math.max(1, Math.floor(position.count / targetSamples));
+        const worldPoint = new THREE.Vector3();
+        let appended = 0;
+        for (let index = 0; index < position.count; index += sampleStep) {
+            const u = uv.getX(index);
+            const v = uv.getY(index);
+            const x = Math.max(0, Math.min(canvas.width - 1, Math.round(u * (canvas.width - 1))));
+            const y = Math.max(0, Math.min(canvas.height - 1, Math.round((1 - v) * (canvas.height - 1))));
+            const offset = (y * canvas.width + x) * 4;
+            const alpha = pixels[offset + 3] / 255;
+            if (alpha <= 0.08) {
+                continue;
+            }
+            worldPoint.fromBufferAttribute(position, index).applyMatrix4(characterReliefMesh.matrixWorld);
+            rows.push([
+                worldPoint.x.toFixed(4),
+                worldPoint.y.toFixed(4),
+                worldPoint.z.toFixed(4),
+                pixels[offset],
+                pixels[offset + 1],
+                pixels[offset + 2],
+                Math.max(0.24, alpha * 0.82).toFixed(3),
+                '0.014'
+            ].join(','));
+            appended += 1;
+        }
+        return appended;
     }
 
     function downloadBlob(filename, blob) {
