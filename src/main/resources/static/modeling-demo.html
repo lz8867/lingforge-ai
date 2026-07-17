@@ -2387,6 +2387,7 @@
     let modelGroup;
     let pointCloud;
     let characterReliefMesh = null;
+    let characterVolumeShell = null;
     let currentKind = 'product';
     let currentSample = 'sneaker';
     let currentColors = modelingSamples.sneaker.colors;
@@ -2461,6 +2462,10 @@
         rimLight.position.set(-3.2, 2.4, -2.6);
         scene.add(rimLight);
 
+        const volumeFillLight = new THREE.DirectionalLight(0x94a3b8, 0.72);
+        volumeFillLight.position.set(-3.6, 2.2, -4.4);
+        scene.add(volumeFillLight);
+
         const grid = new THREE.GridHelper(8, 24, 0x22d3ee, 0x164e63);
         grid.position.y = -1.18;
         grid.material.opacity = 0.28;
@@ -2508,6 +2513,7 @@
         modelGroup.rotation.set(0, 0, 0);
         modelGroup.scale.set(1, 1, 1);
         characterReliefMesh = null;
+        characterVolumeShell = null;
         if (pointCloud) {
             scene.remove(pointCloud);
             pointCloud.geometry.dispose();
@@ -2758,10 +2764,11 @@
         front.userData.exportTextureCanvas = textureResult.canvas;
         front.userData.isCharacterReliefSurface = true;
         characterReliefMesh = front;
-        addCharacterDepthLayers(relief, textureResult, width, height, completed);
+        addCharacterVolumeShell(relief, textureResult, width, height, completed);
         relief.add(front);
         addCharacterContactShadow(relief);
-        relief.rotation.y = completed ? -0.065 : -0.025;
+        relief.rotation.x = completed ? -0.025 : -0.012;
+        relief.rotation.y = completed ? -0.24 : -0.06;
         modelGroup.add(relief);
     }
 
@@ -2871,56 +2878,259 @@
         return Math.max(0, Math.min(1, contrast / 420));
     }
 
-    function createCharacterDepthTexture(subjectCanvas, completed) {
-        const canvas = document.createElement('canvas');
-        canvas.width = subjectCanvas.width;
-        canvas.height = subjectCanvas.height;
-        const context = canvas.getContext('2d', { willReadFrequently: true });
-        context.drawImage(subjectCanvas, 0, 0);
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        const depthColor = new THREE.Color(currentColors[2] || '#111827')
-            .lerp(new THREE.Color('#155e75'), completed ? 0.24 : 0.12);
-        const red = Math.round(depthColor.r * 255);
-        const green = Math.round(depthColor.g * 255);
-        const blue = Math.round(depthColor.b * 255);
-        for (let offset = 0; offset < data.length; offset += 4) {
-            data[offset] = red;
-            data[offset + 1] = green;
-            data[offset + 2] = blue;
-            data[offset + 3] = Math.round(data[offset + 3] * (completed ? 0.96 : 0.72));
+    function getCharacterVolumeProfile(completed) {
+        const quality = document.getElementById('modeling-quality')?.value || 'balanced';
+        const profiles = {
+            speed: { shellDepth: 0.28, shellRings: 4, contourSegments: 48, sideBulge: 0.018, backTaper: 0.065 },
+            balanced: { shellDepth: 0.4, shellRings: 6, contourSegments: 64, sideBulge: 0.026, backTaper: 0.075 },
+            quality: { shellDepth: 0.52, shellRings: 8, contourSegments: 80, sideBulge: 0.032, backTaper: 0.085 }
+        };
+        const profile = { ...(profiles[quality] || profiles.balanced) };
+        if (!completed) {
+            profile.shellDepth *= 0.42;
+            profile.shellRings = Math.max(3, Math.round(profile.shellRings * 0.62));
+            profile.sideBulge *= 0.5;
         }
-        context.putImageData(imageData, 0, 0);
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = renderer ? Math.min(4, renderer.capabilities.getMaxAnisotropy()) : 1;
-        texture.needsUpdate = true;
-        return texture;
+        return profile;
     }
 
-    function addCharacterDepthLayers(targetGroup, textureResult, width, height, completed) {
-        const depthTexture = createCharacterDepthTexture(textureResult.canvas, completed);
-        const depths = completed ? [-0.18, -0.135, -0.09, -0.045] : [-0.055, -0.025];
-        depths.forEach((z, index) => {
-            const backIndex = depths.length - index;
-            const layerGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
-            const layerMaterial = new THREE.MeshBasicMaterial({
-                map: depthTexture,
-                color: 0xffffff,
-                transparent: true,
-                alphaTest: 0.025,
-                opacity: completed ? 0.96 : 0.68,
-                depthWrite: false,
-                side: THREE.DoubleSide,
-                wireframe: wireframeEnabled
+    function extractCharacterAlphaContour(subjectCanvas, width, height, targetSegments) {
+        const context = subjectCanvas.getContext('2d', { willReadFrequently: true });
+        const pixels = context.getImageData(0, 0, subjectCanvas.width, subjectCanvas.height).data;
+        const alphaAt = (x, y) => {
+            if (x < 0 || y < 0 || x >= subjectCanvas.width || y >= subjectCanvas.height) {
+                return 0;
+            }
+            return pixels[(y * subjectCanvas.width + x) * 4 + 3] / 255;
+        };
+        let centerX = 0;
+        let centerY = 0;
+        let weightTotal = 0;
+        for (let y = 0; y < subjectCanvas.height; y += 2) {
+            for (let x = 0; x < subjectCanvas.width; x += 2) {
+                const weight = alphaAt(x, y);
+                if (weight < 0.12) {
+                    continue;
+                }
+                centerX += x * weight;
+                centerY += y * weight;
+                weightTotal += weight;
+            }
+        }
+        centerX = weightTotal > 0 ? centerX / weightTotal : subjectCanvas.width * 0.5;
+        centerY = weightTotal > 0 ? centerY / weightTotal : subjectCanvas.height * 0.52;
+
+        const segmentCount = Math.max(32, targetSegments || 64);
+        const buckets = Array.from({ length: segmentCount }, () => null);
+        for (let y = 1; y < subjectCanvas.height - 1; y += 1) {
+            for (let x = 1; x < subjectCanvas.width - 1; x += 1) {
+                if (alphaAt(x, y) < 0.14) {
+                    continue;
+                }
+                const edge = alphaAt(x - 1, y) < 0.14
+                    || alphaAt(x + 1, y) < 0.14
+                    || alphaAt(x, y - 1) < 0.14
+                    || alphaAt(x, y + 1) < 0.14;
+                if (!edge) {
+                    continue;
+                }
+                const angle = Math.atan2(y - centerY, x - centerX);
+                const bucketIndex = Math.max(0, Math.min(segmentCount - 1,
+                    Math.floor((angle + Math.PI) / (Math.PI * 2) * segmentCount)));
+                const radius = Math.hypot(x - centerX, y - centerY);
+                if (!buckets[bucketIndex] || radius > buckets[bucketIndex].radius) {
+                    buckets[bucketIndex] = { x, y, radius };
+                }
+            }
+        }
+
+        for (let index = 0; index < segmentCount; index += 1) {
+            if (buckets[index]) {
+                continue;
+            }
+            let previousOffset = 1;
+            let nextOffset = 1;
+            while (previousOffset < segmentCount && !buckets[(index - previousOffset + segmentCount) % segmentCount]) {
+                previousOffset += 1;
+            }
+            while (nextOffset < segmentCount && !buckets[(index + nextOffset) % segmentCount]) {
+                nextOffset += 1;
+            }
+            const previous = buckets[(index - previousOffset + segmentCount) % segmentCount];
+            const next = buckets[(index + nextOffset) % segmentCount];
+            if (previous && next) {
+                const mix = previousOffset / (previousOffset + nextOffset);
+                buckets[index] = {
+                    x: previous.x + (next.x - previous.x) * mix,
+                    y: previous.y + (next.y - previous.y) * mix,
+                    radius: previous.radius + (next.radius - previous.radius) * mix
+                };
+            } else {
+                const angle = index / segmentCount * Math.PI * 2 - Math.PI;
+                buckets[index] = {
+                    x: centerX + Math.cos(angle) * subjectCanvas.width * 0.34,
+                    y: centerY + Math.sin(angle) * subjectCanvas.height * 0.44,
+                    radius: 1
+                };
+            }
+        }
+
+        let contour = buckets.map((point) => ({
+            x: (point.x / Math.max(1, subjectCanvas.width - 1) - 0.5) * width,
+            y: (0.5 - point.y / Math.max(1, subjectCanvas.height - 1)) * height
+        }));
+        for (let pass = 0; pass < 2; pass += 1) {
+            contour = contour.map((point, index) => {
+                const previous = contour[(index - 1 + contour.length) % contour.length];
+                const next = contour[(index + 1) % contour.length];
+                return {
+                    x: point.x * 0.58 + previous.x * 0.21 + next.x * 0.21,
+                    y: point.y * 0.58 + previous.y * 0.21 + next.y * 0.21
+                };
             });
-            const layer = new THREE.Mesh(layerGeometry, layerMaterial);
-            layer.name = '人物轮廓深度层';
-            layer.position.set(backIndex * 0.006, -backIndex * 0.004, z);
-            layer.scale.setScalar(1 + backIndex * 0.0015);
-            layer.renderOrder = 2 + index;
-            targetGroup.add(layer);
+        }
+        return contour;
+    }
+
+    function createCharacterVolumeShape(contour) {
+        const shape = new THREE.Shape();
+        contour.forEach((point, index) => {
+            if (index === 0) {
+                shape.moveTo(point.x, point.y);
+            } else {
+                shape.lineTo(point.x, point.y);
+            }
         });
+        shape.closePath();
+        return shape;
+    }
+
+    function characterVolumeBounds(contour) {
+        return contour.reduce((bounds, point) => ({
+            minX: Math.min(bounds.minX, point.x),
+            maxX: Math.max(bounds.maxX, point.x),
+            minY: Math.min(bounds.minY, point.y),
+            maxY: Math.max(bounds.maxY, point.y)
+        }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
+    }
+
+    function characterVolumeDepthFactor(x, y, bounds) {
+        const halfWidth = Math.max(0.001, (bounds.maxX - bounds.minX) * 0.5);
+        const centerX = (bounds.minX + bounds.maxX) * 0.5;
+        const normalizedX = Math.min(1, Math.abs(x - centerX) / halfWidth);
+        const normalizedY = Math.max(0, Math.min(1, (y - bounds.minY) / Math.max(0.001, bounds.maxY - bounds.minY)));
+        const shoulders = Math.exp(-Math.pow((normalizedY - 0.68) / 0.16, 2));
+        const torso = Math.exp(-Math.pow((normalizedY - 0.48) / 0.24, 2));
+        const head = Math.exp(-Math.pow((normalizedY - 0.89) / 0.13, 2));
+        const lowerBody = Math.exp(-Math.pow((normalizedY - 0.2) / 0.22, 2));
+        const silhouetteTaper = 1 - normalizedX * normalizedX * 0.14;
+        const anatomicalDepth = 0.42 + shoulders * 0.46 + torso * 0.12 + head * 0.06 + lowerBody * 0.04;
+        return Math.max(0.38, Math.min(1, anatomicalDepth * silhouetteTaper));
+    }
+
+    function createCharacterSideWallGeometry(contour, profile) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = [];
+        const uvs = [];
+        const indices = [];
+        const ringCount = profile.shellRings;
+        const bounds = characterVolumeBounds(contour);
+        const perimeterOffsets = [0];
+        for (let index = 1; index <= contour.length; index += 1) {
+            const previous = contour[index - 1];
+            const current = contour[index % contour.length];
+            perimeterOffsets[index] = perimeterOffsets[index - 1] + Math.hypot(current.x - previous.x, current.y - previous.y);
+        }
+        const perimeter = Math.max(0.001, perimeterOffsets[contour.length]);
+        for (let ring = 0; ring <= ringCount; ring += 1) {
+            const t = ring / ringCount;
+            const easedDepth = t * t * (3 - 2 * t);
+            const contourScale = 1 + Math.sin(Math.PI * t) * profile.sideBulge - profile.backTaper * easedDepth;
+            contour.forEach((point, index) => {
+                const pointDepth = profile.shellDepth * characterVolumeDepthFactor(point.x, point.y, bounds);
+                const z = -0.012 - pointDepth * easedDepth;
+                positions.push(point.x * contourScale, point.y * contourScale, z);
+                uvs.push(perimeterOffsets[index] / perimeter, 1 - t);
+            });
+        }
+        for (let ring = 0; ring < ringCount; ring += 1) {
+            for (let index = 0; index < contour.length; index += 1) {
+                const next = (index + 1) % contour.length;
+                const frontA = ring * contour.length + index;
+                const frontB = ring * contour.length + next;
+                const backA = (ring + 1) * contour.length + index;
+                const backB = (ring + 1) * contour.length + next;
+                indices.push(frontA, backA, frontB, frontB, backA, backB);
+            }
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    function createCharacterBackShell(shape, profile) {
+        const backColor = new THREE.Color(currentColors[0] || '#64748b').lerp(new THREE.Color('#111827'), 0.58);
+        const backMaterial = new THREE.MeshStandardMaterial({
+            color: backColor,
+            roughness: 0.74,
+            metalness: 0.02,
+            emissive: 0x020617,
+            emissiveIntensity: 0.12,
+            side: THREE.DoubleSide,
+            wireframe: wireframeEnabled
+        });
+        backMaterial.name = '人物合成背壳材质';
+        const backGeometry = new THREE.ShapeGeometry(shape, 24);
+        const position = backGeometry.getAttribute('position');
+        const contour = [];
+        for (let index = 0; index < position.count; index += 1) {
+            contour.push({ x: position.getX(index), y: position.getY(index) });
+        }
+        const bounds = characterVolumeBounds(contour);
+        for (let index = 0; index < position.count; index += 1) {
+            const x = position.getX(index);
+            const y = position.getY(index);
+            const pointDepth = profile.shellDepth * characterVolumeDepthFactor(x, y, bounds);
+            position.setXYZ(index, x * (1 - profile.backTaper), y * (1 - profile.backTaper), -0.018 - pointDepth);
+        }
+        position.needsUpdate = true;
+        backGeometry.computeVertexNormals();
+        const backShell = new THREE.Mesh(backGeometry, backMaterial);
+        backShell.name = '人物合成背壳';
+        backShell.renderOrder = 1;
+        backShell.userData.isCharacterBackShell = true;
+        return backShell;
+    }
+
+    function addCharacterVolumeShell(targetGroup, textureResult, width, height, completed) {
+        const profile = getCharacterVolumeProfile(completed);
+        const contour = extractCharacterAlphaContour(textureResult.canvas, width, height, profile.contourSegments);
+        const shape = createCharacterVolumeShape(contour);
+        const sideColor = new THREE.Color(currentColors[0] || '#64748b').lerp(new THREE.Color('#172033'), 0.42);
+        const sideMaterial = new THREE.MeshStandardMaterial({
+            color: sideColor,
+            roughness: completed ? 0.52 : 0.68,
+            metalness: 0.04,
+            emissive: new THREE.Color(currentColors[1] || '#22d3ee').lerp(new THREE.Color('#020617'), 0.64),
+            emissiveIntensity: completed ? 0.18 : 0.08,
+            transparent: !completed,
+            opacity: completed ? 1 : 0.68,
+            depthWrite: completed,
+            side: THREE.DoubleSide,
+            wireframe: wireframeEnabled
+        });
+        sideMaterial.name = '人物轮廓体积侧壁材质';
+        const sideWall = new THREE.Mesh(createCharacterSideWallGeometry(contour, profile), sideMaterial);
+        sideWall.name = '人物轮廓体积侧壁';
+        sideWall.renderOrder = 3;
+        sideWall.userData.isCharacterVolumeShell = true;
+        sideWall.userData.shellDepth = profile.shellDepth;
+        sideWall.userData.contourPoints = contour.length;
+        characterVolumeShell = sideWall;
+        targetGroup.add(createCharacterBackShell(shape, profile));
+        targetGroup.add(sideWall);
     }
 
     function addCharacterContactShadow(targetGroup) {
@@ -4476,7 +4686,11 @@
         const quality = document.getElementById('modeling-quality').value;
         document.getElementById('metric-geometry').textContent = `${faceBudget}k`;
         document.getElementById('metric-texture').textContent = quality === 'quality' ? '2K' : '1K';
-        document.getElementById('metric-consistency').textContent = `${Math.min(96, 74 + viewCount)}%`;
+        if (currentKind === 'character' && currentSample === 'uploaded') {
+            document.getElementById('metric-consistency').textContent = '单视角近似';
+        } else {
+            document.getElementById('metric-consistency').textContent = `${Math.min(96, 74 + viewCount)}%`;
+        }
         document.getElementById('metric-size').textContent = `${Math.round(faceBudget * 0.18 + viewCount * 0.7)} MB`;
     }
 
@@ -4561,7 +4775,13 @@
             }
         }
         setStatus(showCompleted ? '生成完成' : '对比生成前');
-        document.getElementById('modeling-preview-label').textContent = remoteModelingJob?.status === 'SUCCEEDED' && showCompleted ? '真实点云预览' : showCompleted ? '生成资产' : '生成前预览';
+        const localCharacterVolume = showCompleted
+            && remoteModelingJob?.status !== 'SUCCEEDED'
+            && currentKind === 'character'
+            && currentSample === 'uploaded';
+        document.getElementById('modeling-preview-label').textContent = remoteModelingJob?.status === 'SUCCEEDED' && showCompleted
+            ? '真实点云预览'
+            : localCharacterVolume ? '单图体积近似' : showCompleted ? '生成资产' : '生成前预览';
         syncGeneratedComparisonControls();
         appendModelingLog(showCompleted ? '已切回生成后资产视图。' : '已切到生成前参考态对比。');
     }
@@ -4598,7 +4818,12 @@
     function updateAssetLabel() {
         const suffix = currentSample === 'uploaded' ? 'upload' : currentSample;
         document.getElementById('modeling-asset-id').textContent = `local-${suffix}-${currentKind}`;
-        const generatedLabel = modelingFinished && modelingComparisonMode === 'after' ? '生成资产' : '网格预览';
+        const localCharacterVolume = modelingFinished
+            && modelingComparisonMode === 'after'
+            && currentKind === 'character'
+            && currentSample === 'uploaded';
+        const completedAssetLabel = localCharacterVolume ? '单图体积近似' : '生成资产';
+        const generatedLabel = modelingFinished && modelingComparisonMode === 'after' ? completedAssetLabel : '网格预览';
         const comparisonLabel = modelingFinished && modelingComparisonMode === 'before' ? '生成前预览' : generatedLabel;
         document.getElementById('modeling-preview-label').textContent = wireframeEnabled ? 'Wireframe Mesh' : comparisonLabel;
     }
@@ -4706,7 +4931,13 @@
                 mode: 'displaced-texture-relief',
                 embeddedTexture: true,
                 maskResolution: currentImageMaskSize,
-                segments: characterReliefMesh.geometry.userData.reliefProfile || null
+                segments: characterReliefMesh.geometry.userData.reliefProfile || null,
+                volumeShell: characterVolumeShell ? {
+                    mode: 'contour-volume',
+                    shellDepth: characterVolumeShell.userData.shellDepth,
+                    contourPoints: characterVolumeShell.userData.contourPoints,
+                    syntheticBackShell: true
+                } : null
             } : null,
             metrics: {
                 geometry: document.getElementById('metric-geometry').textContent,

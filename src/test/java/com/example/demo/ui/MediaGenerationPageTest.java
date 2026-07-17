@@ -339,12 +339,12 @@ class MediaGenerationPageTest {
 
         assertTrue(page.contains("function createCharacterSubjectTexture(completed)"));
         assertTrue(page.contains("function createCharacterSubjectMaskCanvas(mask, size, crop, width, height)"));
-        assertTrue(page.contains("function createCharacterDepthTexture(subjectCanvas, completed)"));
-        assertTrue(page.contains("function addCharacterDepthLayers(targetGroup, textureResult, width, height, completed)"));
+        assertTrue(page.contains("function extractCharacterAlphaContour(subjectCanvas, width, height, targetSegments)"));
+        assertTrue(page.contains("function addCharacterVolumeShell(targetGroup, textureResult, width, height, completed)"));
         assertTrue(page.contains("function addCharacterContactShadow(targetGroup)"));
-        assertTrue(page.contains("addCharacterDepthLayers(relief, textureResult, width, height, completed);"));
+        assertTrue(page.contains("addCharacterVolumeShell(relief, textureResult, width, height, completed);"));
         assertTrue(page.contains("addCharacterContactShadow(relief);"));
-        assertTrue(page.contains("relief.rotation.y = completed ? -0.065 : -0.025;"));
+        assertTrue(page.contains("relief.rotation.y = completed ? -0.24 : -0.06;"));
         assertTrue(page.contains("fitModelPreviewBounds(3.12);"));
         assertTrue(page.contains("const size = 192;"));
         assertTrue(page.contains("const maxHorizontalGap = Math.max(10, Math.round(size * 0.1));"));
@@ -354,6 +354,8 @@ class MediaGenerationPageTest {
         assertFalse(page.contains("const plateGeometry = new THREE.ExtrudeGeometry(createImageDrivenShape(),"));
         assertFalse(page.contains("function addCleanCharacterReliefEdge"));
         assertFalse(page.contains("人物浅浮雕体"));
+        assertFalse(page.contains("function addCharacterDepthLayers"));
+        assertFalse(page.contains("人物轮廓深度层"));
         assertFalse(page.contains("addGeneratedReliefLayers"));
         assertFalse(page.contains("modeling-contour-layer"));
         assertFalse(page.contains("const count = completed ? 680 : 72;"));
@@ -392,6 +394,30 @@ class MediaGenerationPageTest {
         assertTrue(page.contains("结构化点采样 · 本地生成"));
         assertTrue(page.contains("reliefSurface: currentKind === 'character'"));
         assertFalse(page.contains("const frontGeometry = new THREE.PlaneGeometry(width, height, 1, 1);"));
+    }
+
+    @Test
+    void modelingDemoCharacterPreviewShouldBuildContourVolumeInsteadOfStackedPlanes() throws Exception {
+        String page = Files.readString(Path.of("src/main/resources/static/modeling-demo.html"));
+
+        assertTrue(page.contains("let characterVolumeShell = null;"));
+        assertTrue(page.contains("function getCharacterVolumeProfile(completed)"));
+        assertTrue(page.contains("function createCharacterVolumeShape(contour)"));
+        assertTrue(page.contains("function characterVolumeDepthFactor(x, y, bounds)"));
+        assertTrue(page.contains("function createCharacterSideWallGeometry(contour, profile)"));
+        assertTrue(page.contains("function createCharacterBackShell(shape, profile)"));
+        assertTrue(page.contains("const ringCount = profile.shellRings;"));
+        assertTrue(page.contains("const pointDepth = profile.shellDepth * characterVolumeDepthFactor(point.x, point.y, bounds);"));
+        assertTrue(page.contains("geometry.setIndex(indices);"));
+        assertTrue(page.contains("geometry.computeVertexNormals();"));
+        assertTrue(page.contains("backGeometry.computeVertexNormals();"));
+        assertTrue(page.contains("sideWall.name = '人物轮廓体积侧壁';"));
+        assertTrue(page.contains("backShell.name = '人物合成背壳';"));
+        assertTrue(page.contains("sideWall.userData.isCharacterVolumeShell = true;"));
+        assertTrue(page.contains("shellDepth: characterVolumeShell.userData.shellDepth"));
+        assertTrue(page.contains("document.getElementById('metric-consistency').textContent = '单视角近似';"));
+        assertTrue(page.contains("? '单图体积近似' : '生成资产'"));
+        assertTrue(page.contains("new THREE.DirectionalLight(0x94a3b8, 0.72)"));
     }
 
     @Test
